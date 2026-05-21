@@ -1,0 +1,55 @@
+name: Playwright Tests
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r NJDOT_EPermitting_System/requirements.txt
+        pip install -r Staff_Portal_EPermitting_System/requirements.txt
+        
+    - name: Ensure browsers are installed
+      run: python -m playwright install --with-deps chromium
+      
+    - name: Run Staff Portal Tests
+      run: |
+        cd Staff_Portal_EPermitting_System
+        python -m pytest -n 4 --reruns 2 -v --html=reports/staff_portal_report.html
+      continue-on-error: true
+        
+    - name: Run NJDOT Tests
+      run: |
+        cd NJDOT_EPermitting_System
+        python -m pytest -n 4 --reruns 2 -v --html=reports/njdot_report.html
+      continue-on-error: true
+
+    - name: Upload Staff Portal Test Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: staff-portal-playwright-report
+        path: Staff_Portal_EPermitting_System/reports/
+        retention-days: 14
+
+    - name: Upload NJDOT Test Report
+      uses: actions/upload-artifact@v4
+      with:
+        name: njdot-playwright-report
+        path: NJDOT_EPermitting_System/reports/
+        retention-days: 14
