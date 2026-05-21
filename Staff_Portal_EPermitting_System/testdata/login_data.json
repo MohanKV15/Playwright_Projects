@@ -1,0 +1,18 @@
+{
+  "valid_users": [
+    {
+      "email": "sprabhu@bemsys.com",
+      "password": "Security@#"
+    }
+  ],
+  "invalid_users": [
+    {
+      "email": "sprabhu@bemsys.com",
+      "password": "WrongPassword123!"
+    },
+    {
+      "email": "nonexistent@bemsys.com",
+      "password": "Security@#"
+    }
+  ]
+}
