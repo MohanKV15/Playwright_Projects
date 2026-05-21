@@ -1,0 +1,15 @@
+{
+  "professional": {
+    "url": "https://u-njhtcp.bemcorp.net/Accounts/Account/Account",
+    "email": "mohang@ai-inter.com",
+    "password": "Security@#"
+  },
+  "invalid_login": {
+    "email": "wrong@email.com",
+    "password": "wrongpassword"
+  },
+  "empty_login": {
+    "email": "",
+    "password": ""
+  }
+}
