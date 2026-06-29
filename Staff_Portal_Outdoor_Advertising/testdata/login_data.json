@@ -1,0 +1,20 @@
+{
+  "valid_users": [
+    {
+      "email": "sprabhu@bemsys.com",
+      "password": "Security@#"
+    }
+  ],
+  "invalid_users": [
+    {
+      "email": "sprabhu@bemsys.com",
+      "password": "WrongPassword123!",
+      "expected_error": "You have entered an invalid username or password. Please correct before proceeding"
+    },
+    {
+      "email": "nonexistent@bemsys.com",
+      "password": "Security@#",
+      "expected_error": "You have entered an invalid username or password. Please correct before proceeding"
+    }
+  ]
+}

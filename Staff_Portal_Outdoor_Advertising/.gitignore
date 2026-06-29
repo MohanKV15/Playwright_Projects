@@ -1,0 +1,7 @@
+.auth/
+.pytest_cache/
+reports/
+__pycache__/
+*.pyc
+temp_form.html
+*Documentation.pdf
