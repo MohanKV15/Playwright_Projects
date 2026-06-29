@@ -139,8 +139,6 @@ class StreetIntersectionPage(GeneralInformationPage):
         # --------------------
         
         self._wait_for_loader()
-        
-
 
     def verify_success(self):
         """

@@ -32,7 +32,28 @@ if str(PARENT_DIR) not in sys.path:
 
 from NJDOT_EPermitting_System.pages.login import LoginPage
 from NJDOT_EPermitting_System.pages.submit_application.permit_major_page import PermitMajorPage
+from NJDOT_EPermitting_System.core.base_page import BasePage
 from uuid import uuid4
+
+
+def pytest_configure(config):
+    """
+    Cleans up old lock and user state files on the master process
+    before worker processes are spawned, ensuring fresh logins.
+    """
+    if not hasattr(config, "workerinput"):
+        lock_file = PROJECT_ROOT / ".pytest_cache" / "session.lock"
+        if lock_file.exists():
+            try:
+                lock_file.unlink()
+            except Exception:
+                pass
+        
+        if AUTH_STATE_PATH.exists():
+            try:
+                AUTH_STATE_PATH.unlink()
+            except Exception:
+                pass
 
 
 def _cleanup_debug_artifacts() -> None:
@@ -186,25 +207,64 @@ def auth_storage_state_path(playwright, shared_browser):
     credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
     email = os.getenv("NJHT_EMAIL") or credentials.get("email")
     password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
-    # Use a worker-specific storage_state file when running under xdist so
-    # parallel workers do not trample a single shared file.
-    worker = os.getenv("PYTEST_XDIST_WORKER", "gw0")
-    auth_state_path = AUTH_DIR / f"auth_state_{worker}.json"
+    
+    # We use a single shared auth state path
+    auth_state_path = AUTH_STATE_PATH
 
-    context = _build_context(shared_browser)
-    page = context.new_page()
-    _add_zoom_script(page)
+    # Create a project-level lock file
+    root_tmp_dir = PROJECT_ROOT / ".pytest_cache"
+    root_tmp_dir.mkdir(exist_ok=True)
+    lock_file = root_tmp_dir / "session.lock"
 
-    login_page = LoginPage(page)
-    login_page.goto(credentials["url"])
-    login_page.login(email, password)
-    login_page.wait_for_dashboard(timeout=30000)
+    def perform_fresh_login():
+        print(f"\n[AUTH] Worker {os.getenv('PYTEST_XDIST_WORKER', 'gw0')} performing fresh physical login...")
+        context = _build_context(shared_browser)
+        page = context.new_page()
+        _add_zoom_script(page)
 
-    context.storage_state(path=str(auth_state_path))
-    context.close()
-    # keep browser lifecycle to other fixtures; do not close here to allow reuse
+        login_page = LoginPage(page)
+        login_page.goto(credentials["url"])
+        login_page.login(email, password)
+        login_page.wait_for_dashboard(timeout=30000)
 
-    return str(auth_state_path)
+        context.storage_state(path=str(auth_state_path))
+        context.close()
+        return auth_state_path
+
+    # --- CROSS-WORKER SYNCHRONIZATION (Native Python) ---
+    if os.getenv("PYTEST_XDIST_WORKER"):
+        lock_acquired = False
+        try:
+            fd = os.open(str(lock_file), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+            os.close(fd)
+            lock_acquired = True
+            print(f"\n[LOCK] Worker {os.getenv('PYTEST_XDIST_WORKER')} acquired the master lock.")
+        except FileExistsError:
+            pass
+
+        if lock_acquired:
+            try:
+                perform_fresh_login()
+                return str(auth_state_path)
+            finally:
+                pass
+        else:
+            print(f"\n[LOCK] Worker {os.getenv('PYTEST_XDIST_WORKER')} waiting for session state...")
+            import time
+            timeout = 120
+            start_time = time.time()
+            while not auth_state_path.exists() or auth_state_path.stat().st_size == 0:
+                if time.time() - start_time > timeout:
+                    raise TimeoutError("Timed out waiting for master worker to create session state.")
+                time.sleep(2)
+            time.sleep(1)
+            return str(auth_state_path)
+    else:
+        # Standard serial execution
+        if auth_state_path.exists() and auth_state_path.stat().st_size > 0:
+            return str(auth_state_path)
+        perform_fresh_login()
+        return str(auth_state_path)
 
 @pytest.fixture(scope="function")
 def page(shared_browser):
@@ -213,8 +273,6 @@ def page(shared_browser):
 
     page = context.new_page()
     _add_zoom_script(page)
-
-
 
     yield page
     context.close()
@@ -248,8 +306,36 @@ def authenticated_page(shared_browser: Browser, request, auth_storage_state_path
     page = context.new_page()
     _add_zoom_script(page)
 
-    # LOGIN is now handled by storage_state in the context.
-    # The `ensure_clean_dashboard` fixture will handle navigation to the dashboard.
+    # Try navigating to the dashboard URL first with retries to handle transient lag spikes.
+    for attempt in range(2):
+        try:
+            page.goto(BasePage.DASHBOARD_URL, timeout=45000, wait_until="domcontentloaded")
+            break
+        except Exception as e:
+            if attempt == 1:
+                raise e
+            print(f"\n[WARNING] Attempt {attempt+1} to load dashboard failed. Retrying in worker {worker_id}...")
+            page.wait_for_timeout(2000)
+    
+    login_page = LoginPage(page)
+    try:
+        # Wait up to 5 seconds to see if the login email input or button becomes visible
+        page.locator("#Email, #btnAccountLogin").first.wait_for(state="visible", timeout=5000)
+    except Exception:
+        pass
+
+    if login_page.email_input.is_visible():
+        print(f"\n[SELF-HEALING] Session expired or invalid for Worker {worker_id}. Performing fresh login...")
+        credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
+        email = os.getenv("NJHT_EMAIL") or credentials.get("email")
+        password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
+        
+        login_page.goto(credentials["url"])
+        login_page.login(email, password)
+        login_page.wait_for_dashboard(timeout=30000)
+        
+        # Update the storage state
+        context.storage_state(path=auth_storage_state_path)
 
     yield page
 
@@ -266,113 +352,7 @@ def authenticated_page(shared_browser: Browser, request, auth_storage_state_path
         context.tracing.stop()
 
     context.close()
-# @pytest.fixture(scope="function")
-# def authenticated_page(shared_browser, request):
-#     context = _build_context(shared_browser)
 
-#     from pathlib import Path
-#     import time
-#     import os
-
-#     # ---------- TRACE SETUP ----------
-#     test_name = request.node.name
-#     worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
-
-#     trace_dir = Path("reports/debug_artifacts")
-#     trace_dir.mkdir(parents=True, exist_ok=True)
-
-#     # Remove old trace for same test
-#     for old_file in trace_dir.glob(f"{test_name}_*.zip"):
-#         try:
-#             old_file.unlink()
-#         except Exception:
-#             pass
-
-#     timestamp = int(time.time())
-#     trace_path = trace_dir / f"{test_name}_{worker_id}_{timestamp}.zip"
-
-#     # ---------- START TRACE ----------
-#     context.tracing.start(
-#         screenshots=True,
-#         snapshots=True,
-#         sources=True
-#     )
-
-#     page = context.new_page()
-#     _add_zoom_script(page)
-
-#     # ---------- LOGIN ----------
-#     credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
-
-#     email = os.getenv("NJHT_EMAIL") or credentials.get("email")
-#     password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
-
-#     login_page = LoginPage(page)
-#     login_page.goto(credentials["url"])
-#     login_page.login(email, password)
-#     login_page.wait_for_dashboard(timeout=30000)
-
-#     yield page
-
-#     # ---------- STOP TRACE ----------
-#     try:
-#         if hasattr(request.node, "rep_call") and request.node.rep_call.failed:
-#             context.tracing.stop(path=str(trace_path))
-#         else:
-#             context.tracing.stop()
-#     except Exception:
-#         context.tracing.stop()
-
-#     context.close()    
-# @pytest.fixture(scope="function")
-# def authenticated_page(shared_browser, request):
-#     context = _build_context(shared_browser)
-
-#     from pathlib import Path
-
-#     # ---------- TRACE SETUP ----------
-#     test_name = request.node.name
-#     trace_dir = Path("reports/debug_artifacts")
-#     trace_dir.mkdir(parents=True, exist_ok=True)
-#     trace_path = trace_dir / f"{test_name}.zip"
-
-#     # ---------- START TRACE ----------
-#     context.tracing.start(
-#         screenshots=True,
-#         snapshots=True,
-#         sources=True
-#     )
-
-#     page = context.new_page()
-#     _add_zoom_script(page)
-
-#     # ---------- LOGIN ----------
-#     credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
-
-#     email = os.getenv("NJHT_EMAIL") or credentials.get("email")
-#     password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
-
-#     login_page = LoginPage(page)
-#     login_page.goto(credentials["url"])
-#     login_page.login(email, password)
-#     login_page.wait_for_dashboard(timeout=30000)
-
-#     yield page
-
-#     # ---------- SAFE TRACE STOP ----------
-#     try:
-#         failed = hasattr(request.node, "rep_call") and request.node.rep_call.failed
-
-#         if failed:
-#             context.tracing.stop(path=str(trace_path))
-#             print(f"❌ Trace saved: {trace_path}")
-#         else:
-#             context.tracing.stop()
-
-#     except Exception as e:
-#         print(f"❌ Trace error: {e}")
-
-#     context.close()
 
 @pytest.fixture(scope="function")
 def unique_test_id():

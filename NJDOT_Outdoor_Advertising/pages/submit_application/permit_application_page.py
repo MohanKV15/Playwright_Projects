@@ -1,7 +1,7 @@
 import re
 import logging
 from playwright.sync_api import Page, expect
-from pages.base_page import BasePage
+from pages.core.base_page import BasePage
 
 logger = logging.getLogger(__name__)
 

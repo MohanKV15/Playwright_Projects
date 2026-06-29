@@ -137,7 +137,6 @@ class AdministrativePage(GeneralInformationPage):
                 self.dispatch_bubble_click(save_btn)
         except Exception:
             pass
-        # --------------------
         
         self._wait_for_loader()
         

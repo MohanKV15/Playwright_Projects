@@ -93,7 +93,8 @@ class HighwayOccupancyPage(GeneralInformationPage):
         
         # 4. Date Selection
         self.date_picker_btn.click()
-        self.page.get_by_role("link", name="10", exact=True).click()
+        self.page.locator(".k-calendar td:not(.k-other-month)") \
+            .get_by_role("link", name="10", exact=True).click(force=True)
         
         # 5. Utility Companies
         self.utility_companies_input.click()

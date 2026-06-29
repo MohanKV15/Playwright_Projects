@@ -132,8 +132,6 @@ class LotConsolidationPage(GeneralInformationPage):
         
         self._wait_for_loader()
         
-
-
     def verify_success(self):
         """
         Verify successful navigation to details page.

@@ -8,6 +8,8 @@ from NJDOT_EPermitting_System.pages.submit_application.erection_pole_page import
 from NJDOT_EPermitting_System.pages.submit_application.lot_consolidation_subdivision_page import LotConsolidationSubdivisionPage
 from NJDOT_EPermitting_System.pages.submit_application.utility_opening_page import UtilityOpeningPage
 from NJDOT_EPermitting_System.pages.submit_application.bridge_attachment_page import BridgeAttachmentPage
+from NJDOT_EPermitting_System.pages.submit_application.letter_interest_page import LetterInterestPage
+from NJDOT_EPermitting_System.pages.submit_application.preapplication_meeting_page import PreApplicationMeetingPage
 
 __all__ = [
     "PermitMajorPage",
@@ -20,4 +22,6 @@ __all__ = [
     "BridgeAttachmentPage",
     "MinorAccessPage",
     "MajorPlanningPage",
-]   
+    "LetterInterestPage",
+    "PreApplicationMeetingPage",
+]

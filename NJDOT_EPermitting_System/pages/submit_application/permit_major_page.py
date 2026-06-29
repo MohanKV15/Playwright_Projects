@@ -452,28 +452,29 @@ class PermitMajorPage(BasePage):
         self.logger.info("Block and Lot filled and registered: %s, %s", block_value, lot_value)
 
         # Step 7: Save location row using Update.
-        update_btn = location_div.locator(".k-grid-update")
-        try:
-            update_count = update_btn.count()
-        except Exception:
-            update_count = 0
-        if update_count > 0:
-            update_btn.wait_for(state="visible", timeout=10000)
+        update_btn = location_div.locator(".k-grid-update").first
+        
+        # We check visibility directly rather than just count, as the button may be hidden
+        if update_btn.is_visible():
             update_btn.scroll_into_view_if_needed()
             
             # Click Update and wait for the row to exit edit mode
             for _ in range(3):
+                if not update_btn.is_visible():
+                    break
                 try:
-                    update_btn.first.evaluate("el => el.click()")
+                    update_btn.evaluate("el => el.click()")
                 except Exception:
-                    self._scroll_and_click(update_btn, timeout_ms=5000)
+                    try:
+                        # Use a very short timeout since we already verified it's visible,
+                        # and if it became hidden, we don't want to wait 5 seconds.
+                        self._scroll_and_click(update_btn, timeout_ms=1000)
+                    except Exception:
+                        pass
                 self.page.wait_for_timeout(1000)
-                # If Update button is gone, the save succeeded
-                try:
-                    update_count = update_btn.count()
-                except Exception:
-                    update_count = 0
-                if update_count == 0:
+                
+                # If Update button is gone or hidden, the save succeeded
+                if not update_btn.is_visible():
                     break
                 self.logger.warning("Update button still visible; retrying save...")
 

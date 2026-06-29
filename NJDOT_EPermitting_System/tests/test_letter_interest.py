@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from faker import Faker
 
-from NJDOT_EPermitting_System.pages.submit_application.drainage_page import DrainagePage
+from NJDOT_EPermitting_System.pages.submit_application.letter_interest_page import LetterInterestPage
 from NJDOT_EPermitting_System.pages.dashboard_page import DashboardPage
 from NJDOT_EPermitting_System.pages.payment_page import PaymentPage
 from NJDOT_EPermitting_System.utils.json_reader import load_json
@@ -16,7 +16,7 @@ TEST_DATA_PATH = PROJECT_ROOT / "testdata" / "login_data.json"
 data = load_json(str(TEST_DATA_PATH))
 
 faker = Faker()
-logger = logging.getLogger("test_drainage")
+logger = logging.getLogger("test_letter_interest")
 
 
 def _build_owner_info() -> dict:
@@ -33,54 +33,53 @@ def _build_owner_info() -> dict:
 
 
 @pytest.mark.authenticated
-@pytest.mark.order(11)
+@pytest.mark.order(14)
 @ensure_valid_session
 @handle_payment_test(
     allow_skips_for=["gateway_error", "timeout", "payment_failed", "administrator"]
 )
-def test_drainage(authenticated_page):
+def test_letter_interest(authenticated_page):
     script_name = Path(__file__).stem
     dashboard = DashboardPage(authenticated_page, script_name=script_name)
+    dashboard.wait_for_dashboard_to_load()
+    dashboard.assert_dashboard_url()
+    logger.info("Authenticated dashboard loaded.")
+
+    # Step 1: Click Submit Application Tile
     dashboard.click_submit_application()
 
-    page = DrainagePage(authenticated_page, script_name=script_name)
+    page = LetterInterestPage(authenticated_page, script_name=script_name)
     page.assert_applications_page_loaded()
 
-    # Select Drainage application
-    page.select_drainage()
+    # Step 2: Select Letter of No Interest and enter application form
+    page.select_letter_interest()
     page.click_apply_button()
-    page.assert_drainage_page_loaded()
+    page.assert_letter_interest_page_loaded()
 
-    # Fill applicant information
+    # Step 3: Build and fill Owner/Applicant Information
     owner_info = _build_owner_info()
     page.fill_owner_info(owner_info)
+
+    # Step 4: Upload Authorization Certificate (inherited)
     page.upload_authorization_certificate()
 
-    # Fill location information
+    # Step 5: Fill Location Information
     page.fill_location_information()
+    page.fill_land_use_information()
+    page.fill_spacing_information()
 
-    # Permit information
-    page.fill_permit_information()
+    # Step 6: Fill Lot/Development/Frontage Information
+    page.fill_lot_development_frontage_information()
 
-    # Upload required attachments
-    page.upload_drainage_attachments()
+    # Step 7: Upload LONI Attachments (Letter of No Interest + Checklist)
+    page.upload_loni_attachments()
 
-    # Upload required attachments and check acknowledgement
+    # Step 8: Fill Remaining Required Fields (representative, acknowledgment)
     page.fill_remaining_required_fields()
 
-    # Continue to payment
-    page.ensure_continue_to_payment_ready(timeout_ms=45000)
-    page.click_continue_to_payment()
+    # Step 9: Click Submit Request
+    page.click_submit_request()
 
-    # Payment flow
-    payment = PaymentPage(page.page)
-    payment.select_credit_debit_card()
-    payment.fill_customer_information()
-    payment.fill_card_details()
-    payment.submit_payment()
-    payment.verify_payment_success()
-
-    # Return to dashboard
-    page.click_return_home_and_assert_dashboard()
-
-    logger.info("Drainage application flow completed.")
+    # Step 10: Handle success popup (click OK and verify dashboard redirect)
+    page.handle_success_popup()
+    logger.info("Letter of No Interest application flow completed successfully.")

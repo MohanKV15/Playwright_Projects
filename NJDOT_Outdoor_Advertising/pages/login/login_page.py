@@ -1,5 +1,5 @@
 import logging
-from pages.base_page import BasePage
+from pages.core.base_page import BasePage
 from utils.config import Config
 
 logger = logging.getLogger(__name__)

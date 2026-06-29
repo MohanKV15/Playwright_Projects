@@ -24,70 +24,39 @@ class UtilityOpeningPage(PermitMajorPage):
 
     # ---------- ADDITIONAL DETAILS ----------
     def fill_additional_details(self):
-        # Select today or tomorrow date for both fields
-        self._select_kendo_date(selector="span[aria-controls='workStartDate_dateview']")
-        self._select_kendo_date(selector="span[aria-controls='EOPWorktobecompletedBy_dateview']")
+        # Select tomorrow's date for both fields to avoid past date validations
+        tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%m/%d/%Y")
+        self._set_kendo_date_value("workStartDate", tomorrow_str)
+        self._set_kendo_date_value("EOPWorktobecompletedBy", tomorrow_str)
 
         self.page.locator("#ROPLocation").fill("testing purpose")
 
-    # ---------- REUSABLE KENDO DATE PICKER (FIXED) ----------
-    def _select_kendo_date(self, selector: str = None, index: int = None):
-        """
-        Robust Kendo date picker handler.
-        Selects today's date if valid (not disabled); otherwise selects tomorrow's date.
-        """
-        # Open calendar
-        if selector:
-            self.page.locator(selector).click()
-        elif index is not None:
-            self.page.get_by_role("button", name="select").nth(index).click()
-        else:
-            raise ValueError("Either selector or index must be provided")
-
-        # Wait for visible calendar
-        calendar = self.page.locator(".k-calendar:visible").first
-        calendar.wait_for(state="visible", timeout=10000)
-
-        # Wait for calendar content/cells to be rendered
-        calendar.locator("td:not(.k-other-month) a.k-link").first.wait_for(state="visible", timeout=5000)
-
-        # Calculate today and tomorrow
-        today = datetime.now()
-        tomorrow = today + timedelta(days=1)
-
-        today_day = str(today.day)
-        tomorrow_day = str(tomorrow.day)
-
-        # Try to select today's date (must not be other month and must not be disabled)
-        today_cell = calendar.locator("td:not(.k-other-month):not(.k-state-disabled)").get_by_role("link", name=today_day, exact=True)
-
-        if today_cell.count() > 0:
-            try:
-                today_cell.first.click(timeout=5000)
-                return
-            except Exception:
-                # Try force click if standard click fails
-                try:
-                    today_cell.first.click(force=True, timeout=5000)
-                    return
-                except Exception:
-                    pass
-
-        # If today is disabled or not found, select tomorrow
-        if tomorrow.month != today.month:
-            # Click next month button in calendar
-            next_btn = calendar.locator(".k-nav-next")
-            next_btn.wait_for(state="visible", timeout=5000)
-            next_btn.click()
-            # Wait for calendar content to refresh
-            self.page.wait_for_timeout(500)
-
-        tomorrow_cell = calendar.locator("td:not(.k-other-month):not(.k-state-disabled)").get_by_role("link", name=tomorrow_day, exact=True)
-        tomorrow_cell.first.wait_for(state="visible", timeout=10000)
-        try:
-            tomorrow_cell.first.click(timeout=5000)
-        except Exception:
-            tomorrow_cell.first.click(force=True)
+    def _set_kendo_date_value(self, input_id: str, value: str):
+        """Set a Kendo DatePicker value directly using JavaScript to avoid flaky calendar UI clicks."""
+        self.logger.info(f"Setting Kendo DatePicker {input_id} to {value}")
+        input_locator = self.page.locator(f"#{input_id}")
+        input_locator.wait_for(state="attached", timeout=15000)
+        self.page.evaluate(
+            """
+            ({ id, value }) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (window.jQuery) {
+                    const dp = window.jQuery(el).data('kendoDatePicker');
+                    if (dp) {
+                        dp.value(value);
+                        dp.trigger('change');
+                        return;
+                    }
+                }
+                el.value = value;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('blur', { bubbles: true }));
+            }
+            """,
+            {"id": input_id, "value": value},
+        )
 
     # ---------- DIMENSIONS ----------
     def add_dimensions(self):

@@ -36,18 +36,40 @@ class ErectionPolePage(PermitMajorPage):
         self.page.get_by_role("textbox", name="Voltage not to exceed").fill("123")
 
     def select_today_date(self):
-        # Open calendar
-        self.page.get_by_role("button", name="select").click()
-
-        day = str(datetime.now().day)
-
-        self.page.locator(".k-calendar td:not(.k-other-month)") \
-        .get_by_role("link", name=day, exact=True).click()
-
-        # Continue remaining fields
+        from datetime import timedelta
+        tomorrow_str = (datetime.now() + timedelta(days=1)).strftime("%m/%d/%Y")
+        
+        self._set_kendo_date_value("EOPWorktobecompletedBy", tomorrow_str)
  
         self.page.get_by_role("textbox", name="Attached Utility Compan").fill("testing purpose")
         self.page.get_by_role("textbox", name="Attached Appurtenance").fill("testing purpose")
+
+    def _set_kendo_date_value(self, input_id: str, value: str):
+        """Set a Kendo DatePicker value directly using JavaScript to avoid flaky calendar UI clicks."""
+        self.logger.info(f"Setting Kendo DatePicker {input_id} to {value}")
+        input_locator = self.page.locator(f"#{input_id}")
+        input_locator.wait_for(state="attached", timeout=15000)
+        self.page.evaluate(
+            """
+            ({ id, value }) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (window.jQuery) {
+                    const dp = window.jQuery(el).data('kendoDatePicker');
+                    if (dp) {
+                        dp.value(value);
+                        dp.trigger('change');
+                        return;
+                    }
+                }
+                el.value = value;
+                el.dispatchEvent(new Event('input', { bubbles: true }));
+                el.dispatchEvent(new Event('change', { bubbles: true }));
+                el.dispatchEvent(new Event('blur', { bubbles: true }));
+            }
+            """,
+            {"id": input_id, "value": value},
+        )
 
     def upload_erection_pole_attachments(self):
         """Upload required file and complete final required acknowledgements."""
