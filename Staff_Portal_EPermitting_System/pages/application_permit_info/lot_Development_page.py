@@ -50,10 +50,10 @@ class LotDevelopmentPage(BasePage):
         
         # Package & Email Selectors
         self.create_package_button = page.get_by_role("button", name="Create Package")
-        self.select_attachments_title = page.get_by_text("Select Attachments for Permit")
+        self.select_attachments_title = page.locator(".k-window-title:visible").get_by_text("Select Attachments for Permit")
         self.first_attachment_checkbox = page.locator(".k-window:visible input[type='checkbox'], [role='dialog']:visible input[type='checkbox']").first
         self.select_attachments_confirm_button = page.get_by_role("button", name="Select Attachments")
-        self.package_created_message = page.get_by_text("Your document package is")
+        self.package_created_message = page.locator(".k-window:visible, [role='dialog']:visible").get_by_text("Your document package is")
         self.ok_button = page.get_by_role("button", name="OK")
         
         self.send_email_button = page.get_by_role("button", name="Send Email")
