@@ -40,7 +40,7 @@ class ConformanceGenerationPage(BasePage):
         
         # Package Selectors
         self.create_package_button = page.get_by_role("button", name="Create Package")
-        self.select_attachments_title = page.locator(".k-window-title:visible").get_by_text("Select Attachments for Permit")
+        self.select_attachments_title = page.locator(".k-window-title:visible").filter(has_text=re.compile("Select Attachments", re.I)).first
         self.first_attachment_checkbox = page.locator(".k-window:visible input[type='checkbox'], [role='dialog']:visible input[type='checkbox']").first
         self.select_attachments_confirm_button = page.get_by_role("button", name="Select Attachments")
         self.package_created_message = page.locator(".k-window:visible, [role='dialog']:visible").get_by_text("Your document package is")
@@ -137,7 +137,13 @@ class ConformanceGenerationPage(BasePage):
         
         # Set file input
         self.file_input.set_input_files(file_path)
-        self.page.wait_for_timeout(1000)
+        
+        # Wait up to 10s for the Kendo upload file element to indicate completion
+        try:
+            self.page.locator(".k-upload-files .k-file-success, .k-upload-files li.k-file").first.wait_for(state="visible", timeout=10000)
+            logger.info("File upload success indicator detected in DOM.")
+        except Exception:
+            self.page.wait_for_timeout(3000)
         
         # Fill text inputs
         self.js_click(self.subject_input)
@@ -181,6 +187,7 @@ class ConformanceGenerationPage(BasePage):
     def create_package_and_verify(self) -> None:
         """Clicks Create Package, checks the first attachment, and verifies document package creation."""
         logger.info("Creating package from attachments.")
+        # Click Create Package and verify attachments window opens
         self.js_click(self.create_package_button)
         expect(self.select_attachments_title).to_be_visible(timeout=15000)
         
