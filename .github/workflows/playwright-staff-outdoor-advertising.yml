@@ -1,0 +1,51 @@
+name: Staff Portal Outdoor Advertising Tests
+
+on:
+  push:
+    branches: [ main, master ]
+    paths:
+      - 'Staff_Portal_Outdoor_Advertising/**'
+  pull_request:
+    branches: [ main, master ]
+    paths:
+      - 'Staff_Portal_Outdoor_Advertising/**'
+  workflow_dispatch:
+
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./Staff_Portal_Outdoor_Advertising
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+        cache-dependency-path: Staff_Portal_Outdoor_Advertising/requirements.txt
+        
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        
+    - name: Ensure browsers are installed
+      run: python -m playwright install --with-deps chromium
+      
+    - name: Run Playwright tests
+      run: xvfb-run python -m pytest -n 4 --reruns 2 -v
+      continue-on-error: true
+      
+    - name: Upload HTML report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: playwright-report-staff-outdoor-advertising
+        path: Staff_Portal_Outdoor_Advertising/reports/
+        retention-days: 14

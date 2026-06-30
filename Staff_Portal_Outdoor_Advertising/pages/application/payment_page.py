@@ -72,13 +72,32 @@ class PaymentsPage(BasePage):
         # Try to select the first valid choice at index 1, otherwise fallback to index 0.
         if options.count() > 1:
             logger.info("Selecting first valid option (index 1) in Kendo dropdown")
-            options.nth(1).click()
+            self.js_click(options.nth(1))
         else:
             logger.info("Selecting option (index 0) in Kendo dropdown")
-            options.nth(0).click()
+            self.js_click(options.first)
         self.page.wait_for_load_state("networkidle")
-        self.page.wait_for_timeout(1500)
+        self.page.wait_for_timeout(1000)
         self._wait_for_loader()
+
+    def set_all_datefields_to_current(self) -> None:
+        """Sets all Kendo DatePickers on the page directly to the current date via JavaScript."""
+        current_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
+        logger.info(f"JS Injecting current date: '{current_date_str}' to all active datepicker widgets.")
+        self.page.evaluate(f"""
+            () => {{
+                $('input[data-role="datepicker"]').each(function() {{
+                    var dp = $(this).data("kendoDatePicker");
+                    if (dp) {{
+                        dp.value("{current_date_str}");
+                        dp.trigger("change");
+                    }} else {{
+                        $(this).val("{current_date_str}");
+                    }}
+                }});
+            }}
+        """)
+        self.page.wait_for_timeout(500)
 
     def select_current_date(self, picker_index: int) -> None:
         """Opens the date picker at the given index and selects the current day (focused/today's date)."""
@@ -155,9 +174,6 @@ class PaymentsPage(BasePage):
         expect(self.refund_details_heading).to_be_visible(timeout=10000)
         expect(self.date_picker_buttons.nth(3)).to_be_visible(timeout=10000)
         
-        # 7. Select current day in the calendar (index 3)
-        self.select_current_date(3)
-        
         # 8. Fill Payable to, Refund Check #
         logger.info("Filling Refund details inputs")
         self.js_click(self.refund_payable_to_input)
@@ -165,6 +181,9 @@ class PaymentsPage(BasePage):
         
         self.js_click(self.refund_check_num_input)
         self.refund_check_num_input.fill(str(self.fake.random_number(digits=6)))
+        
+        # Set all date fields to current date via JS injection
+        self.set_all_datefields_to_current()
         
         # 9. Click Save
         logger.info("Saving the payment details")

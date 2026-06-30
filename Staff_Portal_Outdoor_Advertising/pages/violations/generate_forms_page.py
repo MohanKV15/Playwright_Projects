@@ -86,23 +86,13 @@ class ViolationGenerateFormsPage(BasePage):
         logger.info("Generate Forms tab headings and layout validated successfully.")
 
     def verify_records_visible(self) -> None:
-        """Verifies that form templates/records list is successfully visible in the grid."""
+        """Verifies that valid form templates/records list is successfully visible in the grid."""
         logger.info("Verifying that records are visible in the Generate Forms grid.")
-        rows = self.page.locator(".k-grid-content tbody tr, [role='grid'] tbody tr, tbody tr")
+        grid_rows = self.page.locator(".k-grid-content tbody tr, [role='grid'] tbody tr, tbody tr")
         
-        import time
-        timeout = 15.0
-        start_time = time.time()
+        # Filter out rows displaying placeholder/empty text to ensure we match only actual templates
+        valid_rows = grid_rows.filter(has_not=self.page.get_by_text("no records", exact=False))
         
-        found = False
-        while time.time() - start_time < timeout:
-            row_count = rows.count()
-            if row_count > 0:
-                first_row_text = rows.first.inner_text().strip()
-                if "no records" not in first_row_text.lower() and first_row_text:
-                    found = True
-                    break
-            self.page.wait_for_timeout(500)
-            
-        assert found, "No records/templates were found in the Generate Forms grid."
+        # Playwright auto-retry assertion makes this highly robust without explicit sleeps/polling loops
+        expect(valid_rows.first).to_be_visible(timeout=15000)
         logger.info("Successfully verified that form records are visible in the grid.")

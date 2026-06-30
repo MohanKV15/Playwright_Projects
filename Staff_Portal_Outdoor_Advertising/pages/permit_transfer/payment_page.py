@@ -67,6 +67,25 @@ class PermitTransferPaymentPage(BasePage):
         expect(self.payment_details_heading).to_be_visible(timeout=15000)
         expect(self.partial_form_details.first).to_be_visible(timeout=10000)
 
+    def set_all_datefields_to_current(self) -> None:
+        """Sets all Kendo DatePickers on the page directly to the current date via JavaScript."""
+        current_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
+        logger.info(f"JS Injecting current date: '{current_date_str}' to all active datepicker widgets.")
+        self.page.evaluate(f"""
+            () => {{
+                $('input[data-role="datepicker"]').each(function() {{
+                    var dp = $(this).data("kendoDatePicker");
+                    if (dp) {{
+                        dp.value("{current_date_str}");
+                        dp.trigger("change");
+                    }} else {{
+                        $(this).val("{current_date_str}");
+                    }}
+                }});
+            }}
+        """)
+        self.page.wait_for_timeout(500)
+
     def select_current_date(self, picker_index: int) -> None:
         """Opens the date picker at the given index and selects the current day."""
         logger.info(f"Selecting current date for date picker index {picker_index}")
@@ -145,9 +164,6 @@ class PermitTransferPaymentPage(BasePage):
         self.js_click(self.check_number_input)
         self.check_number_input.fill(check_number)
 
-        # Select Check Date (nth(2))
-        self.select_current_date(2)
-
         # Fill Comments (Faker)
         if not comments:
             comments = self.fake.sentence()
@@ -158,9 +174,6 @@ class PermitTransferPaymentPage(BasePage):
         # Expect details layout is fully visible
         expect(self.page.get_by_text("Payment Details Save Back")).to_be_visible(timeout=10000)
         expect(self.page.get_by_role("heading", name="Refund Details")).to_be_visible(timeout=10000)
-
-        # Select Refund Check Date (nth(3))
-        self.select_current_date(3)
 
         # Fill Payable to (Faker)
         if not payable_to:
@@ -175,6 +188,9 @@ class PermitTransferPaymentPage(BasePage):
         logger.info(f"Filling Refund Check #: {refund_check_number}")
         self.js_click(self.refund_check_input)
         self.refund_check_input.fill(refund_check_number)
+
+        # Set all date fields to today via JS injection
+        self.set_all_datefields_to_current()
 
     def save_payment(self) -> None:
         """Saves the payment details and verifies returned list grid layout."""
