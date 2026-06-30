@@ -83,6 +83,22 @@ class LotDevelopmentPage(BasePage):
         self.page.wait_for_timeout(1000)
         self._wait_for_loader()
 
+    def fill_kendo_numeric(self, input_id: str, value: str) -> None:
+        """Focuses the Kendo numeric text box and types the value dynamically using keyboard emulation."""
+        logger.info(f"Filling Kendo numeric input '{input_id}' with value '{value}'")
+        visible_input = self.page.locator(f"#{input_id}").locator("xpath=preceding-sibling::input").first
+        
+        # Click the visible Kendo numeric input element physically to trigger real focus & swap
+        visible_input.click()
+        self.page.wait_for_timeout(300)
+        
+        # Emulate select-all, delete, and type
+        self.page.keyboard.press("Control+A")
+        self.page.keyboard.press("Backspace")
+        self.page.keyboard.type(value)
+        self.page.keyboard.press("Tab")  # Focus out to trigger Kendo model validation
+        self.page.wait_for_timeout(200)
+
     def set_all_datefields_to_current(self) -> None:
         """Sets all active Kendo DatePickers to today's date via direct JS injection."""
         current_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
@@ -162,12 +178,12 @@ class LotDevelopmentPage(BasePage):
         self.js_click(self.add_spacing_button)
         expect(self.spacing_modal_title).to_be_visible(timeout=10000)
         
-        # Fill Lot Size & Lot Frontage using Kendo NumericTextBox API
-        self._set_kendo_numeric_value("lot_size", float(size))
-        self._set_kendo_numeric_value("lot_frontage", float(frontage))
+        # Fill Lot Size & Lot Frontage using focused inputs
+        self.fill_kendo_numeric("lot_size", size)
+        self.fill_kendo_numeric("lot_frontage", frontage)
         
         # Loop through all dropdown widgets inside spacing form and choose the 1st valid option
-        dropdowns = self.page.locator("#spacingformdiv span.k-dropdown, #spacingformdiv span[role='listbox']")
+        dropdowns = self.page.locator("#spacingformdiv span.k-dropdown:visible, #spacingformdiv span[role='listbox']:visible")
         count = dropdowns.count()
         logger.info(f"Found {count} dropdowns inside spacing form container. Cycling selections.")
         for i in range(count):
