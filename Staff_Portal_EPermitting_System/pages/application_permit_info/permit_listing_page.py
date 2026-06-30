@@ -24,14 +24,7 @@ class PermitListingPage(BasePage):
         # We dynamically select the first available `#gridEdit` to avoid hardcoding row names
         self.first_record_edit_button = page.locator("#gridEdit, a.k-grid-edit").first
 
-    def _wait_for_loader(self):
-        """Waits for the global loading spinner to disappear to prevent pointer interceptions."""
-        try:
-            # Increased to 60s because Staging server dashboards are abnormally slow
-            self.page.locator("#loader").wait_for(state="hidden", timeout=60000)
-            self.page.wait_for_timeout(500) # Buffer for JS execution
-        except Exception:
-            pass
+
 
     def navigate_to_permit_listing(self, dashboard_url="https://u-njhtsp.bemcorp.net/Home/Dashboard?MenuName=Dashboard"):
         """Navigates to the Dashboard origin and selects the Permit Listing utility from Sidebar."""

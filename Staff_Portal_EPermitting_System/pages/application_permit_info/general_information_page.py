@@ -20,24 +20,7 @@ class GeneralInformationPage(BasePage):
         # Modal Selectors
         self.modal_back_button = page.get_by_label("Link Permit").get_by_role("button", name=" Back")
 
-    def _wait_for_loader(self):
-        """
-        Robust synchronization:
-        1. Waits for the global '#loader' spinner.
-        2. Waits for Kendo UI '.k-overlay' (which often intercepts clicks).
-        """
-        try:
-            # Wait for main spinner to vanish
-            self.page.locator("#loader").wait_for(state="hidden", timeout=15000)
-            
-            # Wait for Kendo's blocking overlay to vanish
-            self.page.locator(".k-overlay").wait_for(state="hidden", timeout=15000)
-            
-            # Brief stability buffer
-            self.page.wait_for_timeout(500)
-        except Exception:
-            # If they aren't present, we continue
-            pass
+
 
     def update_block_and_lot(self, block: str, lot: str):
         """Fills block/lot and clicks update."""

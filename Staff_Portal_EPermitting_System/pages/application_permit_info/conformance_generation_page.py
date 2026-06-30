@@ -49,49 +49,7 @@ class ConformanceGenerationPage(BasePage):
         # Final layout check element
         self.final_log_container = page.locator("#LogDynGridLoad > #partial-form > .form-wrapper > .row > .col-md-12")
 
-    def _wait_for_loader(self, timeout=60000):
-        """Waits for the global loading spinner and blocking elements to disappear."""
-        try:
-            self.page.locator("#loader").wait_for(state="hidden", timeout=timeout)
-            self.page.locator(".k-overlay").wait_for(state="hidden", timeout=15000)
-            self.page.wait_for_timeout(500)
-        except Exception:
-            pass
 
-    def set_all_datefields_to_current(self) -> None:
-        """Sets all active Kendo DatePickers to today's date via direct JS injection."""
-        current_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
-        logger.info(f"JS Injecting current date: '{current_date_str}' to all active datepicker inputs.")
-        self.page.evaluate(f"""
-            () => {{
-                $('input[data-role="datepicker"]').each(function() {{
-                    var dp = $(this).data("kendoDatePicker");
-                    if (dp) {{
-                        dp.value("{current_date_str}");
-                        dp.trigger("change");
-                    }} else {{
-                        $(this).val("{current_date_str}");
-                    }}
-                }});
-            }}
-        """)
-        self.page.wait_for_timeout(500)
-
-    def select_today_in_calendar(self, trigger_button: Locator) -> None:
-        """Opens calendar datepicker and clicks the today/present link dynamically."""
-        logger.info("Clicking date picker calendar button.")
-        self.js_click(trigger_button)
-        self.page.wait_for_timeout(500)
-        today_day = str(datetime.datetime.now().day)
-        try:
-            today_link = self.page.locator(".k-calendar .k-today a, .k-calendar-view .k-today a, .k-today a, .k-state-today a, .k-calendar .k-state-selected a").first
-            self.js_click(today_link)
-            logger.info("Clicked today's date using Kendo today classes.")
-        except Exception:
-            day_link = self.page.locator(".k-calendar:visible, .k-calendar-container:visible").get_by_role("link", name=today_day, exact=True).first
-            self.js_click(day_link)
-            logger.info(f"Clicked day number link '{today_day}'.")
-        self.page.wait_for_timeout(500)
 
     def navigate_to_conformance(self) -> None:
         """Transitions to the Conformance/Trip Generation tab."""
