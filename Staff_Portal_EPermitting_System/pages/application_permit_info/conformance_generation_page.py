@@ -122,6 +122,7 @@ class ConformanceGenerationPage(BasePage):
     def add_communication(self, subject: str = "testingd", description: str = "one") -> None:
         """Adds a communication log entry."""
         logger.info("Adding a new communication entry.")
+        self._wait_for_loader()
         self.js_click(self.add_communication_button)
         expect(self.communication_modal_container).to_be_visible(timeout=10000)
         
@@ -145,6 +146,7 @@ class ConformanceGenerationPage(BasePage):
     def create_package_and_verify(self) -> None:
         """Clicks Create Package, checks the first attachment, and verifies document package creation."""
         logger.info("Creating package from attachments.")
+        self._wait_for_loader()
         # Click Create Package and verify attachments window opens
         self.js_click(self.create_package_button)
         expect(self.select_attachments_title).to_be_visible(timeout=15000)

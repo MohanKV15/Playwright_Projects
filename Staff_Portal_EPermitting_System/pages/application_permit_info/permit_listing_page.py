@@ -1,5 +1,8 @@
 from playwright.sync_api import expect
 from pages.base_page import BasePage
+import logging
+
+logger = logging.getLogger(__name__)
 
 class PermitListingPage(BasePage):
     def __init__(self, page):
@@ -86,9 +89,15 @@ class PermitListingPage(BasePage):
             raise AssertionError(f"Applicant/Permittee input not found! Dumped HTML to permit_listing_dom_dump.html. Original Error: {e}")
         
         self.company_input.fill(company_name)
-        self.refresh_button.click()
         
-        # Wait for the backend to fetch the new grid data
+        # Wait for the backend search API response to trigger and complete
+        try:
+            with self.page.expect_response("**/Portal/Page/GridModelSearchByExpandoObject/**", timeout=15000) as response_info:
+                self.refresh_button.click()
+            logger.info("Search API response received and loaded.")
+        except Exception:
+            self.refresh_button.click()
+            
         self._wait_for_loader()
 
     def navigate_to_next_page_and_edit_first_record(self):
@@ -101,9 +110,12 @@ class PermitListingPage(BasePage):
         
         if "k-state-disabled" not in k_class:
             print("Paginating to the next page...")
-            # Use force=True to bypass interception by k-pager-wrap overlay
-            self.next_page_button.click(force=True)
-            # 2. Wait for the server to load the new page's data
+            try:
+                with self.page.expect_response("**/Portal/Page/GridModelSearchByExpandoObject/**", timeout=15000) as response_info:
+                    self.next_page_button.click(force=True)
+                logger.info("Pagination grid response received.")
+            except Exception:
+                self.next_page_button.click(force=True)
             self._wait_for_loader()
         else:
             print("Note: Pagination skipped (Next Page is disabled or session is restricted to 1 page).")
@@ -114,7 +126,6 @@ class PermitListingPage(BasePage):
         row_text = row_locator.inner_text()
         
         # Parsing basic data (assuming tab-separated or space-separated from inner_text)
-        # This is a rough estimation based on the row_dump.txt
         columns = [col.strip() for col in row_text.split("\t") if col.strip()]
         captured_data = {
             "app_no": columns[0] if len(columns) > 0 else "Unknown",
@@ -123,11 +134,17 @@ class PermitListingPage(BasePage):
             "type": columns[4] if len(columns) > 4 else "Unknown"
         }
         
-        # 4. Click Edit
-        self.safe_click(self.first_record_edit_button)
+        # 4. Click Edit using js_click to bypass Kendo grid layout intercepts
+        self.js_click(self.first_record_edit_button)
         
-        # 5. Wait for the new Application Edit Page to load
-        self.page.wait_for_load_state("domcontentloaded")
+        # 5. Wait for the new Application Edit Page URL to load
+        try:
+            self.page.wait_for_url("**/Portal/Page/Index/**", timeout=20000)
+            logger.info("Edit page URL detected.")
+        except Exception:
+            # Fallback wait
+            self.page.wait_for_load_state("domcontentloaded")
+            
         self._wait_for_loader()
         
         return captured_data
@@ -159,4 +176,15 @@ class PermitListingPage(BasePage):
         self.page.wait_for_load_state("domcontentloaded")
         self.page.wait_for_timeout(1000) # Small buffer for application JS initialization
 
-
+    def search_and_edit_permit(self, company_name: str = "HCL", max_retries: int = 3) -> dict:
+        """Navigates to permit listing, searches by company, and edits the first matching record with retries."""
+        for attempt in range(max_retries):
+            try:
+                self.navigate_to_permit_listing()
+                self.search_by_company(company_name)
+                return self.navigate_to_next_page_and_edit_first_record()
+            except Exception as e:
+                if attempt == max_retries - 1:
+                    raise e
+                logger.warning(f"Search/Edit attempt {attempt + 1}/{max_retries} failed: {e}. Retrying...")
+                self.page.wait_for_timeout(5000)

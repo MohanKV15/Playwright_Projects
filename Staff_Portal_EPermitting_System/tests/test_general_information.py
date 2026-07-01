@@ -14,20 +14,8 @@ def test_permit_edit_and_general_info_flow(authenticated_page, faker):
     # random_block = str(faker.random_int(min=10, max=999))
     # random_lot = str(faker.random_int(min=1, max=50))
     
-    # 2. Navigate to Listing, search, and enter Edit mode (with retries for 504/timeout)
-    max_retries = 3
-    record_data = None
-    for attempt in range(max_retries):
-        try:
-            permit_page.navigate_to_permit_listing()
-            permit_page.search_by_company("HCL")
-            record_data = permit_page.navigate_to_next_page_and_edit_first_record()
-            break
-        except Exception as e:
-            if attempt == max_retries - 1:
-                raise e
-            print(f"\n[RETRY] Search/Edit failed: {e}. Retrying attempt {attempt + 1}/{max_retries}...")
-            authenticated_page.wait_for_timeout(5000)
+    # 2. Navigate to Listing, search, and enter Edit mode
+    record_data = permit_page.search_and_edit_permit("HCL")
     print(f"Editing Permit: {record_data['app_no']}")
     
     # 4. Perform General Information Updates

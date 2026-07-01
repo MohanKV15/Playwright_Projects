@@ -153,6 +153,7 @@ class LotDevelopmentPage(BasePage):
     def add_communication(self, subject: str = "testingd", description: str = "one") -> None:
         """Adds a communication log entry."""
         logger.info("Adding a new communication entry.")
+        self._wait_for_loader()
         self.js_click(self.add_communication_button)
         expect(self.communication_modal_container).to_be_visible(timeout=10000)
         
@@ -177,6 +178,7 @@ class LotDevelopmentPage(BasePage):
     def create_package_and_verify(self) -> None:
         """Clicks Create Package, checks the first attachment, and verifies document package creation."""
         logger.info("Creating package from attachments.")
+        self._wait_for_loader()
         self.js_click(self.create_package_button)
         expect(self.select_attachments_title).to_be_visible(timeout=10000)
         
@@ -196,6 +198,7 @@ class LotDevelopmentPage(BasePage):
     def send_email_and_verify(self) -> None:
         """Clicks Send Email, validates email window layout, cancels, and accepts final prompt."""
         logger.info("Testing Send Email action.")
+        self._wait_for_loader()
         self.js_click(self.send_email_button)
         expect(self.email_form_container).to_be_visible(timeout=10000)
         
