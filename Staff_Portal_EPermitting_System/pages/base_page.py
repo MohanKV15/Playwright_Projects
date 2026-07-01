@@ -75,6 +75,7 @@ class BasePage:
         """Waits for the global loading spinner and blocking elements to disappear."""
         try:
             self.page.locator("#loader").wait_for(state="hidden", timeout=timeout)
+            self.page.locator(".k-loading-mask").wait_for(state="hidden", timeout=15000)
             self.page.locator(".k-overlay").wait_for(state="hidden", timeout=15000)
             self.page.wait_for_timeout(500)
         except Exception:
