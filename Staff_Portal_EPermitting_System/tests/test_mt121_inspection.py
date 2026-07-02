@@ -2,7 +2,7 @@ import pytest
 import os
 from playwright.sync_api import expect
 from pages.application_permit_info.permit_listing_page import PermitListingPage
-from pages.application_permit_info.add_new_permit.mt_121_page import MT121Page
+from pages.application_permit_info.mt_121_page import MT121Page
 
 def test_mt121_inspection_flow(authenticated_page, faker):
     """

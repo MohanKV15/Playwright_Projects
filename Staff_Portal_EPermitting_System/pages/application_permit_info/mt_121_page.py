@@ -91,9 +91,9 @@ class MT121Page(BasePage):
         if radio_child_42_third.is_visible():
             self.js_click(radio_child_42_third)
             
-        checkbox_first = self.page.locator(".col-md-1 > .form-check > .k-checkbox-label").first
-        if checkbox_first.is_visible():
-            self.js_click(checkbox_first)
+        # Click Allowable Work Hours checkbox
+        allowable_checkbox = self.page.locator(".col-md-1 > .form-check > .k-checkbox-label").first
+        self.js_click(allowable_checkbox)
             
         headwalls_label = self.page.locator("#MTInspectiondiv label:has-text('Headwalls'), #MTInspectiondiv span:has-text('Headwalls'), #MTInspectiondiv .k-radio-label:has-text('Headwalls')").first
         if headwalls_label.is_visible():
