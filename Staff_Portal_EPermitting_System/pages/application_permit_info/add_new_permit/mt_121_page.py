@@ -105,7 +105,7 @@ class MT121Page(BasePage):
             
         # Fill Kendo Numeric Input
         numeric_input = self.page.locator("#Sec3_Numeric_Placeholder7")
-        if numeric_input.is_visible():
+        if numeric_input.count() > 0:
             self.fill_kendo_numeric("Sec3_Numeric_Placeholder7", "10")
             
         # 4. Fill Dropdowns
