@@ -103,6 +103,11 @@ class MT121Page(BasePage):
         if trees_label.is_visible():
             self.js_click(trees_label)
             
+        # Fill Kendo Numeric Input
+        numeric_input = self.page.locator("#Sec3_Numeric_Placeholder7")
+        if numeric_input.is_visible():
+            self.fill_kendo_numeric("Sec3_Numeric_Placeholder7", "10")
+            
         # 4. Fill Dropdowns
         dropdowns = self.page.locator("#MTInspectiondiv span.k-dropdown:visible, #MTInspectiondiv span[role='listbox']:visible")
         drop_count = dropdowns.count()
