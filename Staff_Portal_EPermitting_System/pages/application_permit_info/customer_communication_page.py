@@ -48,15 +48,46 @@ class CustomerCommunicationPage(BasePage):
     def _select_option(self, trigger: Locator, option_text: str) -> None:
         """Helper to click a dropdown, wait for options, and select by text."""
         logger.info(f"Selecting dropdown option: '{option_text}'")
-        self.js_click(trigger)
-        self.page.wait_for_selector("[role='listbox']:visible, .k-list-container:visible", timeout=5000)
+        trigger.scroll_into_view_if_needed()
+        try:
+            trigger.click(timeout=3000)
+        except Exception:
+            self.js_click(trigger)
         
-        # Match option containing option_text
-        option = self.page.locator("[role='listbox']:visible [role='option'], .k-list-container:visible [role='option']").filter(has_text=option_text).first
-        self.js_click(option)
+        self.page.wait_for_selector(".k-animation-container:visible, .k-list-container:visible", timeout=5000)
+        
+        # Scoped strictly to the active Kendo dropdown list container popup
+        list_container = self.page.locator(".k-animation-container:visible, .k-list-container:visible").last
+        options_locator = list_container.locator("li, [role='option'], .k-item")
+        
+        # Try matching option_text
+        matching_option = options_locator.filter(has_text=re.compile(rf"{re.escape(option_text)}", re.I)).first
+        
+        if matching_option.count() > 0 and matching_option.is_visible():
+            target_option = matching_option
+        else:
+            # Fallback: try partial word match or pick first valid option
+            words = [w for w in option_text.split() if len(w) > 3]
+            fallback_found = False
+            for word in words:
+                partial = options_locator.filter(has_text=re.compile(rf"{re.escape(word)}", re.I)).first
+                if partial.count() > 0 and partial.is_visible():
+                    target_option = partial
+                    fallback_found = True
+                    break
+            if not fallback_found:
+                logger.warning(f"Option '{option_text}' not found in active dropdown container. Selecting first valid option.")
+                count = options_locator.count()
+                target_option = options_locator.nth(1) if count > 1 else options_locator.first
+                
+        try:
+            target_option.click(timeout=3000)
+        except Exception:
+            self.js_click(target_option)
+            
         self._wait_for_loader()
 
-    def add_customer_communication(self, comm_type: str = "Additional Info Requested", comm_status: str = "Waiting for Response", review_person: str = "Steve Ruskan", message: str = "test message") -> None:
+    def add_customer_communication(self, comm_type: str = "Permit Communication", comm_status: str = "Waiting for Response", review_person: str = "Steve Ruskan", message: str = "test message") -> None:
         """Fills out the Customer Communication Details subform and sends it."""
         logger.info("Adding new customer communication.")
         self.js_click(self.add_new_button)

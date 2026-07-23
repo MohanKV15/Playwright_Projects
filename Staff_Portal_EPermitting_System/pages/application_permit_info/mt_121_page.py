@@ -90,10 +90,41 @@ class MT121Page(BasePage):
         radio_child_42_third = self.page.locator("div:nth-child(42) > .row > div:nth-child(3) > .form-check > .k-radio-label")
         if radio_child_42_third.is_visible():
             self.js_click(radio_child_42_third)
+        # Click Allowable Work Hours checkbox with retry
+        self._wait_for_loader()
+        checkbox_input = self.page.locator("input.k-checkbox").first
+        allowable_label = self.page.locator(".col-md-1 > .form-check > .k-checkbox-label").first
+        
+        allowable_label.click()
+        self.page.wait_for_timeout(500)
+        
+        if not checkbox_input.is_checked():
+            logger.info("Allowable checkbox was not checked. Retrying click...")
+            allowable_label.click()
+            self.page.wait_for_timeout(500)
             
-        # Click Allowable Work Hours checkbox
-        allowable_checkbox = self.page.locator(".col-md-1 > .form-check > .k-checkbox-label").first
-        self.js_click(allowable_checkbox)
+        # Wait for timeline dropdowns to become visible
+        self.page.locator("#Timeline1").wait_for(state="visible", timeout=10000)
+        
+        # Select Time From
+        self.page.locator("#Timeline1").first.click()
+        self.page.wait_for_timeout(300)
+        self.js_click(self.page.get_by_role("option", name="1:00", exact=True).first)
+        
+        # Select Time To
+        self.page.locator("#Timeline4").first.click()
+        self.page.wait_for_timeout(300)
+        self.js_click(self.page.get_by_role("option", name="1:30", exact=True).first)
+        
+        # Select AM/PM From
+        self.page.locator("#Timeline2").first.click()
+        self.page.wait_for_timeout(300)
+        self.js_click(self.page.get_by_role("option", name="PM", exact=True).first)
+        
+        # Select AM/PM To
+        self.page.locator("#Timeline5").first.click()
+        self.page.wait_for_timeout(300)
+        self.js_click(self.page.get_by_role("option", name="PM", exact=True).first)
             
         headwalls_label = self.page.locator("#MTInspectiondiv label:has-text('Headwalls'), #MTInspectiondiv span:has-text('Headwalls'), #MTInspectiondiv .k-radio-label:has-text('Headwalls')").first
         if headwalls_label.is_visible():
@@ -117,16 +148,23 @@ class MT121Page(BasePage):
             self._select_first_dropdown_option()
 
     def save_inspection_report(self) -> None:
-        """Clicks Save, accepts the confirmation prompt, and waits for save to complete."""
+        """Clicks Save, accepts the confirmation prompt if shown, and waits for save to complete."""
         logger.info("Saving MT-121 Inspection Report.")
-        self.js_click(self.save_report_button)
-        self._wait_for_loader()
-        
-        # Click OK on confirmation
-        self.js_click(self.ok_confirm_button)
+        self.save_report_button.click()
+
+        # The OK dialog may or may not appear — handle both cases
+        try:
+            self.ok_confirm_button.wait_for(state="visible", timeout=5000)
+            logger.info("OK confirmation dialog appeared — clicking OK.")
+            self.ok_confirm_button.click()
+        except Exception:
+            # No dialog appeared; the page saved and navigated directly
+            logger.info("No OK dialog — save completed via page navigation.")
+
+        # Wait for page/loader to settle after save
         self._wait_for_loader()
         logger.info("MT-121 Inspection Report saved successfully.")
-
+    
     def generate_inspection_report_pdf(self) -> None:
         """Clicks Generate Inspection Report, clicks OK on the confirmation dialog, and verifies the popup Canvas."""
         logger.info("Clicking Generate Inspection Report.")

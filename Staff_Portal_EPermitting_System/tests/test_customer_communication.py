@@ -25,7 +25,7 @@ def test_customer_communication_flow(authenticated_page, faker):
 
     # 4. Add Customer Communication details
     comms_page.add_customer_communication(
-        comm_type="Additional Info Requested",
+        comm_type="Permit Communication",
         comm_status="Waiting for Response",
         review_person="Steve Ruskan",
         message=test_message

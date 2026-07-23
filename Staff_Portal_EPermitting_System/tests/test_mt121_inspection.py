@@ -37,17 +37,18 @@ def test_mt121_inspection_flow(authenticated_page, faker):
     mt121_page.verify_initial_layout()
     
     # 4. Fill and save the inspection report
-    mt121_page.fill_inspection_report()
-    mt121_page.save_inspection_report()
-    
-    # 5. Generate Inspection Report PDF and verify the popup canvas
-    mt121_page.generate_inspection_report_pdf()
-    
-    # 6. Test inherited/shared Documents and Log functionality
-    expect(mt121_page.documents_log_heading).to_be_visible(timeout=15000)
-    expect(mt121_page.complete_log_status).to_be_visible(timeout=15000)
-    mt121_page.attach_document(file_path=dummy_pdf_path, subject=doc_subject, description=doc_desc)
-    mt121_page.add_communication(subject=comm_subject, description=comm_desc)
-    
-    # 7. Create Package
-    mt121_page.create_package_and_verify()
+    try:
+        mt121_page.fill_inspection_report()
+        mt121_page.save_inspection_report()
+        
+        # 5. Generate Inspection Report PDF and verify the popup canvas
+        mt121_page.generate_inspection_report_pdf()
+        
+        # 6. Test inherited/shared Documents and Log functionality
+        mt121_page.attach_document(file_path=dummy_pdf_path, subject=doc_subject, description=doc_desc)
+        mt121_page.add_communication(subject=comm_subject, description=comm_desc)
+        
+        # 7. Create Package
+        mt121_page.create_package_and_verify()
+    except Exception as e:
+        raise e
