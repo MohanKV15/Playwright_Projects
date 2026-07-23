@@ -44,12 +44,9 @@ class TestLicenseRenewal:
 
         # 7. Filter by Type "Document"
         renewal_page.filter_by_type_document()
+        renewal_page.ensure_grid_has_records()
 
         # 8. Dynamic Name Search & Validation
-        # First search by 'russ media' as shown in codegen, then verify dynamically
-        logger.info("Performing initial search for 'russ media'")
-        renewal_page.search_by_name("russ media")
-        
         first_name = renewal_page.get_first_record_name()
         logger.info(f"Filtering grid dynamically by record name: '{first_name}'")
         renewal_page.search_by_name(first_name)

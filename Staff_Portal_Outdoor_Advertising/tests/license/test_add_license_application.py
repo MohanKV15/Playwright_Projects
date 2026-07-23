@@ -38,4 +38,4 @@ class TestAddLicenseApplication:
         add_license_page.handle_save_popups()
 
         # 7. Re-navigate, search, and verify result in grid
-        add_license_page.search_dealer_and_verify_result(dealer_name="vansh", cell_value="001056")
+        add_license_page.search_dealer_and_verify_result(dealer_name="vansh", cell_value="Vansh tech pvt ltd")

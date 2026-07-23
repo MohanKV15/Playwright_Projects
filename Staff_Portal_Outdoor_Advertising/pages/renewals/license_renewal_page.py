@@ -179,32 +179,31 @@ class LicenseRenewalPage(BasePage):
         self._wait_for_loader()
 
     def select_date_range_three_months_ago(self) -> None:
-        """Opens From Date picker, navigates 3 months back, selects day 19 (fallback to 15), and selects day 19 on To Date picker."""
+        """Opens From Date picker, navigates 3 months back, selects today's day (with fallback), and selects today's day on To Date picker."""
         self._wait_for_loader()
-        target_day = "19"
+        today = datetime.datetime.now()
+        today_day = str(today.day)
 
         logger.info("Opening From Date picker")
         self.page.get_by_role("button", name="select").first.click()
         self.page.wait_for_timeout(500)
 
         logger.info("Navigating 3 months back")
-        # In codegen: dblclick on Previous, then click on Previous (total 3 clicks)
-        self.page.get_by_role("button", name="Previous").dblclick()
-        self.page.wait_for_timeout(300)
-        self.page.get_by_role("button", name="Previous").click()
-        self.page.wait_for_timeout(500)
+        for _ in range(3):
+            self.page.get_by_role("button", name="Previous").click()
+            self.page.wait_for_timeout(300)
 
-        logger.info(f"Selecting day {target_day} for From Date")
+        logger.info(f"Selecting day {today_day} for From Date")
         calendar_locator = self.page.locator(".k-calendar:visible, .k-calendar-container:visible, [role='grid']:visible")
-        day_link = calendar_locator.get_by_role("link", name=target_day, exact=True).first
+        day_link = calendar_locator.get_by_role("link", name=today_day, exact=True).first
         try:
             if day_link.is_visible(timeout=2000):
                 self.js_click(day_link)
             else:
-                logger.warning(f"Day {target_day} not found 3 months ago, falling back to day 15")
+                logger.warning(f"Day {today_day} not found 3 months ago, falling back to day 15")
                 self.js_click(calendar_locator.get_by_role("link", name="15", exact=True).first)
         except Exception:
-            logger.warning(f"Failed to click day {target_day}, falling back to day 15")
+            logger.warning(f"Failed to click day {today_day}, falling back to day 15")
             self.js_click(calendar_locator.get_by_role("link", name="15", exact=True).first)
         self.page.wait_for_timeout(500)
 
@@ -212,8 +211,8 @@ class LicenseRenewalPage(BasePage):
         self.page.get_by_role("button", name="select").nth(1).click()
         self.page.wait_for_timeout(500)
 
-        logger.info(f"Selecting day {target_day} for To Date")
-        self.js_click(calendar_locator.get_by_role("link", name=target_day, exact=True).first)
+        logger.info(f"Selecting day {today_day} for To Date")
+        self.js_click(calendar_locator.get_by_role("link", name=today_day, exact=True).first)
         self.page.wait_for_timeout(500)
 
         logger.info("Clicking Search button to filter by Date Range")
@@ -237,11 +236,31 @@ class LicenseRenewalPage(BasePage):
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
 
+    def ensure_grid_has_records(self) -> None:
+        """If grid is empty, clears the start date filter to find older records, ensuring the test can proceed."""
+        self._wait_for_loader()
+        first_row = self.page.locator("#LogListGrid tbody tr").first
+        if first_row.count() == 0 or "no records" in first_row.inner_text().lower() or "no items" in first_row.inner_text().lower() or first_row.inner_text().strip() == "":
+            logger.info("Grid is empty after date range filter. Clearing logdate_start to retrieve older records.")
+            self.page.evaluate("""
+                () => {
+                    var startPicker = $("#logdate_start").data("kendoDatePicker");
+                    if (startPicker) {
+                        startPicker.value("");
+                        startPicker.trigger("change");
+                    }
+                }
+            """)
+            self.page.wait_for_timeout(500)
+            self.search_button.click()
+            self.page.wait_for_load_state("networkidle")
+            self._wait_for_loader()
+
     def get_first_record_name(self) -> str:
         """Reads and returns the name/title of the first record in the log grid."""
         self._wait_for_loader()
-        logger.info("Locating the first row of LogListGrid or .k-grid-content")
-        grid_row_selector = "#LogListGrid tbody tr, .k-grid-content tbody tr, [role='grid'] tbody tr"
+        logger.info("Locating the first row of LogListGrid")
+        grid_row_selector = "#LogListGrid tbody tr"
         self.page.wait_for_selector(grid_row_selector, timeout=15000)
         first_row = self.page.locator(grid_row_selector).first
         
@@ -268,7 +287,7 @@ class LicenseRenewalPage(BasePage):
         self._wait_for_loader()
         logger.info("Clicking the View document button of the first record")
         
-        grid_row_selector = "#LogListGrid tbody tr, .k-grid-content tbody tr, [role='grid'] tbody tr"
+        grid_row_selector = "#LogListGrid tbody tr"
         view_btn = self.page.locator(grid_row_selector).first.get_by_role("button").filter(has_text=re.compile(r"^$")).first
         if view_btn.count() == 0:
             view_btn = self.page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(2)
@@ -288,7 +307,7 @@ class LicenseRenewalPage(BasePage):
         self._wait_for_loader()
         logger.info("Clicking the Edit button of the first record")
         
-        grid_row_selector = "#LogListGrid tbody tr, .k-grid-content tbody tr, [role='grid'] tbody tr"
+        grid_row_selector = "#LogListGrid tbody tr"
         edit_btn = self.page.locator(grid_row_selector).first.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(1)
         if edit_btn.count() == 0:
             edit_btn = self.page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(3)

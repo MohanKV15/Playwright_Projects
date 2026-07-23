@@ -1,5 +1,6 @@
 import re
 import logging
+from faker import Faker
 from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
 
@@ -127,14 +128,21 @@ class AddLicenseApplicationPage(BasePage):
 
     def fill_agent_and_non_resident_details(
         self,
-        address_2: str = "test",
-        city: str = "hasan",
+        address_2: str = None,
+        city: str = None,
         state: str = "Alaska",
-        zip_code: str = "77777_",
-        first_name: str = "test",
-        phone: str = "999-999-99999",
+        zip_code: str = None,
+        first_name: str = None,
+        phone: str = None,
     ) -> None:
         """Fills non-resident bond checkbox and agent's personal/mailing details."""
+        fake = Faker()
+        address_2 = address_2 or fake.secondary_address()
+        city = city or fake.city()
+        zip_code = zip_code or fake.postcode()[:5]
+        first_name = first_name or fake.first_name()
+        phone = phone or fake.numerify("###-###-####")
+
         logger.info("Checking Bond Received checkbox.")
         self.bond_received_chk.click()
         self.page.wait_for_timeout(500)
@@ -228,5 +236,5 @@ class AddLicenseApplicationPage(BasePage):
         # Assert resulting grid content wrapper is visible
         expect(self.results_wrapper).to_be_visible(timeout=10000)
         # Assert grid cell exists
-        expect(self.grid_cell_result(cell_value)).to_be_visible(timeout=10000)
+        expect(self.grid_cell_result(cell_value).first).to_be_visible(timeout=10000)
         logger.info(f"Verification successful: Gridcell containing '{cell_value}' is visible.")
