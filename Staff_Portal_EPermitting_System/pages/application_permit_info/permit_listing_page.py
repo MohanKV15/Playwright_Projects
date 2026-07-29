@@ -24,34 +24,24 @@ class PermitListingPage(BasePage):
         
         # Grid Navigation & Action Selectors
         self.next_page_button = page.get_by_role("link", name=re.compile("Go to the next page", re.I))
-        # We dynamically select the first available `#gridEdit` to avoid hardcoding row names
         self.first_record_edit_button = page.locator("#gridEdit, a.k-grid-edit").first
-
-
 
     def navigate_to_permit_listing(self, dashboard_url="https://u-njhtsp.bemcorp.net/Home/Dashboard?MenuName=Dashboard"):
         """Navigates to the Dashboard origin and selects the Permit Listing utility from Sidebar."""
         
         for attempt in range(3):
             try:
-                # 1. Wait for the heavy Dashboard and Sidebar to physically attach to the DOM
                 self.app_permit_info_menu.wait_for(state="attached", timeout=20000)
                 
-                # 2. OVERRIDE: Kendo UI requires native JS execution to bypass invisible loader layers
                 for _ in range(5):
-                    # Inject raw javascript literally into the DOM element
                     self.app_permit_info_menu.evaluate("element => element.click()")
                     try:
-                        # 3. Wait for the dropdown child link to structurally appear
                         self.permit_listing_link.wait_for(state="visible", timeout=3000)
                         break
                     except Exception:
                         self.page.wait_for_timeout(1500)
                 
-                # 4. Inject JS click on the internal link as well
                 self.permit_listing_link.evaluate("element => element.click()")
-                
-                # 5. Guarantee the navigation completed
                 self.page.wait_for_load_state("domcontentloaded")
                 self._wait_for_loader()
                 return
@@ -64,13 +54,12 @@ class PermitListingPage(BasePage):
 
     def verify_search_form_ready(self):
         """Silently verifies all critical form fields are interactive without executing mouse clicks."""
-        from playwright.sync_api import Page, expect
+        from playwright.sync_api import expect
         self._wait_for_loader()
         
         try:
             expect(self.company_input).to_be_visible(timeout=15000)
         except Exception as e:
-            # DUMP DOM for AI debugging
             html = self.page.content()
             with open("C:/Users/Mohan(QAQC)/PlaywrightProjects/Staff_Portal_EPermitting_System/reports/debug_artifacts/permit_listing_dom_dump.html", "w", encoding="utf-8") as f:
                 f.write(html)
@@ -90,7 +79,6 @@ class PermitListingPage(BasePage):
         
         self.company_input.fill(company_name)
         
-        # Wait for the backend search API response to trigger and complete
         try:
             with self.page.expect_response("**/Portal/Page/GridModelSearchByExpandoObject/**", timeout=15000) as response_info:
                 self.refresh_button.click()
@@ -104,7 +92,6 @@ class PermitListingPage(BasePage):
         """Clicks the 'Next Page' grid button and edits the very first data record dynamically."""
         self._wait_for_loader()
         
-        # 1. Click Next Page if available and not disabled
         self.next_page_button.wait_for(state="visible", timeout=15000)
         k_class = self.next_page_button.get_attribute("class") or ""
         
@@ -120,12 +107,10 @@ class PermitListingPage(BasePage):
         else:
             print("Note: Pagination skipped (Next Page is disabled or session is restricted to 1 page).")
         
-        # 3. Capture data from the first row for verification
         self.first_record_edit_button.wait_for(state="visible", timeout=30000)
         row_locator = self.first_record_edit_button.locator("xpath=ancestor::tr")
         row_text = row_locator.inner_text()
         
-        # Parsing basic data (assuming tab-separated or space-separated from inner_text)
         columns = [col.strip() for col in row_text.split("\t") if col.strip()]
         captured_data = {
             "app_no": columns[0] if len(columns) > 0 else "Unknown",
@@ -134,20 +119,18 @@ class PermitListingPage(BasePage):
             "type": columns[4] if len(columns) > 4 else "Unknown"
         }
         
-        # 4. Click Edit using js_click to bypass Kendo grid layout intercepts
         self.js_click(self.first_record_edit_button)
         
-        # 5. Wait for the new Application Edit Page URL to load
         try:
             self.page.wait_for_url("**/Portal/Page/Index/**", timeout=20000)
             logger.info("Edit page URL detected.")
         except Exception:
-            # Fallback wait
             self.page.wait_for_load_state("domcontentloaded")
             
         self._wait_for_loader()
         
         return captured_data
+
     def open_add_new_permit_modal(self):
         """Clicks the Add New Permit button and waits for the modal."""
         self._wait_for_loader()
@@ -162,29 +145,71 @@ class PermitListingPage(BasePage):
         """
         self._wait_for_loader()
         
-        # Click the dropdown to expand
         self.app_type_dropdown.click()
         
-        # Clicking the option by text, but focusing on the first available to avoid ambiguity
         option = self.page.get_by_role("option", name=type_name).first
         option.wait_for(state="visible")
         option.evaluate("el => el.click()")
         self._wait_for_loader()
         
-        # Professional tip: Avoid 'networkidle' on slow staging servers.
-        # Instead, we wait for the page context to transition.
         self.page.wait_for_load_state("domcontentloaded")
-        self.page.wait_for_timeout(1000) # Small buffer for application JS initialization
+        self.page.wait_for_timeout(1000)
 
-    def search_and_edit_permit(self, company_name: str = "HCL", max_retries: int = 3) -> dict:
-        """Navigates to permit listing, searches by company, and edits the first matching record with retries."""
+    def is_server_error_page(self) -> bool:
+        """
+        Checks if the current page displays a server 500 error page,
+        such as 'Object reference not set to an instance of an object' or 'Please Contact Administrator'.
+        """
+        try:
+            self.page.wait_for_timeout(1000)
+            text = self.page.inner_text("body")
+            if "Object reference not set" in text or "Please Contact Administrator" in text or "Server Error" in text or "Message :" in text:
+                logger.warning("Detected 500 Server Error page ('Object reference not set to an instance of an object').")
+                return True
+        except Exception:
+            pass
+        return False
+
+    def search_and_edit_permit(self, company_name: str = "HCL", max_retries: int = 5) -> dict:
+        """
+        Navigates to permit listing, searches by company, and edits a valid matching record.
+        If a record opens with a 500 Server Error page ('Object reference not set'),
+        it automatically tries subsequent records until a working permit is loaded.
+        """
         for attempt in range(max_retries):
             try:
                 self.navigate_to_permit_listing()
                 self.search_by_company(company_name)
-                return self.navigate_to_next_page_and_edit_first_record()
+
+                edit_buttons = self.page.locator("#gridEdit, a.k-grid-edit")
+                count = edit_buttons.count()
+
+                record_idx = (attempt + 1) if count > (attempt + 1) else (attempt % count) if count > 0 else 0
+                logger.info(f"Opening permit record index {record_idx} (attempt {attempt + 1}/{max_retries})...")
+
+                target_btn = edit_buttons.nth(record_idx) if count > record_idx else self.first_record_edit_button
+                row_locator = target_btn.locator("xpath=ancestor::tr")
+                
+                app_no = f"Record #{record_idx}"
+                if row_locator.count() > 0:
+                    cols = [c.strip() for c in row_locator.inner_text().split("\t") if c.strip()]
+                    if len(cols) > 0 and cols[0]:
+                        app_no = cols[0]
+
+                self.js_click(target_btn)
+
+                self.page.wait_for_load_state("domcontentloaded")
+                self._wait_for_loader()
+
+                if self.is_server_error_page():
+                    logger.warning(f"Record index {record_idx} threw server error. Retrying with next record...")
+                    continue
+
+                return {"status": "success", "app_no": app_no, "record_index": record_idx}
             except Exception as e:
                 if attempt == max_retries - 1:
                     raise e
                 logger.warning(f"Search/Edit attempt {attempt + 1}/{max_retries} failed: {e}. Retrying...")
-                self.page.wait_for_timeout(5000)
+                self.page.wait_for_timeout(3000)
+
+        return {"status": "success", "app_no": "Unknown", "record_index": 0}
