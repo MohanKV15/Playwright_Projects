@@ -1,30 +1,28 @@
 import logging
-import datetime
 import re
-from playwright.sync_api import expect, Locator
+from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
-from faker import Faker
 
 logger = logging.getLogger(__name__)
 
+
 class ConformanceGenerationPage(BasePage):
-    def __init__(self, page):
+    """
+    Page Object Model for Conformance/Trip Generation in Staff Portal E-Permitting System.
+    """
+
+    def __init__(self, page: Page):
         super().__init__(page)
-        self.fake = Faker()
-        
-        # Navigation / Tabs
+
+        # Navigation & Headers
         self.conformance_tab = page.get_by_role("link", name="Conformance/Trip Generation").or_(page.locator("a:has-text('Conformance')")).first
-        
-        # Heading & Section Container Selectors
         self.header_details_label = page.get_by_text("Department Job # Permit Type").or_(page.locator("#LogAppHeader")).first
         self.conformance_heading = page.get_by_role("heading", name="Conformance")
         self.trip_generation_heading = page.get_by_role("heading", name="Trip Generation")
         self.documents_log_heading = page.get_by_role("heading", name="Documents and Log")
-        
-        # Run Conformance Selectors
+
+        # Actions
         self.run_conformance_button = page.get_by_role("button", name="Run Conformance")
-        
-        # Final layout check element
         self.final_log_container = page.locator("#LogDynGridLoad, #partial-form, #LogAppHeader, h1, h2, h3").first
 
     def navigate_to_conformance(self) -> None:
@@ -46,28 +44,21 @@ class ConformanceGenerationPage(BasePage):
         logger.info("Running Conformance calculations.")
         if self.run_conformance_button.count() > 0 and self.run_conformance_button.is_visible():
             self.js_click(self.run_conformance_button)
-            
-            # Accept alert dialog (usually a Kendo dialog window popup warning)
+
             try:
                 self.ok_button.wait_for(state="visible", timeout=5000)
                 self.js_click(self.ok_button)
-                logger.info("Clicked OK to accept conformance alert popup.")
             except Exception:
-                try:
-                    self.js_click(self.page.get_by_role("button", name="OK"))
-                except Exception:
-                    pass
-                
+                pass
+
             self._wait_for_loader()
-            
-        # Verify Trip Generation header is visible after calculation runs
+
         expect(self.trip_generation_heading.or_(self.conformance_heading).first).to_be_visible(timeout=15000)
         logger.info("Conformance run completed and verified.")
 
     def create_package_and_verify(self) -> None:
-        """Clicks Create Package, checks the first attachment, and verifies document package creation."""
+        """Clicks Create Package and verifies document package creation."""
         logger.info("Creating package from attachments.")
         super().create_package_and_verify()
-        # Final layout check
         if self.final_log_container.count() > 0:
             expect(self.final_log_container).to_be_visible(timeout=15000)

@@ -1,92 +1,88 @@
+import datetime
 import logging
 import re
 from playwright.sync_api import Page, expect, Locator
 
 logger = logging.getLogger(__name__)
 
+
 class BasePage:
+    """
+    Core Base Page Object for Staff Portal E-Permitting System.
+    Provides centralized element interactions, Kendo UI component helpers,
+    synchronization mechanisms, and shared workflow utilities.
+    """
+
     def __init__(self, page: Page):
         self.page = page
-        
-        # Loader / Spinner Locators
+
+        # ── Loading & Overlay Controls ─────────────────────────────────────────
         self.loading_overlay = page.locator(".k-loading-mask, .k-loading-image, #loading, .spinner-border")
-        
-        # Common Document & Communication Controls
-        self.attach_document_button = page.get_by_role("button", name="Attach Document").or_(page.locator("#btnAttachDoc, .btn:has-text('Attach Document')")).first
+
+        # ── Shared Document & Communication Controls ─────────────────────────
+        self.attach_document_button = page.get_by_role("button", name="Attach Document").or_(
+            page.locator("#btnAttachDoc, .btn:has-text('Attach Document')")
+        ).first
         self.document_type_dropdown = page.get_by_role("button", name="select").first
         self.choose_file_input = page.locator("input[type='file']").first
-        self.save_document_button = page.get_by_role("button", name=" Save")
-        
+        self.save_document_button = page.get_by_role("button", name=" Save").or_(
+            page.locator("button:visible:has-text('Save')")
+        ).first
+
         self.subject_input = page.get_by_role("textbox", name="Subject")
         self.description_input = page.get_by_role("textbox", name="Description")
-        
+
         self.add_communication_button = page.get_by_role("button", name="Add Communication")
         self.communication_modal_container = page.locator("#divfrmLog > .form-wrapper > .row > .col-md-12")
         self.communication_date_picker = page.get_by_role("button", name="select")
-        
+
+        # ── Shared Package & Email Controls ────────────────────────────────────
         self.create_package_button = page.get_by_role("button", name="Create Package")
-        self.select_attachments_title = page.locator(".k-window-title:visible").filter(has_text=re.compile("Select Attachments", re.I)).first
-        self.first_attachment_checkbox = page.locator(".k-window:visible input[type='checkbox'], [role='dialog']:visible input[type='checkbox']").first
         self.select_attachments_confirm_button = page.get_by_role("button", name="Select Attachments")
-        self.package_created_message = page.locator(".k-window:visible, [role='dialog']:visible").get_by_text("Your document package is")
         self.ok_button = page.get_by_role("button", name="OK")
-        
-        self.send_email_button = page.get_by_role("button", name="Send Email")
-        self.email_form_container = page.get_by_text("Send Cancel To: * CC: BCC:")
-        self.cancel_email_button = page.get_by_role("button", name=" Cancel")
         self.log_app_header = page.locator("#LogAppHeader")
 
-    def navigate(self, url: str):
-        self.page.goto(url)
+    # ── Core Click & Synchronization Mechanics ─────────────────────────────────
 
-    def click_element(self, selector: str):
-        self.page.wait_for_selector(selector)
-        self.page.click(selector)
+    def navigate(self, url: str) -> None:
+        """Navigates to the specified URL."""
+        logger.info(f"Navigating to: {url}")
+        self.page.goto(url, wait_until="domcontentloaded")
+        self._wait_for_loader()
 
-    def fill_input(self, selector: str, text: str):
-        self.page.wait_for_selector(selector)
-        self.page.fill(selector, text)
-
-    def get_element_text(self, selector: str) -> str:
-        self.page.wait_for_selector(selector)
-        return self.page.inner_text(selector)
-        
-    def wait_for_element(self, selector: str, timeout: int = 30000):
-        self.page.wait_for_selector(selector, timeout=timeout)
-
-    def scroll_to_locator(self, locator: Locator):
-        """Scrolls an element into view smoothly."""
-        locator.scroll_into_view_if_needed()
-
-    def safe_click(self, locator: Locator):
+    def js_click(self, locator: Locator) -> None:
         """
-        Scrolls the element into view and then performs a small scroll adjustment
-        to ensure fixed headers do not intercept the click.
+        Dispatches a JS click event on the element target to bypass pointer/hit-testing
+        interceptions caused by layout overlays or CSS zoom.
         """
-        locator.scroll_into_view_if_needed()
-        self.page.evaluate("window.scrollBy(0, -150)")
-        locator.click()
-
-    def dispatch_bubble_click(self, locator: Locator):
-        """
-        Dispatches a native JS click event that bubbles up the DOM.
-        This is extremely effective for problematic 'Save' buttons.
-        """
-        locator.scroll_into_view_if_needed()
-        self.page.evaluate("el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))", locator.element_handle())
-
-    def js_click(self, locator: Locator):
-        """
-        Clicks an element using JavaScript to bypass pointer/hit-testing issues
-        caused by layout, overlays, or CSS zoom.
-        """
-        locator.wait_for(state="visible")
+        locator.wait_for(state="visible", timeout=15000)
         locator.evaluate("el => el.click()")
 
-    def _set_kendo_numeric_value(self, element_id: str, value: float):
-        """
-        Interacts with a Kendo NumericTextBox by setting its value using internal Kendo API.
-        """
+    def safe_click(self, locator: Locator) -> None:
+        """Scrolls element into view and clicks safely."""
+        locator.scroll_into_view_if_needed()
+        locator.click()
+
+    def scroll_to_locator(self, locator: Locator) -> None:
+        """Scrolls an element into view smoothly if needed."""
+        try:
+            locator.scroll_into_view_if_needed()
+        except Exception:
+            pass
+
+    def _wait_for_loader(self, timeout: int = 15000) -> None:
+        """Waits for any active Kendo loading overlay masks or spinners to detach."""
+        try:
+            self.page.wait_for_selector(
+                ".k-loading-mask, .k-loading-image, #loading, .spinner-border",
+                state="detached",
+                timeout=timeout,
+            )
+        except Exception:
+            pass
+
+    def _set_kendo_numeric_value(self, element_id: str, value: float) -> None:
+        """Interacts with a Kendo NumericTextBox by setting its value using internal Kendo API."""
         self.page.evaluate(f"""
             () => {{
                 var numeric = $('#{element_id}').data('kendoNumericTextBox');
@@ -97,46 +93,85 @@ class BasePage:
             }}
         """)
 
-    def fill_kendo_numeric(self, element_id: str, value: float):
+    def fill_kendo_numeric(self, element_id: str, value: float) -> None:
         """Interacts with a Kendo NumericTextBox by setting its value using internal Kendo API."""
         self._set_kendo_numeric_value(element_id, value)
 
-    def _wait_for_loader(self, timeout: int = 15000):
-        """Waits for any Kendo or portal loading overlay masks to disappear."""
-        try:
-            self.page.wait_for_selector(".k-loading-mask, .k-loading-image, #loading", state="detached", timeout=timeout)
-        except Exception:
-            pass
+    # ── Universal Reusable Kendo UI Dropdown Utility ───────────────────────────
 
-    def select_today_in_calendar(self, trigger_locator: Locator = None):
+    def select_first_dropdown_option(self, trigger_locator: Locator = None) -> None:
         """
-        Selects today's date from an active Kendo UI Calendar widget popup.
-        Optionally clicks trigger_locator if provided.
+        Universal dropdown selection helper:
+        - Optionally clicks trigger_locator to expand dropdown list.
+        - Waits for active list items to bind.
+        - Ignores placeholders ('--', 'Select', 'No Data').
+        - Selects the 1st valid available option.
         """
+        self._wait_for_loader()
+        if trigger_locator is not None and trigger_locator.is_visible():
+            self.js_click(trigger_locator)
+            self.page.wait_for_timeout(300)
+
+        options = self.page.get_by_role("option").or_(
+            self.page.locator("li.k-item:visible, .k-list-container:visible li, .k-animation-container:visible li, ul.k-list:visible li")
+        )
+
         try:
-            if trigger_locator is not None:
-                try:
-                    self.js_click(trigger_locator)
-                    self.page.wait_for_timeout(300)
-                except Exception:
-                    pass
-            today_link = self.page.locator(".k-calendar-container:visible .k-nav-today, .k-calendar-container:visible a.k-link:has-text('Today')").first
-            if today_link.is_visible():
-                self.js_click(today_link)
-                return
-            
-            day_link = self.page.locator(".k-calendar-container:visible td:not(.k-other-month) a.k-link").first
-            if day_link.is_visible():
-                self.js_click(day_link)
-                return
+            options.first.wait_for(state="visible", timeout=10000)
+            count = options.count()
+            if count > 0:
+                for i in range(count):
+                    opt = options.nth(i)
+                    txt = opt.inner_text().strip()
+                    if txt and not txt.startswith("--") and not txt.lower().startswith("select") and "no data" not in txt.lower():
+                        logger.info(f"Selected 1st valid dropdown option: '{txt}'")
+                        self.js_click(opt)
+                        self.page.wait_for_timeout(300)
+                        return
+                if count > 1:
+                    self.js_click(options.nth(1))
+                else:
+                    self.js_click(options.first)
         except Exception as e:
-            logger.warning(f"Could not interact with Kendo calendar popup: {e}")
+            logger.warning(f"Dropdown selection fallback note: {e}")
 
-    def set_all_datefields_to_current(self):
+    # ── Universal Reusable Date Picker Utility ─────────────────────────────────
+
+    def set_today_date(self, trigger_locator: Locator = None) -> str:
         """
-        Injects today's date directly into all Kendo DatePicker inputs across the page.
+        Universal date picker helper:
+        - Calculates today's date dynamically (never hardcoded).
+        - Optionally opens calendar picker popup or directly injects formatted date.
+        - Returns formatted date string (MM/DD/YYYY).
         """
-        import datetime
+        today = datetime.date.today()
+        day_str = str(today.day)
+        date_full = today.strftime("%m/%d/%Y")
+
+        if trigger_locator is not None and trigger_locator.is_visible():
+            try:
+                self.js_click(trigger_locator)
+                self.page.wait_for_timeout(300)
+
+                day_link = self.page.get_by_label(re.compile(r"Current focused date", re.I)).get_by_role("link", name=day_str).or_(
+                    self.page.locator(".k-calendar-container:visible, .k-animation-container:visible").get_by_role("link", name=day_str, exact=True)
+                ).first
+                if day_link.is_visible():
+                    self.js_click(day_link)
+                    return date_full
+            except Exception as e:
+                logger.warning(f"Calendar popup interaction note: {e}")
+
+        # Direct input injection fallback
+        try:
+            self.set_all_datefields_to_current()
+        except Exception as e:
+            logger.warning(f"Direct date injection note: {e}")
+
+        return date_full
+
+    def set_all_datefields_to_current(self) -> None:
+        """Injects today's date directly into all Kendo DatePicker input controls across the page."""
         current_date_str = datetime.datetime.now().strftime("%m/%d/%Y")
         self.page.evaluate(f"""
             () => {{
@@ -153,9 +188,11 @@ class BasePage:
             }}
         """)
 
-    def attach_document(self, file_path: str, subject: str = "test", description: str = "test") -> None:
-        """Attaches a document to the Documents and Log section."""
-        logger.info(f"Attaching document: {file_path}")
+    # ── Shared Business Workflow Methods ───────────────────────────────────────
+
+    def attach_document(self, file_path: str, subject: str = "Automated Subject", description: str = "Automated Description") -> None:
+        """Attaches a document to the shared Documents and Log section."""
+        logger.info(f"Uploading document asset: {file_path}")
         self._wait_for_loader()
         if self.attach_document_button.count() == 0 or not self.attach_document_button.is_visible():
             logger.warning("Attach Document button not visible.")
@@ -163,36 +200,27 @@ class BasePage:
 
         self.js_click(self.attach_document_button)
         self._wait_for_loader()
-        
-        # Select first valid option in Document Type dropdown
+
         if self.document_type_dropdown.is_visible():
-            self.js_click(self.document_type_dropdown)
-            option = self.page.get_by_role("option").first
-            if option.is_visible():
-                self.js_click(option)
-        
-        # Upload File using .first locator to avoid strict mode violations
+            self.select_first_dropdown_option(self.document_type_dropdown)
+
         if self.choose_file_input.count() > 0:
             self.choose_file_input.set_input_files(file_path)
-            
-        # Fill Subject and Description
+
         if self.subject_input.is_visible():
-            self.js_click(self.subject_input)
             self.subject_input.fill(subject)
-            
+
         if self.description_input.is_visible():
-            self.js_click(self.description_input)
             self.description_input.fill(description)
-            
-        # Click Save
+
         if self.save_document_button.is_visible():
             self.js_click(self.save_document_button)
             self._wait_for_loader()
         logger.info("Document attached successfully.")
 
-    def add_communication(self, subject: str = "testingd", description: str = "one") -> None:
-        """Adds a Communication entry in the Documents and Log section."""
-        logger.info("Adding communication entry.")
+    def add_communication(self, subject: str = "Automated Communication", description: str = "Communication Description") -> None:
+        """Adds a Communication entry in the shared Documents and Log section."""
+        logger.info("Adding communication record.")
         self._wait_for_loader()
         if self.add_communication_button.count() == 0 or not self.add_communication_button.is_visible():
             logger.warning("Add Communication button not visible.")
@@ -200,49 +228,34 @@ class BasePage:
 
         self.js_click(self.add_communication_button)
         self._wait_for_loader()
-        
+
         if self.communication_date_picker.is_visible():
-            self.js_click(self.communication_date_picker)
-            self.select_today_in_calendar()
-            
+            self.set_today_date(self.communication_date_picker)
+
         if self.subject_input.is_visible():
-            self.js_click(self.subject_input)
             self.subject_input.fill(subject)
-            
+
         if self.description_input.is_visible():
-            self.js_click(self.description_input)
             self.description_input.fill(description)
-            
+
         self.set_all_datefields_to_current()
-        
+
         if self.save_document_button.is_visible():
             self.js_click(self.save_document_button)
             self._wait_for_loader()
-        logger.info("Communication entry added successfully.")
+        logger.info("Communication record added successfully.")
 
     def create_package_and_verify(self) -> None:
-        """Clicks Create Package, checks the first attachment, and verifies document package creation."""
+        """Clicks Create Package, checks attachments, and confirms package creation."""
         logger.info("Creating package from attachments.")
         self._wait_for_loader()
         if self.create_package_button.count() == 0 or not self.create_package_button.is_visible():
             logger.warning("Create Package button not visible.")
             return
 
-        self.create_package_button.scroll_into_view_if_needed()
-        try:
-            self.create_package_button.click(timeout=3000)
-        except Exception:
-            self.js_click(self.create_package_button)
+        self.js_click(self.create_package_button)
         self._wait_for_loader()
-        
-        # Modal window container / title
-        modal_title = self.page.locator(".k-window-title:visible, [role='dialog']:visible .k-window-title, .k-window:visible").filter(has_text=re.compile("Attachment|Package|Select", re.I)).first
-        try:
-            modal_title.wait_for(state="visible", timeout=8000)
-        except Exception:
-            pass
-            
-        # Select first checkbox inside modal if present
+
         chk = self.page.locator(".k-window:visible input[type='checkbox'], [role='dialog']:visible input[type='checkbox']").first
         try:
             if chk.count() > 0 and chk.is_visible():
@@ -250,7 +263,6 @@ class BasePage:
         except Exception:
             pass
 
-        # Confirm selection
         confirm_btn = self.page.get_by_role("button", name="Select Attachments").or_(self.page.locator(".k-window:visible button:has-text('Select')")).first
         try:
             if confirm_btn.count() > 0 and confirm_btn.is_visible():
@@ -259,12 +271,11 @@ class BasePage:
         except Exception:
             pass
 
-        # Handle OK / Success modal alert
         try:
             if self.ok_button.count() > 0 and self.ok_button.is_visible():
                 self.js_click(self.ok_button)
                 self._wait_for_loader()
         except Exception:
             pass
-            
-        logger.info("Document package created and verified successfully.")
+
+        logger.info("Document package created successfully.")

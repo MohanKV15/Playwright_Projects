@@ -1,4 +1,3 @@
-import datetime
 import logging
 import re
 from playwright.sync_api import Page, expect
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 class TechnicalReviewPage(BasePage):
     """
     Page Object Model for Technical Review in Staff Portal E-Permitting System.
-    Provides clean, professional automation methods for the complete Technical Review workflow.
+    Provides clean, professional automation methods for Technical Review workflows.
     """
 
     def __init__(self, page: Page):
@@ -45,36 +44,10 @@ class TechnicalReviewPage(BasePage):
         self.dept_job_permit_container = page.locator("div").filter(has_text="Department Job # Permit Type").nth(4)
         self.cancel_btn = page.get_by_role("button", name=" Cancel")
 
-    # ── Helpers ─────────────────────────────────────────────────────────────
-
-    def _select_first_dropdown_option(self) -> None:
-        """Selects the 1st valid non-placeholder option from active dropdown list."""
-        logger.info("Selecting 1st valid option from active dropdown.")
-        self._wait_for_loader()
-
-        options = self.page.get_by_role("option").or_(
-            self.page.locator("li.k-item:visible, .k-list-container:visible li, .k-animation-container:visible li, ul.k-list:visible li")
-        )
-
-        try:
-            options.first.wait_for(state="visible", timeout=10000)
-            for i in range(options.count()):
-                opt = options.nth(i)
-                txt = opt.inner_text().strip()
-                if txt and not txt.startswith("--") and not txt.lower().startswith("select") and "no data" not in txt.lower():
-                    logger.info(f"Selected option: '{txt}'")
-                    self.js_click(opt)
-                    self.page.wait_for_timeout(300)
-                    return
-            if options.count() > 0:
-                self.js_click(options.first)
-        except Exception as e:
-            logger.warning(f"Dropdown selection note: {e}")
-
-    # ── Action Methods ──────────────────────────────────────────────────────
+    # ── Modular Business Methods ───────────────────────────────────────────────
 
     def navigate_to_technical_review(self) -> None:
-        """Navigates to Technical Review tab and verifies initial page headers."""
+        """Navigates to Technical Review tab and verifies page headers."""
         logger.info("Navigating to Technical Review tab.")
         self._wait_for_loader()
         self.js_click(self.technical_review_link)
@@ -101,48 +74,13 @@ class TechnicalReviewPage(BasePage):
             expect(self.form_wrapper_container).to_be_visible(timeout=10000)
 
     def fill_dates(self) -> None:
-        """Populates present day dates into 1st and 2nd date pickers."""
-        day_str = str(datetime.date.today().day)
-        date_full = datetime.date.today().strftime("%m/%d/%Y")
-        logger.info(f"Filling present day date '{day_str}' ({date_full}).")
-
-        # Fill 1st Date Picker
-        try:
-            if self.date_picker_first.is_visible():
-                self.js_click(self.date_picker_first)
-                self.page.wait_for_timeout(300)
-                day_link1 = self.page.get_by_label(re.compile(r"Current focused date", re.I)).get_by_role("link", name=day_str).or_(
-                    self.page.locator(".k-calendar-container:visible, .k-animation-container:visible").get_by_role("link", name=day_str, exact=True)
-                ).first
-                if day_link1.is_visible():
-                    self.js_click(day_link1)
-        except Exception as e:
-            logger.warning(f"1st date picker note: {e}")
-
-        # Fill 2nd Date Picker
-        try:
-            if self.date_picker_second.is_visible():
-                self.js_click(self.date_picker_second)
-                self.page.wait_for_timeout(300)
-                day_link2 = self.page.get_by_role("link", name=day_str, exact=True).nth(1).or_(
-                    self.page.locator(".k-calendar-container:visible, .k-animation-container:visible").get_by_role("link", name=day_str, exact=True)
-                ).first
-                if day_link2.is_visible():
-                    self.js_click(day_link2)
-        except Exception as e:
-            logger.warning(f"2nd date picker note: {e}")
-
-        # Fallback direct date fill
-        try:
-            inputs = self.page.locator("input[data-role='datepicker'], .k-datepicker input, input[id*='Sent'], input[id*='Due']")
-            for i in range(min(inputs.count(), 2)):
-                inp = inputs.nth(i)
-                if inp.is_visible() and not inp.input_value():
-                    inp.fill(date_full)
-                    inp.dispatch_event("change")
-                    inp.dispatch_event("blur")
-        except Exception as e:
-            logger.warning(f"Direct date fill note: {e}")
+        """Populates present day dates using the BasePage date picker utility."""
+        logger.info("Filling present day dates into date pickers.")
+        if self.date_picker_first.is_visible():
+            self.set_today_date(self.date_picker_first)
+        if self.date_picker_second.is_visible():
+            self.set_today_date(self.date_picker_second)
+        self.set_all_datefields_to_current()
 
     def edit_review_unit_grid(self) -> None:
         """Edits ReviewUnitGrid 1st row, selects 1st option from Review By dropdown, and clicks Update."""
@@ -152,12 +90,7 @@ class TechnicalReviewPage(BasePage):
             self._wait_for_loader()
 
         if self.grid_dropdown.is_visible():
-            self.js_click(self.grid_dropdown)
-            self.page.wait_for_timeout(500)
-            self._wait_for_loader()
-
-        self._select_first_dropdown_option()
-        self.page.wait_for_timeout(300)
+            self.select_first_dropdown_option(self.grid_dropdown)
 
         if self.grid_update_btn.is_visible():
             self.js_click(self.grid_update_btn)
