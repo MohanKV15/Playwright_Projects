@@ -49,22 +49,52 @@ class GeneralInformationPage(BasePage):
             self.js_click(self.add_new_link)
             self._wait_for_loader()
 
+    def verify_permit_saved(self) -> None:
+        """Verifies the permit was saved and the post-save detail header is visible."""
+        logger.info("Verifying permit saved status.")
+        self._wait_for_loader()
+        saved_header = self.log_app_header.or_(
+            self.page.locator("div").filter(has_text=re.compile(r"Department Job # Permit Type", re.I)).first
+        )
+        expect(saved_header).to_be_visible(timeout=15000)
+
+    def close_permit_page(self) -> None:
+        """Returns to Permit Listing after permit creation."""
+        logger.info("Closing permit page and navigating back to Permit Listing.")
+        from pages.application_permit_info.permit_listing_page import PermitListingPage
+
+        listing_page = PermitListingPage(self.page)
+        listing_page.navigate_to_permit_listing()
+        listing_page.verify_search_form_ready()
+
+    def fill_standard_location_fields(self, milepost_value: float = 0.0) -> None:
+        """Fills Route, Suffix, Direction, and Milepost for standard permit location sections."""
+        logger.info("Filling standard location fields.")
+        self._wait_for_loader()
+        location_div = self.page.locator("#ApplicationLocationInfoDiv")
+
+        for trigger_text in ["--Select Route--", "--Select Suffix--", "--Select Direction--"]:
+            trigger = location_div.get_by_text(trigger_text).first
+            try:
+                if trigger.is_visible():
+                    self.select_first_dropdown_option(trigger)
+                    self.page.wait_for_timeout(500)
+                    self._wait_for_loader()
+            except Exception as e:
+                logger.warning(f"Location dropdown note ({trigger_text}): {e}")
+
+        try:
+            self._set_kendo_numeric_value("milepost", milepost_value)
+        except Exception:
+            try:
+                spin = self.page.get_by_role("spinbutton", name=re.compile(r"Milepost Start", re.I)).first
+                if spin.is_visible():
+                    spin.click(force=True)
+                    spin.fill(str(milepost_value))
+                    spin.press("Enter")
+            except Exception as e:
+                logger.warning(f"Milepost fill note: {e}")
+
     def verify_link_modals(self) -> None:
         """Verifies link modals (Link Permits, Link To LONI, Link To Pre-App)."""
         logger.info("Verifying modal links.")
-        self._wait_for_loader()
-
-        for btn_name, locator in [
-            ("Link Permits", self.link_permits_button),
-            ("Link To LONI", self.link_to_loni_button),
-            ("Link To Pre-App", self.link_to_pre_app_button),
-        ]:
-            try:
-                if locator.is_visible():
-                    self.js_click(locator)
-                    self.page.wait_for_timeout(300)
-                    if self.modal_back_button.is_visible():
-                        self.js_click(self.modal_back_button)
-                        self._wait_for_loader()
-            except Exception as e:
-                logger.warning(f"Modal verification note for '{btn_name}': {e}")

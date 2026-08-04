@@ -20,7 +20,9 @@ class PermitListingPage(BasePage):
         self.permit_listing_link = page.get_by_role("link", name="Permit Listing")
 
         # ── Add New Permit Locators ────────────────────────────────────────────
-        self.add_new_permit_button = page.get_by_role("button", name=" Add New Permit")
+        self.add_new_permit_button = page.get_by_role("button", name=" Add New Permit").or_(
+            page.locator("#btnAddNewPermit, button:has-text('Add New Permit')")
+        ).first
         self.app_type_dropdown = page.get_by_label("Select Application Type").get_by_text("--Select Application Type--")
         self.modal_header = page.get_by_text("Select Application Type", exact=True)
 
@@ -99,9 +101,17 @@ class PermitListingPage(BasePage):
         return {"status": "success", "app_no": app_no}
 
     def open_add_new_permit_modal(self) -> None:
-        """Clicks Add New Permit button and waits for modal header."""
+        """Clicks Add New Permit button and waits for modal header with retry mechanism."""
         self._wait_for_loader()
-        self.js_click(self.add_new_permit_button)
+        self.add_new_permit_button.wait_for(state="visible", timeout=15000)
+        for attempt in range(3):
+            try:
+                self.js_click(self.add_new_permit_button)
+                self.modal_header.wait_for(state="visible", timeout=5000)
+                return
+            except Exception:
+                self.page.wait_for_timeout(1000)
+
         expect(self.modal_header).to_be_visible(timeout=15000)
 
     def select_application_type(self, type_name: str) -> None:
@@ -138,31 +148,30 @@ class PermitListingPage(BasePage):
                 edit_buttons = self.page.locator("#gridEdit, a.k-grid-edit")
                 count = edit_buttons.count()
 
-                record_idx = (attempt + 1) if count > (attempt + 1) else (attempt % count) if count > 0 else 0
-                logger.info(f"Editing permit record index {record_idx} (attempt {attempt + 1}/{max_retries})...")
+                if count == 0:
+                    logger.warning(f"No records found for company '{company_name}'.")
+                    return {"status": "no_records", "app_no": None}
 
-                target_btn = edit_buttons.nth(record_idx) if count > record_idx else self.first_record_edit_button
-                row_locator = target_btn.locator("xpath=ancestor::tr")
-
-                app_no = f"Record #{record_idx}"
+                btn = edit_buttons.nth(attempt % count)
+                row_locator = btn.locator("xpath=ancestor::tr")
+                app_no = "Unknown"
                 if row_locator.count() > 0:
                     cols = [c.strip() for c in row_locator.inner_text().split("\t") if c.strip()]
                     if len(cols) > 0 and cols[0]:
                         app_no = cols[0]
 
-                self.js_click(target_btn)
+                logger.info(f"Attempting to edit record {attempt + 1}: App No '{app_no}'")
+                self.js_click(btn)
                 self.page.wait_for_load_state("domcontentloaded")
                 self._wait_for_loader()
 
                 if self.is_server_error_page():
-                    logger.warning(f"Record index {record_idx} threw server error. Retrying with next record...")
+                    logger.warning(f"Record '{app_no}' triggered server 500 error page. Retrying with next record...")
                     continue
 
-                return {"status": "success", "app_no": app_no, "record_index": record_idx}
-            except Exception as e:
-                if attempt == max_retries - 1:
-                    raise e
-                logger.warning(f"Search/Edit attempt {attempt + 1}/{max_retries} failed: {e}. Retrying...")
-                self.page.wait_for_timeout(3000)
+                return {"status": "success", "app_no": app_no}
 
-        return {"status": "success", "app_no": "Unknown", "record_index": 0}
+            except Exception as e:
+                logger.warning(f"Attempt {attempt + 1} failed: {e}")
+
+        raise RuntimeError(f"Could not open a valid permit record after {max_retries} attempts.")

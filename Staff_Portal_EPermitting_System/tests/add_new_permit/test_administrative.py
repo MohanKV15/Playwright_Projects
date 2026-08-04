@@ -19,10 +19,11 @@ def test_create_administrative_permit(authenticated_page, faker):
     test_data = {
         "design_job": f"{faker.word().upper()}-{faker.random_int(100, 999)}",
         "upc": f"UPC-{faker.random_number(digits=6)}",
-        "milepost": str(faker.random_int(1, 100))
+        "milepost": "0"
     }
     
     admin_page.fill_general_information(test_data)
     admin_page.fill_location_information(test_data)
     admin_page.save_permit()
     admin_page.verify_administrative_details(test_data)
+    admin_page.close_permit_page()

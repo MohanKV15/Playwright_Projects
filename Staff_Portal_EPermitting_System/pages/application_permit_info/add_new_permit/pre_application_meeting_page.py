@@ -6,9 +6,10 @@ from pages.application_permit_info.general_information_page import GeneralInform
 logger = logging.getLogger(__name__)
 
 
-class LotSubdivisionPage(GeneralInformationPage):
+class PreApplicationMeetingPage(GeneralInformationPage):
     """
-    Handles specialized fields and logic specifically for the 'Lot Subdivision' application type.
+    Page Object Model for specialized fields and logic specifically for the 'Pre-Application Meeting' application type,
+    handling Department, Case Manager, Route, Suffix, Direction, and Milepost Start & End fields.
     """
 
     def __init__(self, page: Page):
@@ -25,8 +26,18 @@ class LotSubdivisionPage(GeneralInformationPage):
             page.get_by_text("Location Information")
         ).first
 
-        self.design_job_input = page.get_by_role("textbox", name=re.compile(r"Design Job", re.I)).or_(
-            page.locator("#design_job, input[name*='DesignJob']")
+        self.department_dropdown = page.locator("#frmPermit span.k-widget.k-dropdown:visible, #frmPermit span.k-dropdown:visible").nth(0)
+        self.case_manager_dropdown = page.locator("#frmPermit span.k-widget.k-dropdown:visible, #frmPermit span.k-dropdown:visible").nth(1)
+
+        self.route_dropdown = page.locator("#ApplicationLocationInfoDiv span.k-widget.k-dropdown:visible, #ApplicationLocationInfoDiv span.k-dropdown:visible").nth(0)
+        self.suffix_dropdown = page.locator("#ApplicationLocationInfoDiv span.k-widget.k-dropdown:visible, #ApplicationLocationInfoDiv span.k-dropdown:visible").nth(1)
+        self.direction_dropdown = page.locator("#ApplicationLocationInfoDiv span.k-widget.k-dropdown:visible, #ApplicationLocationInfoDiv span.k-dropdown:visible").nth(2)
+
+        self.milepost_start_input = page.get_by_role("spinbutton", name=re.compile(r"Milepost Start", re.I)).or_(
+            page.get_by_role("spinbutton").first
+        ).first
+        self.milepost_end_input = page.get_by_role("spinbutton", name=re.compile(r"Milepost End", re.I)).or_(
+            page.get_by_role("spinbutton").nth(1)
         ).first
 
         self.save_button = page.get_by_role("button", name=" Save").or_(
@@ -34,10 +45,9 @@ class LotSubdivisionPage(GeneralInformationPage):
         ).or_(page.locator("#btnSavePermit, #btnSave, .btn:has-text('Save')")).first
 
     def fill_general_information(self, data: dict = None) -> None:
-        """Fills the General Information section for a Lot Subdivision permit."""
-        logger.info("Filling Lot Subdivision General Information section.")
+        """Fills mandatory General Information dropdowns for Pre-Application Meeting."""
+        logger.info("Filling Pre-Application Meeting General Information section.")
         self._wait_for_loader()
-        data = data or {}
 
         try:
             if self.general_info_heading.is_visible():
@@ -45,33 +55,27 @@ class LotSubdivisionPage(GeneralInformationPage):
         except Exception:
             pass
 
+        # 1. Select Department
         try:
-            if self.design_job_input.is_visible():
-                self.design_job_input.fill(data.get("project_name", "LOTSUB-TEST"))
+            self.page.locator("#frmPermit").get_by_text("--Select Department--").click()
+            self.page.wait_for_timeout(300)
+            self.page.get_by_role("option").first.click()
+            self.page.wait_for_timeout(300)
         except Exception as e:
-            logger.warning(f"Design job input note: {e}")
+            logger.warning(f"Department selection note: {e}")
 
-        dropdown_placeholders = [
-            "--Select Team Leader--",
-            "--Select Department--",
-            "--Select Permit Sub Type--",
-            "--Select Case Manager--",
-        ]
-
-        for placeholder in dropdown_placeholders:
-            try:
-                trig = self.page.locator("#frmPermit").get_by_text(placeholder).first
-                if trig.is_visible():
-                    trig.click()
-                    self.page.wait_for_timeout(300)
-                    self.page.get_by_role("option").first.click()
-                    self.page.wait_for_timeout(300)
-            except Exception as e:
-                logger.warning(f"Dropdown '{placeholder}' selection note: {e}")
+        # 2. Select Case Manager
+        try:
+            self.page.locator("#frmPermit").get_by_text("--Select Case Manager--").click()
+            self.page.wait_for_timeout(300)
+            self.page.get_by_role("option").first.click()
+            self.page.wait_for_timeout(300)
+        except Exception as e:
+            logger.warning(f"Case Manager selection note: {e}")
 
     def fill_location_information(self, data: dict = None) -> None:
-        """Fills Location Information using exact pre_application_meeting_page logic."""
-        logger.info("Filling Lot Subdivision Location Information section.")
+        """Fills Location Information (Route, Suffix, Direction, Mileposts)."""
+        logger.info("Filling Pre-Application Meeting Location Information section.")
         milepost_val = (data or {}).get("milepost", "1")
 
         try:
@@ -127,21 +131,21 @@ class LotSubdivisionPage(GeneralInformationPage):
             logger.warning(f"Direction selection note: {e}")
 
     def save_permit(self) -> None:
-        """Clicks Save button and asserts no validation errors."""
-        logger.info("Saving Lot Subdivision permit.")
+        """Clicks Save button and asserts no mandatory validation errors."""
+        logger.info("Saving Pre-Application Meeting permit.")
         self._wait_for_loader()
         self.js_click(self.save_button)
         self._wait_for_loader()
         self.assert_no_validation_errors()
 
-    def verify_lot_subdivision_details(self, data: dict = None) -> None:
+    def verify_pre_application_meeting_details(self, data: dict = None) -> None:
         """Verifies successful permit creation."""
         self.verify_permit_saved()
 
-    def create_lot_subdivision_permit(self, data: dict = None) -> None:
-        """Orchestrates full Lot Subdivision creation flow."""
+    def create_pre_application_meeting_permit(self, data: dict = None) -> None:
+        """High-level workflow: fill form, save, verify, and return to listing."""
         self.fill_general_information(data)
         self.fill_location_information(data)
         self.save_permit()
-        self.verify_lot_subdivision_details(data)
+        self.verify_pre_application_meeting_details(data)
         self.close_permit_page()

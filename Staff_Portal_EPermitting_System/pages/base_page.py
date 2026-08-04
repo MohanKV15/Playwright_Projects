@@ -81,6 +81,32 @@ class BasePage:
         except Exception:
             pass
 
+    def assert_no_validation_errors(self) -> None:
+        """
+        Checks if any mandatory field validation error messages are visible on the page.
+        If validation errors are present, raises AssertionError to fail the test immediately.
+        """
+        self._wait_for_loader(timeout=5000)
+        error_locators = self.page.locator(
+            ".field-validation-error:visible, "
+            "span.text-danger:visible, "
+            ".k-tooltip-validation:visible, "
+            "[data-valmsg-summary='true']:visible li, "
+            ".validation-summary-errors:visible li"
+        )
+        count = error_locators.count()
+        visible_errors = []
+        for i in range(count):
+            err = error_locators.nth(i)
+            txt = err.inner_text().strip()
+            if txt and not txt.startswith("--") and "success" not in txt.lower():
+                visible_errors.append(txt)
+
+        if visible_errors:
+            err_msg = "; ".join(visible_errors)
+            logger.error(f"Form submission failed due to mandatory validation error(s): {err_msg}")
+            raise AssertionError(f"Mandatory form validation error(s) present on page: {err_msg}")
+
     def _set_kendo_numeric_value(self, element_id: str, value: float) -> None:
         """Interacts with a Kendo NumericTextBox by setting its value using internal Kendo API."""
         self.page.evaluate(f"""
@@ -98,6 +124,23 @@ class BasePage:
         self._set_kendo_numeric_value(element_id, value)
 
     # ── Universal Reusable Kendo UI Dropdown Utility ───────────────────────────
+
+    def select_all_kendo_dropdowns(self) -> None:
+        """Selects the first valid option for every visible Kendo dropdown still showing a placeholder."""
+        self._wait_for_loader()
+        dropdowns = self.page.locator("span.k-dropdown:visible, span.k-widget.k-dropdown:visible")
+        count = dropdowns.count()
+        for i in range(count):
+            try:
+                dd = dropdowns.nth(i)
+                if not dd.is_visible():
+                    continue
+                selected_text = dd.inner_text().strip()
+                if selected_text.startswith("--") or selected_text.lower().startswith("select"):
+                    self.select_first_dropdown_option(dd)
+                    self.page.wait_for_timeout(300)
+            except Exception as e:
+                logger.warning(f"Dropdown index {i} note: {e}")
 
     def select_first_dropdown_option(self, trigger_locator: Locator = None) -> None:
         """
@@ -169,6 +212,58 @@ class BasePage:
             logger.warning(f"Direct date injection note: {e}")
 
         return date_full
+
+    def select_kendo_location_dropdowns(self) -> None:
+        """
+        Sequentially selects the 1st valid option for Route, Suffix, and Direction
+        in #ApplicationLocationInfoDiv, waiting for Kendo AJAX DataSource binding.
+        """
+        self._wait_for_loader(timeout=5000)
+        for step in [0, 1, 2]:
+            try:
+                self.page.evaluate(
+                    """
+                    (stepIdx) => {
+                        var containers = $('#ApplicationLocationInfoDiv .k-dropdown, #ApplicationLocationInfoDiv input[data-role="dropdownlist"], #ApplicationLocationInfoDiv select');
+                        var target = containers.eq(stepIdx);
+                        if (target.length) {
+                            var dd = kendo.widgetInstance(target) || 
+                                     kendo.widgetInstance(target.closest(".k-dropdown, .k-widget")) || 
+                                     target.data("kendoDropDownList") || 
+                                     target.find("input, select").data("kendoDropDownList");
+                            if (dd && dd.dataSource && typeof dd.dataSource.data === "function") {
+                                var items = dd.dataSource.data();
+                                if (items && items.length > 0) {
+                                    var targetIdx = 0;
+                                    var targetVal = "";
+                                    for (var i = 0; i < items.length; i++) {
+                                        var item = items[i];
+                                        if (!item) continue;
+                                        var vals = Object.values(item).map(v => (v || "").toString().trim()).filter(v => v !== "");
+                                        if (vals.some(v => v && !v.startsWith("--") && !v.toLowerCase().includes("select") && !v.toLowerCase().includes("no data") && v !== "0")) {
+                                            targetIdx = i;
+                                            targetVal = item.Value || item.Id || item.value || item.ID || Object.values(item)[0];
+                                            break;
+                                        }
+                                    }
+                                    var chosenItem = items[targetIdx];
+                                    var txt = chosenItem ? (chosenItem.text || chosenItem.Text || chosenItem.name || chosenItem.Name || Object.values(chosenItem)[0] || "").toString() : "";
+                                    if (typeof dd.select === "function") dd.select(targetIdx);
+                                    if (targetVal && typeof dd.value === "function") dd.value(targetVal);
+                                    if (typeof dd.trigger === "function") dd.trigger("change");
+                                    if (dd.wrapper && dd.wrapper.length) {
+                                        dd.wrapper.find('.k-input').text(txt);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    """,
+                    step,
+                )
+                self.page.wait_for_timeout(400)
+            except Exception as e:
+                logger.warning(f"Location dropdown selection note: {e}")
 
     def set_all_datefields_to_current(self) -> None:
         """Injects today's date directly into all Kendo DatePicker input controls across the page."""
