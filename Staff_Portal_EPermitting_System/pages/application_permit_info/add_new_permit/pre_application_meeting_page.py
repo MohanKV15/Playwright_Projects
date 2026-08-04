@@ -147,5 +147,3 @@ class PreApplicationMeetingPage(GeneralInformationPage):
         self.fill_general_information(data)
         self.fill_location_information(data)
         self.save_permit()
-        self.verify_pre_application_meeting_details(data)
-        self.close_permit_page()

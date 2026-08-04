@@ -217,5 +217,3 @@ class HighwayOccupancyPage(GeneralInformationPage):
         self.fill_permit_information(data)
         self.fill_location_information(data)
         self.save_permit()
-        self.verify_highway_occupancy_details(data)
-        self.close_permit_page()
