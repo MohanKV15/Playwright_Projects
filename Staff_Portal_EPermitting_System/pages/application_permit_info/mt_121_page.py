@@ -43,9 +43,9 @@ class MT121Page(BasePage):
         self.select_option_dropdown = page.locator("#MTInspectiondiv").get_by_text("--Select option--").first
 
         # Action Buttons
-        self.save_button = page.get_by_role("button", name=" Save").or_(
-            page.get_by_role("button", name="Save")
-        ).or_(page.locator("#btnSave, .btn:has-text('Save')")).first
+        self.save_button = page.locator(
+            "button:has-text('Save'), input[type='submit'][value='Save'], input[type='button'][value='Save'], a:has-text('Save'), .btn:has-text('Save'), #btnSave"
+        ).first
 
         self.ok_confirm_button = page.get_by_role("button", name="OK").first
         self.gen_report_button = page.get_by_role("button", name="Generate Inspection Report").first
@@ -78,23 +78,50 @@ class MT121Page(BasePage):
         # 1. Fill Dates & Times
         self.set_all_datefields_to_current()
 
-        if self.time_from_input.is_visible():
-            self.time_from_input.fill("01:00")
-
-        if self.time_to_input.is_visible():
-            self.time_to_input.fill("02:00")
-
-        # 2. Select Radio options (prefer non-Other options)
         self.page.evaluate("""
             () => {
-                $('input[type="radio"]').each(function() {
-                    var name = $(this).attr("name") || "";
-                    var labelText = ($(this).closest('label').text() || $(this).next().text() || "").toLowerCase();
-                    if (name && !labelText.includes("other") && $('input[type="radio"][name="' + name + '"]:checked').length === 0) {
-                        $(this).prop("checked", true).trigger("change").trigger("click");
+                var jq = window.jQuery || window.$;
+                if (!jq) return;
+                
+                // Dismiss any open alert dialogs or overlays
+                jq('.k-dialog button:contains("OK"), .k-alert button:contains("OK"), .k-window button:contains("OK")').each(function() {
+                    if (jq(this).is(':visible')) jq(this).click();
+                });
+                jq('.k-overlay').remove();
+                
+                jq('#Inspection_Time_From_Date_Placeholder2, input[name*="Time_From"], input[id*="Time_From"]').each(function() {
+                    var mtb = jq(this).data("kendoMaskedTextBox") || (window.kendo ? window.kendo.widgetInstance(jq(this)[0]) : null);
+                    if (mtb && typeof mtb.value === "function") {
+                        mtb.value("09:00");
+                        if (typeof mtb.trigger === "function") mtb.trigger("change");
+                    }
+                    jq(this).val("09:00").attr("value", "09:00").trigger("input").trigger("change").trigger("blur");
+                });
+
+                jq('#Inspection_Time_To_Date_Placeholder3, input[name*="Time_To"], input[id*="Time_To"]').each(function() {
+                    var mtb = jq(this).data("kendoMaskedTextBox") || (window.kendo ? window.kendo.widgetInstance(jq(this)[0]) : null);
+                    if (mtb && typeof mtb.value === "function") {
+                        mtb.value("10:00");
+                        if (typeof mtb.trigger === "function") mtb.trigger("change");
+                    }
+                    jq(this).val("10:00").attr("value", "10:00").trigger("input").trigger("change").trigger("blur");
+                });
+            }
+        """)
+
+        # 2. Select Radio options & Checkboxes
+        self.page.evaluate("""
+            () => {
+                var jq = window.jQuery || window.$;
+                if (!jq) return;
+                jq('input[type="radio"]').each(function() {
+                    var name = jq(this).attr("name") || "";
+                    var labelText = (jq(this).closest('label').text() || jq(this).next().text() || "").toLowerCase();
+                    if (name && !labelText.includes("other") && jq('input[type="radio"][name="' + name + '"]:checked').length === 0) {
+                        jq(this).prop("checked", true).trigger("change").trigger("click");
                     }
                 });
-                $('input[type="checkbox"]').prop("checked", true).trigger("change");
+                jq('input[type="checkbox"]').prop("checked", true).trigger("change");
             }
         """)
 
@@ -112,8 +139,9 @@ class MT121Page(BasePage):
             self.select_first_dropdown_option(self.select_option_dropdown)
 
         self.select_all_kendo_dropdowns()
+        self.select_kendo_location_dropdowns()
 
-        # 4. Fill Comments & Text inputs
+        # 4. Fill Comments & Text inputs (ignoring date, time, and numeric/dropdown inputs)
         if self.sec3_comment.is_visible():
             self.sec3_comment.fill(comment)
 
@@ -122,9 +150,16 @@ class MT121Page(BasePage):
 
         self.page.evaluate(f"""
             (txt) => {{
-                $('input[type="text"], textarea, #Sec3_Comment_Placeholder1, #Sec5_Text_Placeholder_6, #Other, [name*="Other"]').each(function() {{
-                    if (!$(this).val()) {{
-                        $(this).val(txt);
+                var jq = window.jQuery || window.$;
+                if (!jq) return;
+                jq('input[type="text"], textarea').each(function() {{
+                    var id = (jq(this).attr('id') || '').toLowerCase();
+                    var name = (jq(this).attr('name') || '').toLowerCase();
+                    if (id.includes('time') || name.includes('time') || id.includes('date') || name.includes('date') || id.includes('dropdown') || name.includes('dropdown') || id.includes('numeric') || name.includes('numeric') || id.includes('unit') || id.includes('route')) {{
+                        return;
+                    }}
+                    if (!jq(this).val()) {{
+                        jq(this).val(txt);
                         var el = this;
                         ['input', 'change', 'blur', 'keyup'].forEach(function(evt) {{
                             var e = document.createEvent('HTMLEvents');
@@ -136,39 +171,21 @@ class MT121Page(BasePage):
             }}
         """, text_val)
 
-        # 5. Fill Numeric inputs
-        for num_loc in [self.sec3_numeric, self.sec4_numeric2, self.sec4_numeric3, self.sec4_numeric4, self.sec4_numeric5]:
+        # 5. Populate Numeric fields
+        num_int = int(num_val) if num_val and num_val.isdigit() else 10
+        if num_int < 1:
+            num_int = 10
+
+        self.fill_kendo_numeric("Sec3_Numeric_Placeholder7", float(num_int))
+        self._wait_for_loader()
+
+        for num_id in ["Sec4_Numeric_Placeholder2", "Sec4_Numeric_Placeholder3", "Sec4_Numeric_Placeholder4", "Sec4_Numeric_Placeholder5"]:
             try:
-                if num_loc.is_visible():
-                    num_loc.fill(num_val)
+                val = self.page.evaluate(f"() => $('#{num_id}').val()")
+                if not val or val == "0" or val == "":
+                    self.fill_kendo_numeric(num_id, 10.0)
             except Exception:
                 pass
-
-        self.page.evaluate(f"""
-            (amtStr) => {{
-                $('input[data-role="numerictextbox"], .k-numerictextbox input, input[name*="Quantity"], input[name*="Size"], input[name*="Fee"], input[name*="Received"], input[name*="Balance"], input[name*="Amount"]').each(function() {{
-                    var num = kendo.widgetInstance($(this)) || $(this).data("kendoNumericTextBox") || $(this).closest(".k-numerictextbox").find("input").data("kendoNumericTextBox");
-                    if (num && typeof num.value === "function") {{
-                        num.value(parseFloat(amtStr));
-                        if (typeof num.trigger === "function") num.trigger("change");
-                    }}
-                    $(this).val(amtStr).attr("value", amtStr).trigger("input").trigger("change").trigger("blur");
-                    var el = this;
-                    ['input', 'change', 'blur', 'keyup'].forEach(function(evt) {{
-                        var e = document.createEvent('HTMLEvents');
-                        e.initEvent(evt, true, true);
-                        el.dispatchEvent(e);
-                    }});
-                }});
-                $('[data-valmsg-for]').each(function() {{
-                    var fieldName = $(this).attr("data-valmsg-for");
-                    var $field = $('[name="' + fieldName + '"], #' + fieldName);
-                    if ($field.length && !$field.val()) {{
-                        $field.val(amtStr).trigger("change");
-                    }}
-                }});
-            }}
-        """, num_val)
 
         self._wait_for_loader()
 
@@ -190,7 +207,13 @@ class MT121Page(BasePage):
     def generate_inspection_report_pdf(self) -> None:
         """Generates Inspection Report PDF, confirms dialog, and verifies popup canvas."""
         logger.info("Generating MT-121 Inspection Report PDF.")
-        self.js_click(self.gen_report_button)
+        self._wait_for_loader()
+        self.scroll_to_locator(self.gen_report_button)
+        if self.gen_report_button.is_visible():
+            self.js_click(self.gen_report_button)
+        else:
+            self.page.evaluate("$('button:contains(\"Generate\"), input[value*=\"Generate\"], .btn:contains(\"Generate\")').first().click()")
+
         self._wait_for_loader()
 
         try:

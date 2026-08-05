@@ -40,8 +40,8 @@ class PaymentListingPage(BasePage):
 
         self.payment_details_save_cancel_text = page.get_by_text("Payment Details Save Cancel").first
 
-        self.save_button = page.get_by_role("button", name=" Save").or_(
-            page.get_by_role("button", name="Save")
+        self.save_button = page.locator(
+            "button:has-text('Save'), input[type='submit'][value='Save'], input[type='button'][value='Save'], a:has-text('Save'), .btn:has-text('Save')"
         ).first
 
         self.documents_log_heading = page.get_by_role("heading", name="Documents and Log").or_(
@@ -70,6 +70,72 @@ class PaymentListingPage(BasePage):
         expect(self.payment_listing_heading).to_be_visible(timeout=15000)
         expect(self.row_div_three).to_be_visible(timeout=15000)
 
+    def _select_payment_field_values(self) -> None:
+        """Selects the payment form dropdowns via Kendo data source when the app uses non-standard IDs."""
+        self.page.evaluate("""
+            () => {
+                const jq = window.jQuery || window.$;
+                if (!jq) return;
+                const labelLookups = ['payment type', 'payment subtype', 'method of payment'];
+                const selectorList = [
+                    '#payment_Type', '#Payment_Type', '#PaymentType', '#paymentType',
+                    '#payment_SubType', '#Payment_SubType', '#PaymentSubType', '#paymentSubType',
+                    '#Method_Of_Payment', '#Method_of_Payment', '#MethodOfPayment', '#payment_Method', '#Payment_Method'
+                ];
+
+                const chooseFirst = (node) => {
+                    if (!node) return;
+                    const $node = jq(node);
+                    if (!$node.length) return;
+                    const $source = $node.is('select, input, .k-dropdown') ? $node : ($node.find('select, input, .k-dropdown').first().length ? $node.find('select, input, .k-dropdown').first() : $node);
+                    let widget = $source.data('kendoDropDownList') || $source.find('input, select').data('kendoDropDownList');
+                    if (!widget) {
+                        const $root = $source.closest('.k-dropdown, .k-widget');
+                        if ($root.length) widget = $root.data('kendoDropDownList') || (window.kendo ? window.kendo.widgetInstance($root[0]) : null);
+                    }
+                    if (!widget || !widget.dataSource || typeof widget.dataSource.data !== 'function') return;
+                    const items = widget.dataSource.data();
+                    let targetVal = null;
+                    let targetTxt = '';
+                    for (let i = 0; i < items.length; i++) {
+                        const item = items[i];
+                        if (!item) continue;
+                        const txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
+                        const val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
+                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                            targetVal = val;
+                            targetTxt = txt;
+                            break;
+                        }
+                    }
+                    if (targetVal !== null) {
+                        if (typeof widget.value === 'function') widget.value(targetVal);
+                        if (typeof widget.trigger === 'function') widget.trigger('change');
+                        if (widget.wrapper && widget.wrapper.length) {
+                            widget.wrapper.find('.k-input').text(targetTxt);
+                        }
+                    }
+                };
+
+                for (const selector of selectorList) {
+                    const el = document.querySelector(selector);
+                    if (el) chooseFirst(el);
+                }
+
+                for (const lookup of labelLookups) {
+                    const labels = Array.from(document.querySelectorAll('label, span, div, th'));
+                    for (const label of labels) {
+                        const text = (label.textContent || '').replace(/\s+/g, ' ').trim();
+                        if (!text || !text.toLowerCase().includes(lookup)) continue;
+                        const container = label.closest('.row, .field, .form-group, .col-md-6, .col-lg-6, .k-widget');
+                        if (container) chooseFirst(container);
+                        break;
+                    }
+                }
+            }
+        """)
+        self.page.wait_for_timeout(500)
+
     def add_payment_details(self, amount: str = "50", comments: str = "test") -> None:
         """
         Fills and saves payment details matching exact codegen sequence:
@@ -92,117 +158,28 @@ class PaymentListingPage(BasePage):
 
         expect(self.payment_details_heading).to_be_visible(timeout=15000)
 
-        # 2. Select Payment Type --Select Payment Type --
-        try:
-            pt_trigger = self.page.locator("#frmPaymentDetails").get_by_text("--Select Payment Type --").or_(
-                self.page.locator("#frmPaymentDetails span.k-widget.k-dropdown").first
-            ).first
-            if pt_trigger.is_visible():
-                pt_trigger.click()
-                self.page.wait_for_timeout(500)
-                bond_opt = self.page.get_by_role("option", name="Bond").first
-                if bond_opt.is_visible():
-                    bond_opt.click()
-                else:
-                    self.page.evaluate("""
-                        () => {
-                            var ddl = $('#frmPaymentDetails span.k-widget.k-dropdown').eq(0).find('input, select').data('kendoDropDownList');
-                            if (ddl) { ddl.select(1); ddl.trigger('change'); }
-                        }
-                    """)
-                self.page.wait_for_timeout(1000)
-                self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Payment Type selection note: {e}")
+        # 2. Select Payment Type, Payment Sub Type, and Method of Payment dropdowns sequentially
+        self._select_payment_field_values()
+        self.page.wait_for_timeout(500)
 
-        # 3. Wait for Payment Sub Type options to load via AJAX and select
-        try:
-            for _ in range(20):
-                data_len = self.page.evaluate("""
-                    () => {
-                        var ddls = $('#frmPaymentDetails span.k-widget.k-dropdown');
-                        for (var i = 0; i < ddls.length; i++) {
-                            var kWidget = $(ddls[i]).find('input, select').data('kendoDropDownList') || $(ddls[i]).data('kendoDropDownList');
-                            if (kWidget && kWidget.element && (kWidget.element.attr('id') || '').toLowerCase().includes('sub')) {
-                                return kWidget.dataSource ? kWidget.dataSource.data().length : 0;
-                            }
-                        }
-                        var ddl = $('#Payment_Sub_Type, #Payment_SubType, #Payment_Subtype, [name*="Sub"]').data('kendoDropDownList');
-                        return (ddl && ddl.dataSource) ? ddl.dataSource.data().length : 0;
-                    }
-                """)
-                if data_len > 1:
-                    break
-                self.page.wait_for_timeout(500)
+        # Wait up to 5s for cascading Payment Sub Type dropdown data to populate via Kendo AJAX
+        for _ in range(15):
+            sub_count = self.page.evaluate("""
+                () => {
+                    var jq = window.jQuery || window.$;
+                    if (!jq) return 0;
+                    var pst = jq('#payment_SubType, #Payment_SubType').data('kendoDropDownList');
+                    return pst && pst.dataSource ? pst.dataSource.data().length : 0;
+                }
+            """)
+            if sub_count > 0:
+                break
+            self.page.wait_for_timeout(500)
 
-            pst_trigger = self.page.locator("#frmPaymentDetails").get_by_text("--Select Payment Sub Type--").or_(
-                self.page.locator("#frmPaymentDetails span.k-widget.k-dropdown").nth(1)
-            ).first
-            if pst_trigger.is_visible():
-                pst_trigger.click()
-                self.page.wait_for_timeout(500)
-                maint_opt = self.page.get_by_role("option", name="Maintenance").first
-                if maint_opt.is_visible():
-                    maint_opt.click()
-                else:
-                    self.page.evaluate("""
-                        () => {
-                            var ddls = $('#frmPaymentDetails span.k-widget.k-dropdown');
-                            for (var i = 0; i < ddls.length; i++) {
-                                var kWidget = $(ddls[i]).find('input, select').data('kendoDropDownList') || $(ddls[i]).data('kendoDropDownList');
-                                if (kWidget && kWidget.element && (kWidget.element.attr('id') || '').toLowerCase().includes('sub')) {
-                                    kWidget.select(1);
-                                    kWidget.trigger('change');
-                                    return;
-                                }
-                            }
-                            var ddl = $('#Payment_Sub_Type, #Payment_SubType, #Payment_Subtype, [name*="Sub"]').data('kendoDropDownList');
-                            if (ddl) { ddl.select(1); ddl.trigger('change'); }
-                        }
-                    """)
-                self.page.wait_for_timeout(500)
-                self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Payment Sub Type selection note: {e}")
-
-        # 4. Select Method Of Payment --Select Method Of Payment --
-        try:
-            mop_trigger = self.page.locator("#frmPaymentDetails").get_by_text("--Select Method Of Payment --").or_(
-                self.page.locator("#frmPaymentDetails span.k-widget.k-dropdown").nth(2)
-            ).first
-            if mop_trigger.is_visible():
-                mop_trigger.click()
-                self.page.wait_for_timeout(500)
-                bond_opt = self.page.get_by_role("option", name="Bond").first
-                if bond_opt.is_visible():
-                    bond_opt.click()
-                else:
-                    self.page.evaluate("""
-                        () => {
-                            var ddls = $('#frmPaymentDetails span.k-widget.k-dropdown');
-                            var ddl = $(ddls[2]).find('input, select').data('kendoDropDownList') || $('#Method_Of_Payment, #Method_of_Payment').data('kendoDropDownList');
-                            if (ddl) { ddl.select(1); ddl.trigger('change'); }
-                        }
-                    """)
-                self.page.wait_for_timeout(500)
-                self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Method of Payment selection note: {e}")
-
-        # Ensure all dropdowns are selected via Kendo API fallback if still showing placeholder
-        self.page.evaluate("""
-            () => {
-                $('#frmPaymentDetails span.k-widget.k-dropdown').each(function() {
-                    var ddl = $(this).find('input, select').data('kendoDropDownList') || $(this).data('kendoDropDownList');
-                    if (ddl && (ddl.selectedIndex === 0 || ddl.value() === "" || (ddl.text() || "").startsWith("--"))) {
-                        if (ddl.dataSource && ddl.dataSource.data().length > 1) {
-                            ddl.select(1);
-                            ddl.trigger("change");
-                        }
-                    }
-                });
-            }
-        """)
+        # Select Payment Sub Type and all remaining dropdowns in form
+        self._select_payment_field_values()
+        self.select_all_kendo_dropdowns()
+        self.page.wait_for_timeout(500)
 
         # 5. Fill Requested Amount ($)
         try:
