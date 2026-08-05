@@ -95,7 +95,10 @@ class MT121Page(BasePage):
                 jq('.k-overlay').remove();
                 
                 jq('#Inspection_Time_From_Date_Placeholder2, input[name*="Time_From"], input[id*="Time_From"]').each(function() {
-                    var mtb = jq(this).data("kendoMaskedTextBox") || (window.kendo ? window.kendo.widgetInstance(jq(this)[0]) : null);
+                    var mtb = jq(this).data("kendoMaskedTextBox");
+                    if (!mtb && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                        try { mtb = window.kendo.widgetInstance(jq(this)); } catch(e) {}
+                    }
                     if (mtb && typeof mtb.value === "function") {
                         mtb.value("09:00");
                         if (typeof mtb.trigger === "function") mtb.trigger("change");
@@ -104,7 +107,10 @@ class MT121Page(BasePage):
                 });
 
                 jq('#Inspection_Time_To_Date_Placeholder3, input[name*="Time_To"], input[id*="Time_To"]').each(function() {
-                    var mtb = jq(this).data("kendoMaskedTextBox") || (window.kendo ? window.kendo.widgetInstance(jq(this)[0]) : null);
+                    var mtb = jq(this).data("kendoMaskedTextBox");
+                    if (!mtb && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                        try { mtb = window.kendo.widgetInstance(jq(this)); } catch(e) {}
+                    }
                     if (mtb && typeof mtb.value === "function") {
                         mtb.value("10:00");
                         if (typeof mtb.trigger === "function") mtb.trigger("change");

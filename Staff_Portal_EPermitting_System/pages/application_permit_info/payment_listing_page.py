@@ -95,7 +95,7 @@ class PaymentListingPage(BasePage):
                             widget = $root.data('kendoDropDownList');
                             if (!widget && window.kendo && typeof window.kendo.widgetInstance === 'function') {
                                 try {
-                                    widget = window.kendo.widgetInstance($root[0]);
+                                    widget = window.kendo.widgetInstance($root);
                                 } catch (error) {
                                     widget = null;
                                 }

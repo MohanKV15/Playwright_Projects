@@ -14,7 +14,7 @@ STATE_FILE = AUTH_DIR / "user_state.json"
 
 def pytest_configure(config):
     """
-    Cleans up old lock file on the master process before worker processes are spawned.
+    Cleans up old lock file and stale trace artifacts on master process before worker processes spawn.
     """
     if not hasattr(config, "workerinput"):
         lock_file = Path(".pytest_cache/session.lock")
@@ -23,6 +23,14 @@ def pytest_configure(config):
                 lock_file.unlink()
             except Exception:
                 pass
+
+        artifacts_dir = Path("reports/debug_artifacts")
+        if artifacts_dir.exists():
+            for item in artifacts_dir.glob("*.zip"):
+                try:
+                    item.unlink()
+                except Exception:
+                    pass
 
 @pytest.fixture(scope="session")
 def auth_storage(browser, browser_context_args, tmp_path_factory):
