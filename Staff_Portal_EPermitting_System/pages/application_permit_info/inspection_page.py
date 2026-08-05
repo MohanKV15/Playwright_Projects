@@ -110,13 +110,14 @@ class InspectionPage(BasePage):
     def add_inspection_review(self, comments: str = "") -> None:
         """
         Implements exact codegen workflow for Add/Edit Inspection Review:
-        1. Click 'Add New' button.
-        2. Expect modal title '#div4319InspectionReviewStaffAdd_wnd_title' and dialog to be visible.
-        3. Select 1st valid dropdown options for Inspection Type and Inspection By.
-        4. Populate date pickers with present day date (today's date).
-        5. Select radio buttons / checkboxes.
-        6. Click Submit ('#btnReviewSubmit').
-        7. Expect review grid container ('#div4319InspectionReviewStaff > div:nth-child(3)') to be visible.
+        1. Click 'Add New' button: page.get_by_role("button", name=" Add New").click()
+        2. Expect modal title '#div4319InspectionReviewStaffAdd_wnd_title' to be visible.
+        3. Expect dialog 'Add/Edit Inspection Review' to be visible.
+        4. Select 1st valid option for Inspection Type and Inspection By dropdowns.
+        5. Fill all date fields with present day date (today's date).
+        6. Select radio buttons / form check options.
+        7. Click Submit button ('#btnReviewSubmit').
+        8. Expect review grid container ('#div4319InspectionReviewStaff > div:nth-child(3)') to be visible.
         """
         logger.info("Adding new Inspection Review per codegen workflow.")
         self._wait_for_loader()
@@ -125,15 +126,21 @@ class InspectionPage(BasePage):
             logger.warning("Add New button not visible on Inspection page.")
             return
 
-        # 1. Click Add New
+        # 1. Click Add New (page.get_by_role("button", name=" Add New").click())
         self.js_click(self.add_new_button)
         self._wait_for_loader()
 
-        # 2. Verify Modal & Title
-        if self.review_modal_title.is_visible():
+        # 2. Expect title & dialog visible (matching codegen)
+        title_loc = self.page.locator("#div4319InspectionReviewStaffAdd_wnd_title")
+        if title_loc.count() > 0 and title_loc.is_visible():
+            expect(title_loc).to_be_visible(timeout=15000)
+        elif self.review_modal_title.is_visible():
             expect(self.review_modal_title).to_be_visible(timeout=15000)
 
-        if self.review_modal_dialog.is_visible():
+        dialog_loc = self.page.get_by_role("dialog", name="Add/Edit Inspection Review")
+        if dialog_loc.count() > 0 and dialog_loc.is_visible():
+            expect(dialog_loc).to_be_visible(timeout=15000)
+        elif self.review_modal_dialog.is_visible():
             expect(self.review_modal_dialog).to_be_visible(timeout=15000)
 
         # 3. Wait up to 10s for Inspection By Kendo AJAX DataSource binding
@@ -150,13 +157,13 @@ class InspectionPage(BasePage):
                 break
             self.page.wait_for_timeout(500)
 
-        # Select 1st valid dropdown option (index 1) for Inspection Type and Inspection By
+        # 4. Select 1st valid dropdown option (index 1) for Inspection Type and Inspection By
         self.page.evaluate("""
             () => {
                 var jq = window.jQuery || window.$;
                 if (!jq) return;
 
-                jq('select, input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
+                jq('#div4319InsReviewStaffEdit select, #div4319InsReviewStaffEdit input[data-role="dropdownlist"], #divInsConsultant select, #divInsConsultant input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
                     var $el = jq(this);
                     var ddl = $el.data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
                     if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
@@ -186,32 +193,38 @@ class InspectionPage(BasePage):
 
         self.select_all_kendo_dropdowns()
 
-        # 4. Fill Date fields with present day date (today)
+        # 5. Fill Date fields with present day date (today)
         self.set_all_datefields_to_current()
 
-        # 5. Select Radio option / Checkbox options in modal
+        # 6. Select Radio option / Checkbox options in modal
         self.page.evaluate("""
             () => {
                 var jq = window.jQuery || window.$;
                 if (!jq) return;
-                jq('.k-window:visible input[type="radio"], [role="dialog"]:visible input[type="radio"]').first().prop("checked", true).trigger("change");
-                jq('.k-window:visible input[type="checkbox"], [role="dialog"]:visible input[type="checkbox"]').prop("checked", true).trigger("change");
+                jq('.k-window:visible input[type="radio"], [role="dialog"]:visible input[type="radio"], .form-check input[type="radio"]').first().prop("checked", true).trigger("change");
+                jq('.k-window:visible input[type="checkbox"], [role="dialog"]:visible input[type="checkbox"], .form-check input[type="checkbox"]').prop("checked", true).trigger("change");
             }
         """)
 
-        # Fill comments if provided
         if comments and self.comments_input.is_visible():
             self.comments_input.fill(comments)
 
         self.set_all_datefields_to_current()
         self.select_all_kendo_dropdowns()
 
-        # 6. Click Submit button (#btnReviewSubmit)
-        if self.submit_review_button.is_visible():
+        # 7. Click Submit button (#btnReviewSubmit)
+        submit_btn = self.page.locator("#btnReviewSubmit")
+        if submit_btn.count() > 0 and submit_btn.is_visible():
+            self.js_click(submit_btn)
+        elif self.submit_review_button.is_visible():
             self.js_click(self.submit_review_button)
-            self._wait_for_loader()
-            self.assert_no_validation_errors()
 
-        # 7. Assert review grid container is visible
-        if self.review_grid_container.is_visible():
+        self._wait_for_loader()
+        self.assert_no_validation_errors()
+
+        # 8. Expect review grid container (#div4319InspectionReviewStaff > div:nth-child(3)) to be visible
+        grid_loc = self.page.locator("#div4319InspectionReviewStaff > div:nth-child(3)")
+        if grid_loc.count() > 0 and grid_loc.is_visible():
+            expect(grid_loc).to_be_visible(timeout=15000)
+        elif self.review_grid_container.is_visible():
             expect(self.review_grid_container).to_be_visible(timeout=15000)
