@@ -72,7 +72,7 @@ class PaymentListingPage(BasePage):
 
     def _select_payment_field_values(self) -> None:
         """Selects the payment form dropdowns via Kendo data source when the app uses non-standard IDs."""
-        self.page.evaluate("""
+        self.page.evaluate(r"""
             () => {
                 const jq = window.jQuery || window.$;
                 if (!jq) return;
@@ -91,9 +91,19 @@ class PaymentListingPage(BasePage):
                     let widget = $source.data('kendoDropDownList') || $source.find('input, select').data('kendoDropDownList');
                     if (!widget) {
                         const $root = $source.closest('.k-dropdown, .k-widget');
-                        if ($root.length) widget = $root.data('kendoDropDownList') || (window.kendo ? window.kendo.widgetInstance($root[0]) : null);
+                        if ($root.length) {
+                            widget = $root.data('kendoDropDownList');
+                            if (!widget && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                                try {
+                                    widget = window.kendo.widgetInstance($root[0]);
+                                } catch (error) {
+                                    widget = null;
+                                }
+                            }
+                        }
                     }
                     if (!widget || !widget.dataSource || typeof widget.dataSource.data !== 'function') return;
+
                     const items = widget.dataSource.data();
                     let targetVal = null;
                     let targetTxt = '';

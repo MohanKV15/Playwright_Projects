@@ -60,16 +60,6 @@ class KendoControls:
         """
         KendoControls.wait_for_loader(page)
 
-    @staticmethod
-    def select_all_dropdowns(page: Page) -> None:
-        """
-        Iterates through all visible Kendo dropdowns on the page and selects
-        the first valid (non-placeholder) option using smart Kendo JS API and UI fallbacks.
-        
-        :param page: Active Playwright Page instance.
-        """
-        KendoControls.wait_for_loader(page)
-
         # 1. Fast, instant selection via Kendo JS API (< 50ms)
         page.evaluate("""
             () => {

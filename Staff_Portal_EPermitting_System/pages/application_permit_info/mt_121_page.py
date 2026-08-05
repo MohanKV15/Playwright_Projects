@@ -48,7 +48,12 @@ class MT121Page(BasePage):
         ).first
 
         self.ok_confirm_button = page.get_by_role("button", name="OK").first
-        self.gen_report_button = page.get_by_role("button", name="Generate Inspection Report").first
+        self.gen_report_button = page.locator(
+            "#generateInsReport, "
+            "button:has-text('Generate Inspection Report'), "
+            "input[type='button'][value*='Generate'], "
+            "input[type='submit'][value*='Generate']"
+        ).first
         self.documents_log_heading = page.get_by_role("heading", name="Documents and Log").or_(
             page.get_by_text("Documents and Log")
         ).first
