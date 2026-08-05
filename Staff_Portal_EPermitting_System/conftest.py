@@ -14,21 +14,13 @@ STATE_FILE = AUTH_DIR / "user_state.json"
 
 def pytest_configure(config):
     """
-    Cleans up old lock and user state files on the master process
-    before worker processes are spawned, ensuring fresh logins.
+    Cleans up old lock file on the master process before worker processes are spawned.
     """
     if not hasattr(config, "workerinput"):
         lock_file = Path(".pytest_cache/session.lock")
         if lock_file.exists():
             try:
                 lock_file.unlink()
-            except Exception:
-                pass
-        
-        state_file = Path(".auth/user_state.json")
-        if state_file.exists():
-            try:
-                state_file.unlink()
             except Exception:
                 pass
 

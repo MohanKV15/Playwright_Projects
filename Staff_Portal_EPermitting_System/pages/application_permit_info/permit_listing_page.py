@@ -59,6 +59,20 @@ class PermitListingPage(BasePage):
                 self.page.goto(dashboard_url, timeout=45000, wait_until="domcontentloaded")
                 self._wait_for_loader()
 
+    def verify_initial_layout(self) -> None:
+        """Verifies search form input is visible and interactive."""
+        self.verify_search_form_ready()
+
+    def verify_and_close_add_new_modal(self) -> None:
+        """Opens Add New Permit modal, verifies layout, and closes it."""
+        self.open_add_new_permit_modal()
+        close_btn = self.page.locator(".k-window:visible a.k-window-action, .k-window:visible .k-i-close, .k-window:visible button.close, [role='dialog']:visible button:has-text('Close')").first
+        if close_btn.count() > 0 and close_btn.is_visible():
+            close_btn.click()
+        else:
+            self.page.keyboard.press("Escape")
+        self._wait_for_loader()
+
     def verify_search_form_ready(self) -> None:
         """Verifies search form input is visible and interactive."""
         self._wait_for_loader()
