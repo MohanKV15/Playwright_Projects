@@ -46,8 +46,9 @@ def test_inspection_flow(authenticated_page, faker):
     # 5. Generate Inspection reports
     inspection_page.generate_inspection_reports()
 
-    # 6. Add and edit Inspection Review
+    # 6. Add and edit Inspection Review, and verify record is saved in grid
     inspection_page.add_inspection_review(comments=review_comments)
+    inspection_page.verify_inspection_review_added()
 
     # 7. Perform Documents & Log integration test (attach document, add communication)
     inspection_page.attach_document(file_path=dummy_pdf_path, subject=doc_subject, description=doc_desc)

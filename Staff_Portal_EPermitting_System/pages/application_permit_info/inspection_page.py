@@ -228,3 +228,21 @@ class InspectionPage(BasePage):
             expect(grid_loc).to_be_visible(timeout=15000)
         elif self.review_grid_container.is_visible():
             expect(self.review_grid_container).to_be_visible(timeout=15000)
+
+        self.verify_inspection_review_added()
+
+    def verify_inspection_review_added(self) -> None:
+        """
+        Verifies that the Inspection Review record has been saved and is displayed in the grid table.
+        1. Checks grid container visibility (#InspectionReviewMainTable, #div4319InspectionReviewStaff).
+        2. Asserts at least 1 record row is present in the grid table.
+        """
+        logger.info("Verifying saved Inspection Review entry in grid.")
+        self._wait_for_loader()
+
+        grid_table = self.page.locator("#InspectionReviewMainTable, #div4319InspectionReviewStaff .k-grid table, #div4319InspectionReviewStaff .k-grid").first
+        expect(grid_table).to_be_visible(timeout=15000)
+
+        rows = self.page.locator("#InspectionReviewMainTable tbody tr, #div4319InspectionReviewStaff .k-grid tbody tr")
+        expect(rows.first).to_be_visible(timeout=15000)
+        logger.info(f"Verified Inspection Review grid records present (Found {rows.count()} rows).")
