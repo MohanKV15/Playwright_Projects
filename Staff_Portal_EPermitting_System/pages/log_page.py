@@ -41,7 +41,7 @@ class LogPage:
         logger.info("Adding communication record.")
         KendoControls.wait_for_loader(self.page)
         if self.add_communication_button.count() == 0 or not self.add_communication_button.is_visible():
-            logger.warning("Add Communication button is not visible on page.")
+            logger.debug("Add Communication button is not visible on page; skipping communication step.")
             return
 
         self._js_click(self.add_communication_button)

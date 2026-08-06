@@ -48,7 +48,7 @@ class DocumentPage:
         logger.info(f"Uploading document asset: {file_path}")
         KendoControls.wait_for_loader(self.page)
         if self.attach_document_button.count() == 0 or not self.attach_document_button.is_visible():
-            logger.warning("Attach Document button is not visible on page.")
+            logger.debug("Attach Document button is not visible on page; skipping attach step.")
             return
 
         self._js_click(self.attach_document_button)
@@ -119,7 +119,7 @@ class DocumentPage:
         logger.info("Creating package from attachments.")
         KendoControls.wait_for_loader(self.page)
         if self.create_package_button.count() == 0 or not self.create_package_button.is_visible():
-            logger.warning("Create Package button is not visible on page.")
+            logger.debug("Create Package button is not visible on page; skipping package creation.")
             return
 
         self._js_click(self.create_package_button)

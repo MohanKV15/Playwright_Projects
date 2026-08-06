@@ -1,5 +1,4 @@
 import logging
-import re
 from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
 
@@ -9,6 +8,8 @@ logger = logging.getLogger(__name__)
 class InspectionPage(BasePage):
     """
     Page Object Model for Inspection tab & Inspection Review workflow in Staff Portal E-Permitting System.
+    Provides automated methods to handle inspection navigation, form details, report generation,
+    and adding/verifying inspection reviews.
     """
 
     def __init__(self, page: Page):
@@ -20,9 +21,6 @@ class InspectionPage(BasePage):
         ).first
 
         self.log_app_header = page.locator("#LogAppHeader")
-        self.inspection_heading = page.get_by_role("heading", name="Inspection").or_(
-            page.locator("h1:has-text('Inspection'), h2:has-text('Inspection'), h3:has-text('Inspection')")
-        ).first
 
         # ── Form Inputs & Buttons ─────────────────────────────────────────────
         self.comments_input = page.get_by_role("textbox", name="Comments")
@@ -30,7 +28,7 @@ class InspectionPage(BasePage):
             "button:has-text('Save'), input[type='submit'][value='Save'], input[type='button'][value='Save'], a:has-text('Save'), .btn:has-text('Save')"
         ).first
 
-        # ── Inspection Review Locators (from user codegen) ────────────────────
+        # ── Inspection Review Locators ───────────────────────────────────────
         self.add_new_button = page.get_by_role("button", name=" Add New").or_(
             page.get_by_role("button", name="Add New")
         ).or_(
@@ -45,14 +43,6 @@ class InspectionPage(BasePage):
             page.locator("[role='dialog']:visible")
         ).first
 
-        self.inspection_type_dropdown = page.locator("#div4319InsReviewStaffEdit").get_by_text("--Select Inspection Type--").or_(
-            page.locator("#div4319InsReviewStaffEdit .k-dropdown")
-        ).first
-
-        self.inspection_by_dropdown = page.locator("#divInsConsultant").get_by_text("--Select Inspection By--").or_(
-            page.locator("#divInsConsultant .k-dropdown")
-        ).first
-
         self.submit_review_button = page.locator("#btnReviewSubmit").or_(
             page.locator("button:has-text('Submit'), input[type='submit'][value='Submit']")
         ).first
@@ -61,10 +51,73 @@ class InspectionPage(BasePage):
             page.locator("#div4319InspectionReviewStaff .k-grid")
         ).first
 
+    def select_all_kendo_dropdowns(self) -> None:
+        """Selects 1st valid option for all Kendo dropdowns and syncs hidden inputs."""
+        # Wait for any AJAX-bound Kendo dropdowns in visible dialogs to populate
+        for _ in range(20):
+            has_unloaded = self.page.evaluate("""
+                () => {
+                    var jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    var unloaded = false;
+                    jq('.k-window:visible select, .k-window:visible input[data-role="dropdownlist"], [role="dialog"]:visible select, [role="dialog"]:visible input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant').each(function() {
+                        var ddl = jq(this).data('kendoDropDownList') || jq(this).closest('.k-dropdown, .k-widget').data('kendoDropDownList');
+                        if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                            try { ddl = window.kendo.widgetInstance(jq(this)); } catch(e) {}
+                        }
+                        if (ddl && ddl.dataSource && typeof ddl.dataSource.data === 'function') {
+                            if (ddl.dataSource.data().length === 0) unloaded = true;
+                        }
+                    });
+                    return unloaded;
+                }
+            """)
+            if not has_unloaded:
+                break
+            self.page.wait_for_timeout(300)
+
+        # Select 1st valid option using Kendo DropDownList API select() & trigger('change')
+        self.page.evaluate("""
+            () => {
+                var jq = window.jQuery || window.$;
+                if (!jq) return;
+
+                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
+                    var $el = jq(this);
+                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
+                    var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
+                    if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
+                    }
+                    if (ddl) {
+                        if (typeof ddl.enable === 'function') ddl.enable(true);
+                        var data = (ddl.dataSource && typeof ddl.dataSource.data === 'function') ? ddl.dataSource.data() : [];
+                        if (data.length > 0) {
+                            var hasOptionLabel = ddl.options && ddl.options.optionLabel;
+                            var idx = hasOptionLabel ? 1 : 0;
+                            if (idx < data.length || !hasOptionLabel) {
+                                if (typeof ddl.select === 'function') ddl.select(idx);
+                                if (typeof ddl.trigger === 'function') ddl.trigger('change');
+                                $el.trigger('change').trigger('input');
+                            }
+                        }
+                    }
+                });
+
+                // Sync hidden inspected_by input field
+                var staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
+                if (staffVal) {
+                    jq('#inspected_by').val(staffVal).trigger('change');
+                }
+            }
+        """)
+
+        super().select_all_kendo_dropdowns()
+
     # ── Page Actions ──────────────────────────────────────────────────────────
 
     def navigate_to_inspection(self) -> None:
-        """Navigates to Inspection tab."""
+        """Navigates to the Inspection tab."""
         logger.info("Navigating to Inspection tab.")
         self._wait_for_loader()
         if self.inspection_tab.is_visible():
@@ -76,21 +129,23 @@ class InspectionPage(BasePage):
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:
-        """Validates Inspection page initial layout."""
+        """Validates Inspection page initial layout by ensuring application header is visible."""
         logger.info("Verifying Inspection initial layout.")
         self._wait_for_loader()
         expect(self.log_app_header).to_be_visible(timeout=15000)
 
     def fill_inspection_details(self, comments: str = "") -> None:
-        """Fills inspection form details, selects 1st dropdown options, sets current date, and saves."""
-        logger.info("Filling and saving Inspection form.")
+        """Fills inspection form comments, selects dropdown options, sets current dates, and saves."""
+        logger.info("Filling and saving Inspection form details.")
         self._wait_for_loader()
         if comments and self.comments_input.is_visible():
             self.comments_input.fill(comments)
 
+        # Select all required Kendo dropdown options and populate date fields
         self.select_all_kendo_dropdowns()
         self.set_all_datefields_to_current()
 
+        # Save inspection details and assert no validation errors
         if self.save_button.is_visible():
             self.js_click(self.save_button)
             self._wait_for_loader()
@@ -107,96 +162,54 @@ class InspectionPage(BasePage):
             self.js_click(gen_btn)
             self._wait_for_loader()
 
+    def verify_add_new_review_modal_opened(self) -> None:
+        """Validates that the Add/Edit Inspection Review modal dialog has opened."""
+        candidates = [
+            self.page.locator("#div4319InspectionReviewStaffAdd_wnd_title"),
+            self.review_modal_title,
+            self.page.locator("#btnReviewSubmit"),
+            self.review_modal_dialog,
+            self.page.locator("[role='dialog']:visible"),
+        ]
+
+        for loc in candidates:
+            try:
+                if loc.count() > 0 and loc.is_visible():
+                    return
+            except Exception:
+                continue
+
+        raise AssertionError("Add New inspection review modal did not open after clicking the button.")
+
     def add_inspection_review(self, comments: str = "") -> None:
         """
-        Implements exact codegen workflow for Add/Edit Inspection Review:
-        1. Click 'Add New' button: page.get_by_role("button", name=" Add New").click()
-        2. Expect modal title '#div4319InspectionReviewStaffAdd_wnd_title' to be visible.
-        3. Expect dialog 'Add/Edit Inspection Review' to be visible.
-        4. Select 1st valid option for Inspection Type and Inspection By dropdowns.
-        5. Fill all date fields with present day date (today's date).
-        6. Select radio buttons / form check options.
-        7. Click Submit button ('#btnReviewSubmit').
-        8. Expect review grid container ('#div4319InspectionReviewStaff > div:nth-child(3)') to be visible.
+        Executes workflow to add a new Inspection Review entry:
+        1. Click 'Add New' button to open review modal dialog.
+        2. Verify modal title and dialog container visibility.
+        3. Fill form controls (dropdowns, dates, radios/checkboxes, comments).
+        4. Submit the review form and verify grid updates.
         """
-        logger.info("Adding new Inspection Review per codegen workflow.")
+        logger.info("Adding new Inspection Review.")
         self._wait_for_loader()
 
         if not self.add_new_button.is_visible():
-            logger.warning("Add New button not visible on Inspection page.")
-            return
+            raise AssertionError("Add New button is not visible on the Inspection page.")
 
-        # 1. Click Add New (page.get_by_role("button", name=" Add New").click())
+        # Click Add New button
         self.js_click(self.add_new_button)
         self._wait_for_loader()
+        self.page.wait_for_timeout(500)
 
-        # 2. Expect title & dialog visible (matching codegen)
-        title_loc = self.page.locator("#div4319InspectionReviewStaffAdd_wnd_title")
-        if title_loc.count() > 0 and title_loc.is_visible():
-            expect(title_loc).to_be_visible(timeout=15000)
-        elif self.review_modal_title.is_visible():
-            expect(self.review_modal_title).to_be_visible(timeout=15000)
+        # Confirm modal is open and visible
+        self.verify_add_new_review_modal_opened()
 
-        dialog_loc = self.page.get_by_role("dialog", name="Add/Edit Inspection Review")
-        if dialog_loc.count() > 0 and dialog_loc.is_visible():
-            expect(dialog_loc).to_be_visible(timeout=15000)
-        elif self.review_modal_dialog.is_visible():
-            expect(self.review_modal_dialog).to_be_visible(timeout=15000)
-
-        # 3. Wait up to 10s for Inspection By Kendo AJAX DataSource binding
-        for _ in range(20):
-            has_data = self.page.evaluate("""
-                () => {
-                    var jq = window.jQuery || window.$;
-                    if (!jq) return false;
-                    var d1 = jq('#inspected_by_staff').data('kendoDropDownList') || jq('#inspected_by_consultant').data('kendoDropDownList');
-                    return d1 && d1.dataSource && typeof d1.dataSource.data === 'function' && d1.dataSource.data().length > 0;
-                }
-            """)
-            if has_data:
-                break
-            self.page.wait_for_timeout(500)
-
-        # 4. Select 1st valid dropdown option (index 1) for Inspection Type and Inspection By
-        self.page.evaluate("""
-            () => {
-                var jq = window.jQuery || window.$;
-                if (!jq) return;
-
-                jq('#div4319InsReviewStaffEdit select, #div4319InsReviewStaffEdit input[data-role="dropdownlist"], #divInsConsultant select, #divInsConsultant input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
-                    var $el = jq(this);
-                    var ddl = $el.data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
-                    if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
-                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
-                    }
-                    if (ddl && typeof ddl.select === 'function') {
-                        var data = (ddl.dataSource && typeof ddl.dataSource.data === 'function') ? ddl.dataSource.data() : [];
-                        if (data.length > 0) {
-                            var hasOptionLabel = ddl.options && ddl.options.optionLabel;
-                            var idx = hasOptionLabel ? 1 : 0;
-                            if (idx < data.length || !hasOptionLabel) {
-                                ddl.select(idx);
-                                if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                $el.trigger('change').trigger('input');
-                            }
-                        }
-                    }
-                });
-
-                // Ensure hidden #inspected_by input gets updated
-                var staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
-                if (staffVal) {
-                    jq('#inspected_by').val(staffVal).trigger('change');
-                }
-            }
-        """)
-
+        # Select first valid option for all Kendo dropdowns in modal
         self.select_all_kendo_dropdowns()
 
-        # 5. Fill Date fields with present day date (today)
+        # Fill date fields with current date
         self.set_all_datefields_to_current()
 
-        # 6. Select Radio option / Checkbox options in modal
+        # Select radio buttons and checkboxes within modal
         self.page.evaluate("""
             () => {
                 var jq = window.jQuery || window.$;
@@ -206,13 +219,11 @@ class InspectionPage(BasePage):
             }
         """)
 
+        # Enter review comments if provided
         if comments and self.comments_input.is_visible():
             self.comments_input.fill(comments)
 
-        self.set_all_datefields_to_current()
-        self.select_all_kendo_dropdowns()
-
-        # 7. Click Submit button (#btnReviewSubmit)
+        # Click Submit button to submit review
         submit_btn = self.page.locator("#btnReviewSubmit")
         if submit_btn.count() > 0 and submit_btn.is_visible():
             self.js_click(submit_btn)
@@ -222,20 +233,13 @@ class InspectionPage(BasePage):
         self._wait_for_loader()
         self.assert_no_validation_errors()
 
-        # 8. Expect review grid container (#div4319InspectionReviewStaff > div:nth-child(3)) to be visible
-        grid_loc = self.page.locator("#div4319InspectionReviewStaff > div:nth-child(3)")
-        if grid_loc.count() > 0 and grid_loc.is_visible():
-            expect(grid_loc).to_be_visible(timeout=15000)
-        elif self.review_grid_container.is_visible():
-            expect(self.review_grid_container).to_be_visible(timeout=15000)
-
+        # Verify inspection review grid is visible and contains records
         self.verify_inspection_review_added()
 
     def verify_inspection_review_added(self) -> None:
         """
         Verifies that the Inspection Review record has been saved and is displayed in the grid table.
-        1. Checks grid container visibility (#InspectionReviewMainTable, #div4319InspectionReviewStaff).
-        2. Asserts at least 1 record row is present in the grid table.
+        Asserts grid visibility and presence of record rows.
         """
         logger.info("Verifying saved Inspection Review entry in grid.")
         self._wait_for_loader()
@@ -246,3 +250,4 @@ class InspectionPage(BasePage):
         rows = self.page.locator("#InspectionReviewMainTable tbody tr, #div4319InspectionReviewStaff .k-grid tbody tr")
         expect(rows.first).to_be_visible(timeout=15000)
         logger.info(f"Verified Inspection Review grid records present (Found {rows.count()} rows).")
+
