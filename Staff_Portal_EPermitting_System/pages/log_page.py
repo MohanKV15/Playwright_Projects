@@ -14,6 +14,12 @@ class LogPage:
     def __init__(self, page: Page):
         self.page = page
 
+        # ── Navigation & Sidebar Locators ─────────────────────────────────────
+        self.log_menu = page.locator("a[href*='PermitLog'], .sidebar-menu a:has-text('Log')").first
+        self.documents_and_log_heading = page.get_by_role("heading", name="Documents and Log").or_(
+            page.locator(".card-header:has-text('Documents and Log'), h1:has-text('Documents and Log')")
+        ).first
+
         # ── Communication & Log Locators ──────────────────────────────────────
         self.add_communication_button = page.get_by_role("button", name="Add Communication")
         self.communication_modal_container = page.locator("#divfrmLog > .form-wrapper > .row > .col-md-12")
@@ -26,6 +32,24 @@ class LogPage:
         ).first
 
         self.log_app_header = page.locator("#LogAppHeader")
+
+    def navigate_to_log(self) -> None:
+        """Navigates to Log menu under Application/Permit Info sidebar."""
+        logger.info("Navigating to Log menu.")
+        KendoControls.wait_for_loader(self.page)
+        if self.log_menu.is_visible():
+            self._js_click(self.log_menu)
+        else:
+            self.page.evaluate("$('a[href*=\"PermitLog\"]:visible, a:contains(\"Log\"):visible').first().click()")
+
+        self.page.wait_for_load_state("domcontentloaded")
+        KendoControls.wait_for_loader(self.page)
+
+    def verify_initial_layout(self) -> None:
+        """Validates Documents and Log heading and container visibility."""
+        logger.info("Verifying Log initial layout.")
+        KendoControls.wait_for_loader(self.page)
+        expect(self.documents_and_log_heading).to_be_visible(timeout=15000)
 
     def add_communication(
         self,

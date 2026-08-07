@@ -82,14 +82,25 @@ class PaymentListingPage(BasePage):
 
         expect(self.payment_details_heading).to_be_visible(timeout=15000)
 
-        # 1. Select initial dropdowns (Payment Type & Method of Payment)
-        self.select_all_kendo_dropdowns()
-        self.page.wait_for_timeout(500)
+        # 1. Select Payment Type & Method of Payment explicitly
+        pay_type_loc = self.page.locator("#payment_Type, #Payment_Type, [name='payment_Type'], [name='Payment_Type']").first
+        if pay_type_loc.count() > 0:
+            KendoControls.select_first_dropdown_option(self.page, pay_type_loc)
+            self._wait_for_loader()
+            self.page.wait_for_timeout(500)
 
-        # 2. Select Payment SubType explicitly
-        sub_type_loc = self.page.locator("#payment_SubType, #Payment_SubType, [name='payment_SubType']").first
-        KendoControls.select_first_dropdown_option(self.page, sub_type_loc)
-        self.page.wait_for_timeout(300)
+        method_loc = self.page.locator("#payment_Method, #Method_Of_Payment, [name='payment_Method'], [name='Method_Of_Payment']").first
+        if method_loc.count() > 0:
+            KendoControls.select_first_dropdown_option(self.page, method_loc)
+            self._wait_for_loader()
+            self.page.wait_for_timeout(500)
+
+        # 2. Wait for Payment SubType dropdown options to populate via AJAX and select
+        sub_type_loc = self.page.locator("#payment_SubType, #Payment_SubType, [name='payment_SubType'], [name='Payment_SubType']").first
+        if sub_type_loc.count() > 0:
+            self._wait_for_loader()
+            KendoControls.select_first_dropdown_option(self.page, sub_type_loc)
+            self.page.wait_for_timeout(300)
 
         # 3. Universal safety pass for any remaining unselected dropdowns
         self.select_all_kendo_dropdowns()
