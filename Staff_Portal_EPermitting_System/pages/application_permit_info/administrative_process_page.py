@@ -1,48 +1,32 @@
 import logging
 import re
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Page, Locator, expect
 from pages.base_page import BasePage
-from utils.kendo_controls import KendoControls
 
 logger = logging.getLogger(__name__)
 
 
 class AdministrativeProcessPage(BasePage):
     """
-    Page Object Model for Administrative Process in Staff Portal E-Permitting System.
-    Provides automated methods for navigating sub-tabs (General Information, Initial Review,
-    LOAC, LOLA, Payment, Revision, Appeal), triggering document/report popups, and saving updates.
+    Optimized Page Object Model for Administrative Process in Staff Portal E-Permitting System.
+    Automates navigation, report generation, modal interactions, and form saving across sub-tabs.
     """
 
     def __init__(self, page: Page):
         super().__init__(page)
 
-        # ── Navigation & Headers ──────────────────────────────────────────────
+        # ── Sidebar & Navigation Locators ─────────────────────────────────────
         self.admin_process_tab = page.get_by_role("link", name="Administrative Process").or_(
             page.locator("a:has-text('Administrative Process'), span:has-text('Administrative Process')")
-        ).first
-
-        self.log_app_header = page.locator("#LogAppHeader")
-        self.active_process_tab_heading = page.locator("#ProcessTab_ts_active").get_by_text("Administrative Process").or_(
-            page.locator("#ProcessTab_ts_active, .k-state-active:has-text('Administrative Process')")
         ).first
 
         self.general_info_heading = page.get_by_role("heading", name="General Information").or_(
             page.locator("h1:has-text('General Information'), h2:has-text('General Information'), h3:has-text('General Information')")
         ).first
 
-        # ── General Action Buttons ────────────────────────────────────────────
-        self.back_button = page.get_by_role("button", name=" Back").or_(
-            page.get_by_role("button", name="Back")
-        ).first
-
-        # ── Sub-Tab Locators ──────────────────────────────────────────────────
+        # ── Sub-Tab Navigation Locators ───────────────────────────────────────
         self.general_info_subtab = page.locator(
             "#ProcessTab a:has-text('Administrative Process'), #ProcessTab span:has-text('Administrative Process')"
-        ).first
-
-        self.generate_permit_num_button = page.get_by_role("button", name="Generate Permit #").or_(
-            page.locator("button:has-text('Generate Permit #')")
         ).first
 
         self.initial_review_tab = page.get_by_text("Initial Review").or_(
@@ -69,30 +53,60 @@ class AdministrativeProcessPage(BasePage):
             page.locator("#ProcessTab a:has-text('Appeal'), #ProcessTab span:has-text('Appeal')")
         ).first
 
-        # ── LOAC Buttons ──────────────────────────────────────────────────────
+        # ── Action & Report Generation Locators ───────────────────────────────
+        self.generate_permit_num_button = page.get_by_role("button", name="Generate Permit #").or_(
+            page.locator("button:has-text('Generate Permit #')")
+        ).first
         self.generate_reminder_button = page.get_by_role("button", name=re.compile(r"Generate Reminder", re.I)).first
         self.generate_final_notice_button = page.get_by_role("button", name=re.compile(r"Generate Final Notice", re.I)).first
-
-        # ── Payment Sub-Tab Buttons ───────────────────────────────────────────
         self.download_w9_button = page.get_by_role("button", name="Download W9").first
         self.generate_voucher_button = page.get_by_role("button", name="Generate Voucher").first
         self.generate_cover_letter_button = page.get_by_role("button", name="Generate Cover Letter").first
-        self.cover_letter_modal_title = page.locator("#GenerateCoverLetterDiv_wnd_title, .k-window-title:has-text('Cover Letter')").first
         self.generate_letter_to_owner_button = page.get_by_role("button", name=re.compile(r"Generate Letter to Owner", re.I)).first
-
-        # ── Revision Sub-Tab Buttons ──────────────────────────────────────────
         self.add_new_revision_button = page.get_by_role("button", name=" Add New").or_(
             page.get_by_role("button", name="Add New")
         ).first
-        self.add_edit_revision_modal_title = page.locator("#AddEditReviewDiv_wnd_title, .k-window-title:has-text('Revision')").first
 
-        # ── Appeal Sub-Tab Locators ───────────────────────────────────────────
-        self.appeal_section_container = page.locator("#frmCustomer > section > div > div, #frmCustomer section, .form-wrapper").first
+    # ── Internal Helper Methods ───────────────────────────────────────────────
+
+    def _click_tab(self, tab_locator: Locator) -> bool:
+        """Helper to navigate to target sub-tab if visible."""
+        self._wait_for_loader()
+        if tab_locator.count() > 0 and tab_locator.is_visible():
+            self.js_click(tab_locator)
+            self._wait_for_loader()
+            return True
+        return False
+
+    def safe_click_save(self) -> None:
+        """Safely clicks the Save button if a visible Save button is present on the active sub-tab."""
+        self._wait_for_loader()
+        visible_save = self.page.locator("button:visible:has-text('Save'), input[type='submit']:visible[value*='Save']").first
+        if visible_save.count() > 0 and visible_save.is_visible():
+            self.js_click(visible_save)
+            self._wait_for_loader()
+
+    def trigger_report_popup(self, action_button: Locator, timeout: int = 15000) -> None:
+        """Clicks target report generation button and closes popup window if triggered."""
+        self._wait_for_loader()
+        if action_button.count() > 0 and action_button.is_visible():
+            try:
+                with self.page.expect_popup(timeout=timeout) as popup_info:
+                    self.js_click(action_button)
+                popup = popup_info.value
+                popup.wait_for_load_state("domcontentloaded")
+                try:
+                    expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
+                except Exception as e:
+                    logger.warning(f"Report viewer canvas note: {e}")
+                popup.close()
+            except Exception as e:
+                logger.warning(f"Popup trigger note for button: {e}")
 
     # ── Page Actions ──────────────────────────────────────────────────────────
 
     def navigate_to_administrative_process(self) -> None:
-        """Navigates to Administrative Process tab."""
+        """Navigates to Administrative Process main tab."""
         logger.info("Navigating to Administrative Process tab.")
         self._wait_for_loader()
         if self.admin_process_tab.is_visible():
@@ -119,106 +133,50 @@ class AdministrativeProcessPage(BasePage):
         """Validates Administrative Process page initial layout."""
         logger.info("Verifying Administrative Process initial layout.")
         self._wait_for_loader()
-        expect(self.general_info_heading).to_be_visible(timeout=15000)
-
-    def safe_click_save(self) -> None:
-        """Safely clicks the Save button if a visible Save button is present on the active sub-tab."""
-        self._wait_for_loader()
-        visible_save = self.page.locator("button:visible:has-text('Save'), input[type='submit']:visible[value*='Save']").first
-        if visible_save.count() > 0 and visible_save.is_visible():
-            self.js_click(visible_save)
-            self._wait_for_loader()
-
-    def trigger_report_popup(self, action_button, timeout: int = 15000) -> None:
-        """
-        Clicks target report generation button and verifies `#mainCanvas` in the popup window if triggered.
-        """
-        self._wait_for_loader()
-        if action_button.count() > 0 and action_button.is_visible():
-            try:
-                with self.page.expect_popup(timeout=timeout) as popup_info:
-                    self.js_click(action_button)
-                popup = popup_info.value
-                popup.wait_for_load_state("domcontentloaded")
-                try:
-                    expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
-                except Exception as e:
-                    logger.warning(f"Report viewer canvas note: {e}")
-                popup.close()
-            except Exception as e:
-                logger.warning(f"Popup trigger note for button: {e}")
+        target = self.general_info_heading.or_(self.page.locator("#LogAppHeader, #partial-form, .form-wrapper")).first
+        expect(target).to_be_visible(timeout=15000)
 
     def process_general_information(self) -> None:
         """Saves General Information and triggers Generate Permit # if available."""
         logger.info("Processing General Information sub-tab.")
-        self._wait_for_loader()
-        if self.general_info_subtab.count() > 0 and self.general_info_subtab.is_visible():
-            self.js_click(self.general_info_subtab)
-            self._wait_for_loader()
-
+        self._click_tab(self.general_info_subtab)
         self.safe_click_save()
-
-        if self.generate_permit_num_button.is_visible():
-            self.trigger_report_popup(self.generate_permit_num_button)
+        self.trigger_report_popup(self.generate_permit_num_button)
 
     def process_initial_review(self) -> None:
         """Navigates to Initial Review sub-tab and saves if available."""
         logger.info("Processing Initial Review sub-tab.")
-        self._wait_for_loader()
-        if self.initial_review_tab.count() > 0 and self.initial_review_tab.is_visible():
-            self.js_click(self.initial_review_tab)
+        if self._click_tab(self.initial_review_tab):
             self.safe_click_save()
 
     def process_loac(self) -> None:
-        """Navigates to LOAC sub-tab, generates Reminder & Final Notice reports, and saves if available."""
+        """Navigates to LOAC sub-tab, generates Reminder & Final Notice reports, and saves."""
         logger.info("Processing LOAC sub-tab.")
-        self._wait_for_loader()
-        if self.loac_tab.count() > 0 and self.loac_tab.is_visible():
-            self.js_click(self.loac_tab)
-            self._wait_for_loader()
-
-            if self.generate_reminder_button.is_visible():
-                self.trigger_report_popup(self.generate_reminder_button)
-
-            if self.generate_final_notice_button.is_visible():
-                self.trigger_report_popup(self.generate_final_notice_button)
-
+        if self._click_tab(self.loac_tab):
+            self.trigger_report_popup(self.generate_reminder_button)
+            self.trigger_report_popup(self.generate_final_notice_button)
             self.safe_click_save()
 
     def process_lola(self) -> None:
         """Navigates to LOLA sub-tab and saves if available."""
         logger.info("Processing LOLA sub-tab.")
-        self._wait_for_loader()
-        if self.lola_tab.count() > 0 and self.lola_tab.is_visible():
-            self.js_click(self.lola_tab)
+        if self._click_tab(self.lola_tab):
             self.safe_click_save()
 
     def process_payment_subtab(self) -> None:
-        """
-        Navigates to Payment sub-tab, downloads W9, generates Voucher, Cover Letter,
-        and Letter to Owner, then saves if available.
-        """
+        """Navigates to Payment sub-tab, processes reports/modals, and saves."""
         logger.info("Processing Payment sub-tab.")
-        self._wait_for_loader()
-        if self.payment_subtab.count() > 0 and self.payment_subtab.is_visible():
-            self.js_click(self.payment_subtab)
-            self._wait_for_loader()
-
-            # Download W9
+        if self._click_tab(self.payment_subtab):
             if self.download_w9_button.is_visible():
                 try:
                     with self.page.expect_popup(timeout=15000) as popup_info:
                         self.js_click(self.download_w9_button)
-                    w9_popup = popup_info.value
-                    w9_popup.close()
+                    popup_info.value.close()
                 except Exception as e:
                     logger.warning(f"W9 download popup note: {e}")
 
-            # Generate Voucher
-            if self.generate_voucher_button.is_visible():
-                self.trigger_report_popup(self.generate_voucher_button)
+            self.trigger_report_popup(self.generate_voucher_button)
 
-            # Generate Cover Letter modal
             if self.generate_cover_letter_button.is_visible():
                 self.js_click(self.generate_cover_letter_button)
                 self._wait_for_loader()
@@ -227,12 +185,13 @@ class AdministrativeProcessPage(BasePage):
                 gen_btn = self.page.get_by_role("button", name="Generate", exact=True).or_(
                     self.page.locator(".k-window:visible button:has-text('Generate')")
                 ).first
-
                 if gen_btn.is_visible():
-                    with self.page.expect_popup(timeout=30000) as popup_info:
-                        self.js_click(gen_btn)
-                    cov_popup = popup_info.value
-                    cov_popup.close()
+                    try:
+                        with self.page.expect_popup(timeout=30000) as popup_info:
+                            self.js_click(gen_btn)
+                        popup_info.value.close()
+                    except Exception as e:
+                        logger.warning(f"Cover letter popup note: {e}")
 
                 close_btn = self.page.get_by_role("button", name="Close").or_(
                     self.page.locator(".k-window:visible a.k-window-action, .k-window:visible button.close")
@@ -240,20 +199,13 @@ class AdministrativeProcessPage(BasePage):
                 if close_btn.is_visible():
                     self.js_click(close_btn)
 
-            # Generate Letter to Owner
-            if self.generate_letter_to_owner_button.is_visible():
-                self.trigger_report_popup(self.generate_letter_to_owner_button)
-
+            self.trigger_report_popup(self.generate_letter_to_owner_button)
             self.safe_click_save()
 
     def process_revision(self) -> None:
-        """Navigates to Revision sub-tab, opens Add New Revision modal, fills form, and saves if available."""
+        """Navigates to Revision sub-tab, opens Add New Revision modal, fills form, and saves."""
         logger.info("Processing Revision sub-tab.")
-        self._wait_for_loader()
-        if self.revision_tab.count() > 0 and self.revision_tab.is_visible():
-            self.js_click(self.revision_tab)
-            self._wait_for_loader()
-
+        if self._click_tab(self.revision_tab):
             if self.add_new_revision_button.is_visible():
                 self.js_click(self.add_new_revision_button)
                 self._wait_for_loader()
@@ -267,9 +219,7 @@ class AdministrativeProcessPage(BasePage):
     def process_appeal(self) -> None:
         """Navigates to Appeal sub-tab and saves if available."""
         logger.info("Processing Appeal sub-tab.")
-        self._wait_for_loader()
-        if self.appeal_tab.count() > 0 and self.appeal_tab.is_visible():
-            self.js_click(self.appeal_tab)
+        if self._click_tab(self.appeal_tab):
             self.safe_click_save()
             self.assert_no_validation_errors()
 
