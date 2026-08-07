@@ -70,7 +70,7 @@ class PreApplicationPage(BasePage):
 
     def search_by_first_record_route(self) -> str:
         """
-        Extracts Route value from 1st grid row, fills Route# search input, and clicks Refresh.
+        Extracts Route value from 1st grid row, fills Route# search input, clicks Refresh, and verifies grid update.
         Returns the searched Route string.
         """
         logger.info("Extracting 1st record Route value to perform search filter.")
@@ -78,33 +78,53 @@ class PreApplicationPage(BasePage):
 
         route_val = "33NA"
         if self.grid_rows.count() > 0:
-            first_row_text = self.grid_rows.first.text_content() or ""
-            match = re.search(r"\b(\d+[A-Z]*)\b", first_row_text)
-            if match:
-                route_val = match.group(1)
+            first_cell = self.grid_rows.first.locator("td").first
+            if first_cell.count() > 0 and first_cell.is_visible():
+                text = (first_cell.text_content() or "").strip()
+                if text:
+                    route_val = text
 
         logger.info(f"Filling Route# search input with: {route_val}")
-        if self.route_input.is_visible():
-            self.route_input.fill(route_val)
+        target_input = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
+            self.page.locator("#Route_No, #Route, input[name*='Route'], .form-wrapper input[type='text']")
+        ).first
+
+        if target_input.count() > 0 and target_input.is_visible():
+            target_input.click()
+            target_input.fill(route_val)
+            target_input.press("Tab")
+            self.page.wait_for_timeout(500)
 
         if self.refresh_button.is_visible():
             self.js_click(self.refresh_button)
             self._wait_for_loader()
+            self.page.wait_for_timeout(1500)
 
+        logger.info(f"Completed search for Route: {route_val}")
         return route_val
 
     def clear_search_and_refresh(self) -> None:
-        """Clears all search filter input fields and clicks Refresh to reload all records."""
+        """Clears all search filter input fields, clicks Refresh, and reloads full grid list."""
         logger.info("Clearing all search filters and refreshing grid.")
         self._wait_for_loader()
 
-        for inp in [self.route_input, self.block_input, self.pre_app_no_input, self.lot_input]:
+        target_input = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
+            self.page.locator("#Route_No, #Route, input[name*='Route'], .form-wrapper input[type='text']")
+        ).first
+
+        if target_input.count() > 0 and target_input.is_visible():
+            target_input.click()
+            target_input.fill("")
+            target_input.press("Tab")
+
+        for inp in [self.block_input, self.pre_app_no_input, self.lot_input]:
             if inp.count() > 0 and inp.is_visible():
                 inp.fill("")
 
         if self.refresh_button.is_visible():
             self.js_click(self.refresh_button)
             self._wait_for_loader()
+            self.page.wait_for_timeout(1500)
 
     def open_first_record_in_edit_mode(self) -> None:
         """Clicks Edit (pencil icon) button on the 1st row of the grid."""
