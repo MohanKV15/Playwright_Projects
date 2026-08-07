@@ -1,6 +1,6 @@
 import logging
 import re
-from playwright.sync_api import Page, Locator, expect
+from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
 
 logger = logging.getLogger(__name__)
@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 class LetterOfNoInterestPage(BasePage):
     """
-    Optimized Page Object Model for Letter of No Interest in Staff Portal E-Permitting System.
+    Page Object Model for Letter of No Interest in Staff Portal E-Permitting System.
     Automates navigation, 'Linked with Permit' checkbox toggling, dynamic searching
     (Route#, Block, Lot), opening 1st record in Edit mode, layout assertions, and saving.
     """
@@ -16,7 +16,7 @@ class LetterOfNoInterestPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
 
-        # ── Locators ──────────────────────────────────────────────────────────
+        # ── Navigation Locators ───────────────────────────────────────────────
         self.loni_menu = page.get_by_role("link", name="Letter of No Interest").or_(
             page.locator("a:has-text('Letter of No Interest'), span:has-text('Letter of No Interest')")
         ).first
@@ -33,6 +33,7 @@ class LetterOfNoInterestPage(BasePage):
             page.locator("h1:has-text('Letter of No Interest View'), h2:has-text('Letter of No Interest View'), div:has-text('Letter of No Interest View')")
         ).first
 
+        # ── Search & Filter Locators ──────────────────────────────────────────
         self.linked_with_permit_checkbox = page.get_by_text("Linked with Permit").or_(
             page.locator("label:has-text('Linked with Permit'), input[type='checkbox']")
         ).first
@@ -45,17 +46,9 @@ class LetterOfNoInterestPage(BasePage):
             page.get_by_role("button", name="Save")
         ).first
 
+        # ── Grid Locators ─────────────────────────────────────────────────────
         self.grid_rows = page.locator(".k-grid tbody tr, table.k-selectable tbody tr, #gridLONI tbody tr")
         self.first_edit_button = page.locator("#gridEdit, .k-grid-edit, a.k-button:has(.k-i-edit), button:has(.fa-pencil), button.btn-edit, td a.k-button, td button").first
-
-    # ── Internal Helper Methods ───────────────────────────────────────────────
-
-    def _fill_and_tab(self, input_loc: Locator, value: str) -> None:
-        """Helper to focus, fill input value, and press Tab."""
-        if input_loc.count() > 0 and input_loc.is_visible():
-            input_loc.click()
-            input_loc.fill(value)
-            input_loc.press("Tab")
 
     # ── Page Actions ──────────────────────────────────────────────────────────
 
@@ -81,60 +74,116 @@ class LetterOfNoInterestPage(BasePage):
         """Toggles 'Linked with Permit' checkbox on and off with Refresh clicks."""
         logger.info("Testing 'Linked with Permit' checkbox toggle with Refresh.")
         self._wait_for_loader()
+
         if self.linked_with_permit_checkbox.is_visible():
-            for _ in range(2):
-                self.js_click(self.linked_with_permit_checkbox)
-                if self.refresh_button.is_visible():
-                    self.js_click(self.refresh_button)
-                    self._wait_for_loader()
+            self.js_click(self.linked_with_permit_checkbox)
+            if self.refresh_button.is_visible():
+                self.js_click(self.refresh_button)
+                self._wait_for_loader()
+                self.page.wait_for_timeout(1000)
+
+            self.js_click(self.linked_with_permit_checkbox)
+            if self.refresh_button.is_visible():
+                self.js_click(self.refresh_button)
+                self._wait_for_loader()
+                self.page.wait_for_timeout(1000)
 
     def search_by_first_record_route_block_lot(self) -> dict:
-        """Dynamically extracts Route#, Block, and Lot from 1st row, fills inputs all at once, and clicks Refresh."""
+        """
+        Dynamically extracts Route#, Block, and Lot from 1st row,
+        fills search filter fields all at once (identical logic to PreApplicationPage), and clicks Refresh.
+        """
         logger.info("Extracting Route#, Block, and Lot from 1st row dynamically.")
         self._wait_for_loader()
 
-        route_val, block_val, lot_val = "22", "5.11", "2.04"
+        route_val = ""
+        block_val = ""
+        lot_val = ""
 
         if self.grid_rows.count() > 0:
             row_cells = self.grid_rows.first.locator("td")
+
+            # Route # is in 1st cell (e.g., "22" or "4")
             if row_cells.count() > 0:
-                route_val = (row_cells.nth(0).text_content() or "").strip() or route_val
+                route_val = (row_cells.nth(0).text_content() or "").strip()
+
+            # Block/Lot is in 3rd cell (e.g., "5.11/2.04" or "99.01/20 &29")
             if row_cells.count() > 2:
                 block_lot_text = (row_cells.nth(2).text_content() or "").strip()
                 if "/" in block_lot_text:
                     parts = block_lot_text.split("/")
-                    block_val = parts[0].strip() or block_val
-                    lot_val = parts[1].split("&")[0].split(",")[0].strip() or lot_val
+                    block_val = parts[0].strip()
+                    lot_val = parts[1].split("&")[0].split(",")[0].strip()
+                elif block_lot_text:
+                    block_val = block_lot_text
 
-        logger.info(f"Filling search inputs — Route#: '{route_val}', Block: '{block_val}', Lot: '{lot_val}'")
+        # Fallbacks if grid was empty
+        if not route_val:
+            route_val = "22"
+        if not block_val:
+            block_val = "5.11"
+        if not lot_val:
+            lot_val = "2.04"
 
+        logger.info(f"Filling search inputs all at once — Route#: '{route_val}', Block: '{block_val}', Lot: '{lot_val}'")
+
+        # 1. Fill Route #
         route_inp = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
             self.page.locator("#Route_No, #Route, input[name*='Route'], .form-wrapper input[type='text']")
         ).first
+        if route_inp.count() > 0 and route_inp.is_visible():
+            route_inp.click()
+            route_inp.fill(route_val)
+            route_inp.press("Tab")
+
+        # 2. Fill Block
         block_inp = self.page.locator("#Block_No, #Block, input[name*='Block'], input[id*='Block']").first
+        if block_inp.count() > 0 and block_inp.is_visible():
+            block_inp.click()
+            block_inp.fill(block_val)
+            block_inp.press("Tab")
+        else:
+            b_loc = self.page.get_by_role("textbox", name=re.compile(r"Block", re.I)).first
+            if b_loc.count() > 0 and b_loc.is_visible():
+                b_loc.fill(block_val)
+
+        # 3. Fill Lot
         lot_inp = self.page.locator("#Lot_No, #Lot, input[name*='Lot'], input[id*='Lot']").first
+        if lot_inp.count() > 0 and lot_inp.is_visible():
+            lot_inp.click()
+            lot_inp.fill(lot_val)
+            lot_inp.press("Tab")
+        else:
+            l_loc = self.page.get_by_role("textbox", name=re.compile(r"Lot", re.I)).first
+            if l_loc.count() > 0 and l_loc.is_visible():
+                l_loc.fill(lot_val)
 
-        self._fill_and_tab(route_inp, route_val)
-        self._fill_and_tab(block_inp, block_val)
-        self._fill_and_tab(lot_inp, lot_val)
+        self.page.wait_for_timeout(500)
 
+        # 4. Click Refresh button
         if self.refresh_button.is_visible():
             self.js_click(self.refresh_button)
             self._wait_for_loader()
+            self.page.wait_for_timeout(2000)
 
+        logger.info("Completed dynamic multi-field search for Route, Block, and Lot.")
         return {"route": route_val, "block": block_val, "lot": lot_val}
 
     def clear_search_and_refresh(self) -> None:
-        """Clears search filter inputs and clicks Refresh to reload full grid."""
-        logger.info("Clearing search filters and refreshing grid.")
+        """Clears all search filter input fields, clicks Refresh, and reloads full grid list."""
+        logger.info("Clearing all search filters and refreshing grid.")
         self._wait_for_loader()
 
         route_inp = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
             self.page.locator("#Route_No, #Route, input[name*='Route'], .form-wrapper input[type='text']")
         ).first
-        self._fill_and_tab(route_inp, "")
 
-        for inp in self.page.locator("input[name*='Block'], input[name*='Lot']").all():
+        if route_inp.count() > 0 and route_inp.is_visible():
+            route_inp.click()
+            route_inp.fill("")
+            route_inp.press("Tab")
+
+        for inp in self.page.locator("input[name*='Block'], input[name*='Lot'], input[id*='Block'], input[id*='Lot']").all():
             try:
                 if inp.is_visible():
                     inp.fill("")
@@ -144,6 +193,7 @@ class LetterOfNoInterestPage(BasePage):
         if self.refresh_button.is_visible():
             self.js_click(self.refresh_button)
             self._wait_for_loader()
+            self.page.wait_for_timeout(1500)
 
     def open_first_record_in_edit_mode(self) -> None:
         """Clicks Edit (pencil icon) button on the 1st grid row."""
