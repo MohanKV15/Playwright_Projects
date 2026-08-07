@@ -37,6 +37,10 @@ class AdministrativeProcessPage(BasePage):
         ).first
 
         # ── Sub-Tab Locators ──────────────────────────────────────────────────
+        self.general_info_subtab = page.locator(
+            "#ProcessTab a:has-text('Administrative Process'), #ProcessTab span:has-text('Administrative Process')"
+        ).first
+
         self.generate_permit_num_button = page.get_by_role("button", name="Generate Permit #").or_(
             page.locator("button:has-text('Generate Permit #')")
         ).first
@@ -148,9 +152,8 @@ class AdministrativeProcessPage(BasePage):
         """Saves General Information and triggers Generate Permit # if available."""
         logger.info("Processing General Information sub-tab.")
         self._wait_for_loader()
-        gen_info_tab = self.page.locator("#ProcessTab a:has-text('Administrative Process'), #ProcessTab span:has-text('Administrative Process')").first
-        if gen_info_tab.count() > 0 and gen_info_tab.is_visible():
-            self.js_click(gen_info_tab)
+        if self.general_info_subtab.count() > 0 and self.general_info_subtab.is_visible():
+            self.js_click(self.general_info_subtab)
             self._wait_for_loader()
 
         self.safe_click_save()
@@ -218,9 +221,8 @@ class AdministrativeProcessPage(BasePage):
             # Generate Cover Letter modal
             if self.generate_cover_letter_button.is_visible():
                 self.js_click(self.generate_cover_letter_button)
-                self.page.wait_for_timeout(500)
+                self._wait_for_loader()
                 self.select_all_kendo_dropdowns()
-                self.page.wait_for_timeout(300)
 
                 gen_btn = self.page.get_by_role("button", name="Generate", exact=True).or_(
                     self.page.locator(".k-window:visible button:has-text('Generate')")
@@ -254,9 +256,8 @@ class AdministrativeProcessPage(BasePage):
 
             if self.add_new_revision_button.is_visible():
                 self.js_click(self.add_new_revision_button)
-                self.page.wait_for_timeout(500)
+                self._wait_for_loader()
                 self.select_all_kendo_dropdowns()
-                self.page.wait_for_timeout(300)
 
                 modal_save = self.page.locator(".k-window:visible button:has-text('Save'), #frmRevisionProc button:has-text('Save')").first
                 if modal_save.is_visible():
@@ -271,3 +272,15 @@ class AdministrativeProcessPage(BasePage):
             self.js_click(self.appeal_tab)
             self.safe_click_save()
             self.assert_no_validation_errors()
+
+    def process_all_subtabs(self) -> None:
+        """Master runner: Executes full sub-tab workflow sequentially across all 7 sub-tabs."""
+        logger.info("Starting master execution across all Administrative Process sub-tabs.")
+        self.process_general_information()
+        self.process_initial_review()
+        self.process_loac()
+        self.process_lola()
+        self.process_payment_subtab()
+        self.process_revision()
+        self.process_appeal()
+        logger.info("Completed master execution across all Administrative Process sub-tabs.")

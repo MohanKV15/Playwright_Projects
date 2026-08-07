@@ -22,23 +22,10 @@ def test_administrative_process_flow(authenticated_page, faker):
     admin_page.navigate_to_administrative_process()
     admin_page.verify_initial_layout()
 
-    # 3. Process sub-tabs for 1st record
-    admin_page.process_general_information()
-    admin_page.process_initial_review()
-    admin_page.process_loac()
-    admin_page.process_lola()
-    admin_page.process_payment_subtab()
-    admin_page.process_revision()
-    admin_page.process_appeal()
+    # 3. Process all sub-tabs for 1st record
+    admin_page.process_all_subtabs()
 
-    # 4. Click 'Next' button to navigate to 2nd record and process sub-tabs
+    # 4. Click 'Next' button to navigate to 2nd record and process all sub-tabs
     admin_page.navigate_to_next_record()
     admin_page.verify_initial_layout()
-
-    admin_page.process_general_information()
-    admin_page.process_initial_review()
-    admin_page.process_loac()
-    admin_page.process_lola()
-    admin_page.process_payment_subtab()
-    admin_page.process_revision()
-    admin_page.process_appeal()
+    admin_page.process_all_subtabs()
