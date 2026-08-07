@@ -98,13 +98,6 @@ class PreApplicationPage(BasePage):
                 elif block_lot_text:
                     block_val = block_lot_text
 
-        # Fallback values if grid was empty
-        if not route_val:
-            route_val = "73NA"
-        if not block_val:
-            block_val = "1202"
-        if not lot_val:
-            lot_val = "3"
 
         logger.info(f"Dynamically extracted search filters — Route#: '{route_val}', Block: '{block_val}', Lot: '{lot_val}'")
 
