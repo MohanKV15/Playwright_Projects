@@ -39,15 +39,13 @@ def test_generate_documents_flow(authenticated_page, faker):
     gen_doc_page.verify_initial_layout()
 
     # 4. Generate first form and verify #mainCanvas in popup window
-    popup1 = gen_doc_page.generate_form_and_verify_popup()
-    popup1.close()
+    gen_doc_page.generate_form_and_verify_popup()
 
     # 5. Verify 'Last Date Generated' column displays present day date
     gen_doc_page.verify_last_date_generated()
 
     # 6. Generate second form and verify #mainCanvas in second popup window
-    popup2 = gen_doc_page.generate_second_form_and_verify_popup()
-    popup2.close()
+    gen_doc_page.generate_second_form_and_verify_popup()
 
     # 7. Perform Documents & Log integration test (attach document, add communication)
     gen_doc_page.attach_document(file_path=dummy_pdf_path, subject=doc_subject, description=doc_desc)
