@@ -147,6 +147,12 @@ class AdministrativeProcessPage(BasePage):
     def process_general_information(self) -> None:
         """Saves General Information and triggers Generate Permit # if available."""
         logger.info("Processing General Information sub-tab.")
+        self._wait_for_loader()
+        gen_info_tab = self.page.locator("#ProcessTab a:has-text('Administrative Process'), #ProcessTab span:has-text('Administrative Process')").first
+        if gen_info_tab.count() > 0 and gen_info_tab.is_visible():
+            self.js_click(gen_info_tab)
+            self._wait_for_loader()
+
         self.safe_click_save()
 
         if self.generate_permit_num_button.is_visible():
