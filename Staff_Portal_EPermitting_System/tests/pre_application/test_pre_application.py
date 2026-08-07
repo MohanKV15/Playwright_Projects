@@ -18,8 +18,8 @@ def test_pre_application_flow(authenticated_page):
     pre_app_page.navigate_to_pre_application()
     pre_app_page.verify_initial_layout()
 
-    # 2. Search using 1st record Route value & refresh
-    pre_app_page.search_by_first_record_route()
+    # 2. Dynamically extract Route#, Block, and Lot from 1st row & search all at once
+    pre_app_page.search_by_first_record_route_block_lot()
 
     # 3. Clear all search inputs & refresh again
     pre_app_page.clear_search_and_refresh()

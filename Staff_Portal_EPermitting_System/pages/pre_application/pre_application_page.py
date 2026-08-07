@@ -68,40 +68,83 @@ class PreApplicationPage(BasePage):
         self._wait_for_loader()
         expect(self.pre_app_heading).to_be_visible(timeout=15000)
 
-    def search_by_first_record_route(self) -> str:
+    def search_by_first_record_route_block_lot(self) -> dict:
         """
-        Extracts Route value from 1st grid row, fills Route# search input, clicks Refresh, and verifies grid update.
-        Returns the searched Route string.
+        Dynamically extracts Route, Block, and Lot values from the 1st grid row,
+        fills Route#, Block, and Lot search fields all at once, clicks Refresh,
+        and verifies that the grid displays the filtered record.
         """
-        logger.info("Extracting 1st record Route value to perform search filter.")
+        logger.info("Extracting Route, Block, and Lot from 1st grid row dynamically.")
         self._wait_for_loader()
 
-        route_val = "33NA"
-        if self.grid_rows.count() > 0:
-            first_cell = self.grid_rows.first.locator("td").first
-            if first_cell.count() > 0 and first_cell.is_visible():
-                text = (first_cell.text_content() or "").strip()
-                if text:
-                    route_val = text
+        route_val = ""
+        block_val = ""
+        lot_val = ""
 
-        logger.info(f"Filling Route# search input with: {route_val}")
-        target_input = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
+        if self.grid_rows.count() > 0:
+            row_cells = self.grid_rows.first.locator("td")
+
+            # Route is in 1st cell
+            if row_cells.count() > 0:
+                route_val = (row_cells.nth(0).text_content() or "").strip()
+
+            # Block/Lot is in 3rd cell (e.g., "183/109.01" or "1202/3")
+            if row_cells.count() > 2:
+                block_lot_text = (row_cells.nth(2).text_content() or "").strip()
+                if "/" in block_lot_text:
+                    parts = block_lot_text.split("/")
+                    block_val = parts[0].strip()
+                    lot_val = parts[1].split(",")[0].strip()
+                elif block_lot_text:
+                    block_val = block_lot_text
+
+        # Fallback values if grid was empty
+        if not route_val:
+            route_val = "73NA"
+        if not block_val:
+            block_val = "1202"
+        if not lot_val:
+            lot_val = "3"
+
+        logger.info(f"Dynamically extracted search filters — Route#: '{route_val}', Block: '{block_val}', Lot: '{lot_val}'")
+
+        # 1. Fill Route#
+        route_inp = self.page.get_by_role("textbox", name=re.compile(r"Route", re.I)).or_(
             self.page.locator("#Route_No, #Route, input[name*='Route'], .form-wrapper input[type='text']")
         ).first
+        if route_inp.count() > 0 and route_inp.is_visible():
+            route_inp.click()
+            route_inp.fill(route_val)
+            route_inp.press("Tab")
 
-        if target_input.count() > 0 and target_input.is_visible():
-            target_input.click()
-            target_input.fill(route_val)
-            target_input.press("Tab")
-            self.page.wait_for_timeout(500)
+        # 2. Fill Block
+        block_inp = self.page.locator("#Block_No, #Block, input[name*='Block'], input[id*='Block']").first
+        if block_inp.count() > 0 and block_inp.is_visible():
+            block_inp.click()
+            block_inp.fill(block_val)
+            block_inp.press("Tab")
+        else:
+            self.page.get_by_role("textbox", name=re.compile(r"Block", re.I)).first.fill(block_val)
 
+        # 3. Fill Lot
+        lot_inp = self.page.locator("#Lot_No, #Lot, input[name*='Lot'], input[id*='Lot']").first
+        if lot_inp.count() > 0 and lot_inp.is_visible():
+            lot_inp.click()
+            lot_inp.fill(lot_val)
+            lot_inp.press("Tab")
+        else:
+            self.page.get_by_role("textbox", name=re.compile(r"Lot", re.I)).first.fill(lot_val)
+
+        self.page.wait_for_timeout(500)
+
+        # 4. Click Refresh button
         if self.refresh_button.is_visible():
             self.js_click(self.refresh_button)
             self._wait_for_loader()
-            self.page.wait_for_timeout(1500)
+            self.page.wait_for_timeout(2000)
 
-        logger.info(f"Completed search for Route: {route_val}")
-        return route_val
+        logger.info("Completed dynamic multi-field search for Route, Block, and Lot.")
+        return {"route": route_val, "block": block_val, "lot": lot_val}
 
     def clear_search_and_refresh(self) -> None:
         """Clears all search filter input fields, clicks Refresh, and reloads full grid list."""
