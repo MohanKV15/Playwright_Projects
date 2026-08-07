@@ -6,9 +6,9 @@ from pages.base_page import BasePage
 logger = logging.getLogger(__name__)
 
 
-class MyTicklersPage(BasePage):
+class PreApplicationPage(BasePage):
     """
-    Page Object Model for Dashboard -> My Ticklers page in Staff Portal E-Permitting System.
+    Page Object Model for Dashboard -> My Ticklers / Pre-Application page in Staff Portal E-Permitting System.
     Automates navigation, tickler grid actions (Close Out modal, Delete modal, Notification report viewer popup),
     and Authorizer action dropdown selections.
     """
@@ -45,8 +45,8 @@ class MyTicklersPage(BasePage):
     # ── Page Actions ──────────────────────────────────────────────────────────
 
     def navigate_to_my_ticklers(self) -> None:
-        """Navigates to Dashboard -> My Ticklers page."""
-        logger.info("Navigating to Dashboard -> My Ticklers.")
+        """Navigates to Dashboard -> My Ticklers / Pre-Application page."""
+        logger.info("Navigating to Dashboard -> My Ticklers / Pre-Application.")
         self._wait_for_loader()
 
         my_ticklers_link = self.page.locator("a[href*='MyTicklers'], a:has-text('My Ticklers'), span:has-text('My Ticklers')").first
@@ -65,15 +65,15 @@ class MyTicklersPage(BasePage):
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:
-        """Validates My Ticklers page grid container visibility."""
-        logger.info("Verifying My Ticklers grid layout.")
+        """Validates page grid container visibility."""
+        logger.info("Verifying grid layout.")
         self._wait_for_loader()
         target = self.page.locator("#myTicklersGridView, .k-grid, .form-wrapper, body").first
         expect(target).to_be_visible(timeout=15000)
 
     def test_close_out_action(self) -> None:
         """Clicks Close Out button on first grid row, asserts confirmation dialog, and clicks Cancel."""
-        logger.info("Testing Close Out action on My Ticklers grid row.")
+        logger.info("Testing Close Out action on grid row.")
         self._wait_for_loader()
         close_btn = self.grid_rows.first.locator("#btnCloseOutUpdate, button:has-text('Close Out')").first if self.grid_rows.count() > 0 else self.close_out_btn
         if close_btn.count() > 0 and close_btn.is_visible():
@@ -90,7 +90,7 @@ class MyTicklersPage(BasePage):
 
     def test_delete_action(self) -> None:
         """Clicks Delete button on grid row, asserts confirmation dialog, and clicks Cancel."""
-        logger.info("Testing Delete action on My Ticklers grid row.")
+        logger.info("Testing Delete action on grid row.")
         self._wait_for_loader()
         delete_btn = self.grid_rows.first.locator("#btnTicklerDeleteEdit, button:has-text('Delete')").first if self.grid_rows.count() > 0 else self.delete_btn
         if delete_btn.count() > 0 and delete_btn.is_visible():
@@ -142,3 +142,7 @@ class MyTicklersPage(BasePage):
             if self.dialog_cancel_btn.is_visible():
                 self.js_click(self.dialog_cancel_btn)
                 self._wait_for_loader()
+
+
+# Alias for backward compatibility
+MyTicklersPage = PreApplicationPage
