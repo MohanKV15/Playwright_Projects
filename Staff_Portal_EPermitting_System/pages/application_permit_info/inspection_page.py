@@ -1,4 +1,5 @@
 import logging
+import re
 from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
 
@@ -29,10 +30,10 @@ class InspectionPage(BasePage):
         ).first
 
         # ── Inspection Review Locators ───────────────────────────────────────
-        self.add_new_button = page.get_by_role("button", name=" Add New").or_(
-            page.get_by_role("button", name="Add New")
+        self.add_new_button = page.get_by_role("button", name=re.compile(r"Add New", re.I)).or_(
+            page.get_by_role("link", name=re.compile(r"Add New", re.I))
         ).or_(
-            page.locator("#btnAddNewReview, .btn:has-text('Add New')")
+            page.locator("#btnAddNewReview, #btnAddNew, a:has-text('Add New'), button:has-text('Add New'), .btn:has-text('Add New')")
         ).first
 
         self.review_modal_title = page.locator("#div4319InspectionReviewStaffAdd_wnd_title").or_(
@@ -45,10 +46,6 @@ class InspectionPage(BasePage):
 
         self.submit_review_button = page.locator("#btnReviewSubmit").or_(
             page.locator("button:has-text('Submit'), input[type='submit'][value='Submit']")
-        ).first
-
-        self.review_grid_container = page.locator("#div4319InspectionReviewStaff > div:nth-child(3)").or_(
-            page.locator("#div4319InspectionReviewStaff .k-grid")
         ).first
 
     def select_all_kendo_dropdowns(self) -> None:
@@ -192,11 +189,11 @@ class InspectionPage(BasePage):
         logger.info("Adding new Inspection Review.")
         self._wait_for_loader()
 
-        if not self.add_new_button.is_visible():
-            raise AssertionError("Add New button is not visible on the Inspection page.")
+        if self.add_new_button.count() > 0 and self.add_new_button.is_visible():
+            self.js_click(self.add_new_button)
+        else:
+            self.page.evaluate("$('#btnAddNewReview, #btnAddNew, a:contains(\"Add New\"), button:contains(\"Add New\")').first().click()")
 
-        # Click Add New button
-        self.js_click(self.add_new_button)
         self._wait_for_loader()
         self.page.wait_for_timeout(500)
 

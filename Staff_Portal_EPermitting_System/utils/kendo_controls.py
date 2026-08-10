@@ -105,6 +105,11 @@ class KendoControls:
                         }
                     }
                 });
+
+                var staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
+                if (staffVal && jq('#inspected_by').length) {
+                    jq('#inspected_by').val(staffVal).trigger('change');
+                }
             }
         """)
 

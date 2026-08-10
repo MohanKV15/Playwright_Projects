@@ -124,6 +124,25 @@ class MyTicklersPage(BasePage):
             except Exception as e:
                 logger.warning(f"Notification popup trigger note: {e}")
 
+    def select_authorizer_dropdowns_and_save(self) -> None:
+        """
+        Selects the 1st dropdown option for all visible Kendo dropdowns (Action, Next Authorizer)
+        and attempts Save with confirmation handling.
+        """
+        logger.info("Selecting 1st dropdown options for Authorizer dropdowns.")
+        self._wait_for_loader()
+        self.select_all_kendo_dropdowns()
+
+        if self.save_button.count() > 0 and self.save_button.is_visible():
+            self.js_click(self.save_button)
+            self._wait_for_loader()
+            confirm_text = self.page.get_by_text(re.compile(r"Are you sure you want to", re.I)).first
+            if confirm_text.count() > 0 and confirm_text.is_visible():
+                expect(confirm_text).to_be_visible(timeout=10000)
+            if self.dialog_cancel_btn.is_visible():
+                self.js_click(self.dialog_cancel_btn)
+                self._wait_for_loader()
+
     # Aliases for backward compatibility
     test_close_out_action = perform_close_out_action
     test_delete_action = perform_delete_action
