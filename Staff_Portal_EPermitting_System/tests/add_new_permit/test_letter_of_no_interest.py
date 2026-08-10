@@ -3,7 +3,7 @@ from pages.application_permit_info.permit_listing_page import PermitListingPage
 from pages.application_permit_info.add_new_permit.letter_of_no_interest_page import LetterOfNoInterestPage
 
 
-def test_create_letter_of_no_interest_permit(authenticated_page, faker):
+def test_create_letter_of_no_interest_permit(authenticated_page):
     """
     Independent test case for creating a Letter of No Interest permit per user codegen flow:
     1. Navigate to Permit Listing and open 'Add New Permit' modal.
@@ -13,7 +13,7 @@ def test_create_letter_of_no_interest_permit(authenticated_page, faker):
     5. Click Save, verify no validation errors, and check post-save page containers.
     """
     listing_page = PermitListingPage(authenticated_page)
-    loni_page = LetterOfNoInterestPage(authenticated_page)
+    add_loni_page = LetterOfNoInterestPage(authenticated_page)
 
     # 1. Navigation
     listing_page.navigate_to_permit_listing()
@@ -28,4 +28,4 @@ def test_create_letter_of_no_interest_permit(authenticated_page, faker):
         "milepost_end": "2"
     }
 
-    loni_page.create_letter_of_no_interest_permit(test_data)
+    add_loni_page.create_letter_of_no_interest_permit(test_data)

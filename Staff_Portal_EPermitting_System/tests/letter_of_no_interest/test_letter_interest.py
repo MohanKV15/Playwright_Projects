@@ -1,5 +1,5 @@
 import pytest
-from pages.letter_of_no_interest.letter_of_no_interest_page import LetterOfNoInterestPage
+from pages.letter_of_no_interest.letter_interest_page import LetterOfNoInterestPage
 
 
 def test_letter_of_no_interest_flow(authenticated_page):
