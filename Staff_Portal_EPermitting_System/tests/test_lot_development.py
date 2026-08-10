@@ -1,7 +1,7 @@
 import pytest
 import os
 from pages.application_permit_info.permit_listing_page import PermitListingPage
-from pages.application_permit_info.lot_Development_page import LotDevelopmentPage
+from pages.application_permit_info.lot_development_page import LotDevelopmentPage
 
 def test_lot_development_flow(authenticated_page, faker):
     """

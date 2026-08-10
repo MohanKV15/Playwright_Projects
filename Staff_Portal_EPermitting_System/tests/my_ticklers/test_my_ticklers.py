@@ -19,9 +19,9 @@ def test_my_ticklers_flow(authenticated_page):
     ticklers_page.verify_initial_layout()
 
     # 2. Perform grid row actions
-    ticklers_page.test_close_out_action()
-    ticklers_page.test_delete_action()
-    ticklers_page.test_notification_popup()
+    ticklers_page.perform_close_out_action()
+    ticklers_page.perform_delete_action()
+    ticklers_page.perform_notification_popup()
 
     # 3. Select 1st option in dropdowns and save
     ticklers_page.select_authorizer_dropdowns_and_save()

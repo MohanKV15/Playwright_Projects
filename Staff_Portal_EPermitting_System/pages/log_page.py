@@ -87,7 +87,7 @@ class LogPage:
         if self.save_button.is_visible():
             self._js_click(self.save_button)
             KendoControls.wait_for_loader(self.page)
-            self._assert_no_validation_errors()
+            KendoControls.assert_no_validation_errors(self.page)
         logger.info("Communication record added successfully.")
 
     def verify_log_header(self, timeout: int = 15000) -> None:
@@ -103,7 +103,3 @@ class LogPage:
         """Dispatches a JS click event on the target element."""
         locator.wait_for(state="visible", timeout=15000)
         locator.evaluate("el => el.click()")
-
-    def _assert_no_validation_errors(self) -> None:
-        """Fails test execution if validation error messages are displayed."""
-        KendoControls.assert_no_validation_errors(self.page)

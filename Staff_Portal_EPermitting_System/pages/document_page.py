@@ -109,7 +109,7 @@ class DocumentPage:
         if self.save_document_button.is_visible():
             self._js_click(self.save_document_button)
             KendoControls.wait_for_loader(self.page)
-            self._assert_no_validation_errors()
+            KendoControls.assert_no_validation_errors(self.page)
         logger.info("Document attached successfully.")
 
     def create_package_and_verify(self) -> None:
@@ -155,7 +155,3 @@ class DocumentPage:
         """Dispatches a JS click event on the target element."""
         locator.wait_for(state="visible", timeout=15000)
         locator.evaluate("el => el.click()")
-
-    def _assert_no_validation_errors(self) -> None:
-        """Fails test execution if validation error messages are displayed."""
-        KendoControls.assert_no_validation_errors(self.page)

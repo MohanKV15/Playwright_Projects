@@ -1,7 +1,7 @@
 import pytest
 import os
 from pages.application_permit_info.permit_listing_page import PermitListingPage
-from pages.application_permit_info.Appeal_page import AppealPage
+from pages.application_permit_info.appeal_page import AppealPage
 
 def test_appeal_flow(authenticated_page, faker):
     """
