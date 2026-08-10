@@ -149,11 +149,19 @@ class PermitListingPage(BasePage):
             pass
         return False
 
-    def search_and_edit_permit(self, company_name: str = "HCL", record_index: int = 0, max_retries: int = 5) -> dict:
+    def search_and_edit_permit(self, company_name: str = "HCL", record_index: int = None, max_retries: int = 5) -> dict:
         """
         Navigates to permit listing, searches by company name, and edits a valid matching record.
         If a record opens a 500 error page ('Object reference not set'), automatically tries the next record.
         """
+        if record_index is None:
+            import os
+            worker_str = os.getenv("PYTEST_XDIST_WORKER", "gw0")
+            try:
+                record_index = int(worker_str.replace("gw", ""))
+            except Exception:
+                record_index = 0
+
         for attempt in range(max_retries):
             try:
                 self.navigate_to_permit_listing()

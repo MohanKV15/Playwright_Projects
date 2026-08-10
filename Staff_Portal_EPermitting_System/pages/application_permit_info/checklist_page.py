@@ -104,7 +104,9 @@ class ChecklistPage(BasePage):
 
     def verify_documents_and_log_section(self) -> None:
         """Verifies documents and log section readiness."""
-        pass
+        self._wait_for_loader()
+        if self.documents_log_heading.is_visible():
+            expect(self.documents_log_heading).to_be_visible(timeout=10000)
 
     def paginate_grid_next(self, next_btn_locator, clicks: int = 2, grid_name: str = "grid") -> None:
         """Paginates forward up to clicks times."""

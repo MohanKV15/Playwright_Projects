@@ -371,3 +371,34 @@ class KendoControls:
                 }});
             }}
         """, current_date_str)
+
+    @staticmethod
+    def assert_no_validation_errors(page: Page, timeout: int = 5000) -> None:
+        """
+        Checks if any mandatory field validation error messages are visible on the page.
+        If validation errors are present, raises AssertionError to fail the test immediately.
+        
+        :param page: Active Playwright Page instance.
+        :param timeout: Loading wait timeout in milliseconds.
+        """
+        KendoControls.wait_for_loader(page, timeout=timeout)
+        error_locators = page.locator(
+            ".field-validation-error:visible, "
+            "span.text-danger:visible, "
+            ".k-tooltip-validation:visible, "
+            "[data-valmsg-summary='true']:visible li, "
+            ".validation-summary-errors:visible li"
+        )
+        count = error_locators.count()
+        visible_errors = []
+        for i in range(count):
+            err = error_locators.nth(i)
+            txt = err.inner_text().strip()
+            if txt and not txt.startswith("--") and "success" not in txt.lower():
+                visible_errors.append(txt)
+
+        if visible_errors:
+            err_msg = "; ".join(visible_errors)
+            logger.error(f"Form validation error(s) present: {err_msg}")
+            raise AssertionError(f"Mandatory form validation error(s) present on page: {err_msg}")
+

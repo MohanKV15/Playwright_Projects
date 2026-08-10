@@ -106,23 +106,4 @@ class LogPage:
 
     def _assert_no_validation_errors(self) -> None:
         """Fails test execution if validation error messages are displayed."""
-        KendoControls.wait_for_loader(self.page, timeout=5000)
-        error_locators = self.page.locator(
-            ".field-validation-error:visible, "
-            "span.text-danger:visible, "
-            ".k-tooltip-validation:visible, "
-            "[data-valmsg-summary='true']:visible li, "
-            ".validation-summary-errors:visible li"
-        )
-        count = error_locators.count()
-        visible_errors = []
-        for i in range(count):
-            err = error_locators.nth(i)
-            txt = err.inner_text().strip()
-            if txt and not txt.startswith("--") and "success" not in txt.lower():
-                visible_errors.append(txt)
-
-        if visible_errors:
-            err_msg = "; ".join(visible_errors)
-            logger.error(f"Form validation error(s) present: {err_msg}")
-            raise AssertionError(f"Mandatory form validation error(s) present on page: {err_msg}")
+        KendoControls.assert_no_validation_errors(self.page)

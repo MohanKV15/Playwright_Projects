@@ -198,15 +198,6 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
     # 3. Start Tracing
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
     
-    # Apply professional zoom
-    context.add_init_script("""
-        const applyZoom = () => {
-             if (document.body) { document.body.style.zoom = "75%"; }
-             else { setTimeout(applyZoom, 10); }
-        };
-        applyZoom();
-    """)
-    
     page = context.new_page()
     page.goto(Config.DASHBOARD_URL, timeout=Config.TIMEOUT, wait_until="domcontentloaded")
     

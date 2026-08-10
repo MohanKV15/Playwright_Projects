@@ -43,12 +43,26 @@ class ApplicantInformationPage(BasePage):
         expect(self.log_app_header).to_be_visible(timeout=15000)
 
     def link_contact_to_permit(self, query: str = "") -> None:
-        """Links contact to permit."""
-        pass
+        """Links contact to permit if link contact controls are present."""
+        logger.info(f"Linking contact with query '{query}' to permit.")
+        self._wait_for_loader()
+        search_box = self.page.locator("#txtCustomerSearch, input[name*='CustomerSearch']").first
+        if search_box.count() > 0 and search_box.is_visible():
+            search_box.fill(query)
+            search_btn = self.page.locator("#btnSearchCustomer, button:has-text('Search')").first
+            if search_btn.is_visible():
+                self.js_click(search_btn)
+                self._wait_for_loader()
 
     def edit_first_contact_and_save(self) -> None:
-        """Edits first contact and saves."""
-        pass
+        """Edits first contact row in grid and saves applicant information."""
+        logger.info("Editing first contact and saving.")
+        self._wait_for_loader()
+        edit_btn = self.page.locator("a.k-grid-edit, #btnDelearListEdit").first
+        if edit_btn.count() > 0 and edit_btn.is_visible():
+            self.js_click(edit_btn)
+            self._wait_for_loader()
+        self.fill_and_save_applicant_information()
 
     def fill_and_save_applicant_information(self) -> None:
         """Fills applicant information details and saves."""
