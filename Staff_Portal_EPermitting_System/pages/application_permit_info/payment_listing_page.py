@@ -99,6 +99,25 @@ class PaymentListingPage(BasePage):
         sub_type_loc = self.page.locator("#payment_SubType, #Payment_SubType, [name='payment_SubType'], [name='Payment_SubType']").first
         if sub_type_loc.count() > 0:
             self._wait_for_loader()
+            for _ in range(20):
+                has_data = self.page.evaluate("""
+                    () => {
+                        var jq = window.jQuery || window.$;
+                        if (!jq) return false;
+                        var ddl = jq('#payment_SubType, #Payment_SubType, [name="payment_SubType"], [name="Payment_SubType"]').data('kendoDropDownList');
+                        if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                            try { ddl = window.kendo.widgetInstance(jq('#payment_SubType, #Payment_SubType')); } catch(e) {}
+                        }
+                        if (ddl && ddl.dataSource && typeof ddl.dataSource.data === 'function') {
+                            return ddl.dataSource.data().length > 0;
+                        }
+                        return false;
+                    }
+                """)
+                if has_data:
+                    break
+                self.page.wait_for_timeout(300)
+
             KendoControls.select_first_dropdown_option(self.page, sub_type_loc)
             self.page.wait_for_timeout(300)
 
