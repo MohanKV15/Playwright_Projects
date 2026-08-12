@@ -287,3 +287,4 @@ class LetterInterestPage(PermitMajorPage):
         """LONI does not require payment. Clicking submit navigates directly to success dialog and dashboard."""
         self.click_submit_request()
         self.handle_success_popup()
+        

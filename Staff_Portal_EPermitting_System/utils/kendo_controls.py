@@ -60,17 +60,42 @@ class KendoControls:
         """
         KendoControls.wait_for_loader(page)
 
+        # 0. Wait for any AJAX-bound Kendo dropdowns (including inside visible modals/dialogs) to populate
+        for _ in range(20):
+            has_unloaded = page.evaluate("""
+                () => {
+                    var jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    var unloaded = false;
+                    jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], .k-window:visible select, .k-window:visible input[data-role="dropdownlist"], [role="dialog"]:visible select, [role="dialog"]:visible input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
+                        var $el = jq(this);
+                        if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
+                        var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
+                        if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                            try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
+                        }
+                        if (ddl && ddl.dataSource && typeof ddl.dataSource.data === 'function') {
+                            if (ddl.dataSource.data().length === 0) unloaded = true;
+                        }
+                    });
+                    return unloaded;
+                }
+            """)
+            if not has_unloaded:
+                break
+            page.wait_for_timeout(300)
+
         # 1. Fast, instant selection via Kendo JS API (< 50ms)
         page.evaluate("""
             () => {
                 var jq = window.jQuery || window.$;
                 if (!jq) return;
-                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"]').each(function() {
+                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
                     var $el = jq(this);
-                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget').is(':visible')) return;
-                    var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList');
+                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
+                    var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
                     if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
-                        try { ddl = window.kendo.widgetInstance($el); } catch (e) {}
+                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
                     }
                     if (ddl) {
                         if (typeof ddl.enable === 'function') ddl.enable(true);
@@ -80,25 +105,12 @@ class KendoControls:
                             if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
                                 var items = ddl.dataSource.data();
                                 if (items && items.length > 0) {
-                                    var targetVal = null;
-                                    var targetTxt = '';
-                                    for (var i = 0; i < items.length; i++) {
-                                        var item = items[i];
-                                        if (!item) continue;
-                                        var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
-                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
-                                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
-                                            targetVal = val;
-                                            targetTxt = txt;
-                                            break;
-                                        }
-                                    }
-                                    if (targetVal !== null) {
-                                        if (typeof ddl.value === 'function') ddl.value(targetVal);
+                                    var hasOptionLabel = ddl.options && ddl.options.optionLabel;
+                                    var idx = hasOptionLabel ? 1 : 0;
+                                    if (idx < items.length || !hasOptionLabel) {
+                                        if (typeof ddl.select === 'function') ddl.select(idx);
                                         if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                        if (ddl.wrapper && ddl.wrapper.length) {
-                                            ddl.wrapper.find('.k-input').text(targetTxt);
-                                        }
+                                        $el.trigger('change').trigger('input');
                                     }
                                 }
                             }
@@ -106,9 +118,21 @@ class KendoControls:
                     }
                 });
 
-                var staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
+                // Sync hidden inspected_by input field
+                var ddlStaff = jq('#inspected_by_staff').data('kendoDropDownList') || jq('#inspected_by_consultant').data('kendoDropDownList');
+                var staffVal = (ddlStaff && typeof ddlStaff.value === 'function') ? ddlStaff.value() : (jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val());
+                if (!staffVal && ddlStaff && ddlStaff.dataSource && typeof ddlStaff.dataSource.data === 'function' && ddlStaff.dataSource.data().length > 0) {
+                    var items = ddlStaff.dataSource.data();
+                    var idx = (ddlStaff.options && ddlStaff.options.optionLabel) ? 1 : 0;
+                    if (typeof ddlStaff.select === 'function') ddlStaff.select(idx);
+                    if (typeof ddlStaff.trigger === 'function') ddlStaff.trigger('change');
+                    staffVal = (typeof ddlStaff.value === 'function') ? ddlStaff.value() : (jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val());
+                }
+                if (!staffVal) {
+                    staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
+                }
                 if (staffVal && jq('#inspected_by').length) {
-                    jq('#inspected_by').val(staffVal).trigger('change');
+                    jq('#inspected_by').val(staffVal).trigger('change').trigger('input');
                 }
             }
         """)

@@ -127,11 +127,11 @@ def browser_context_args(browser_context_args):
 @pytest.fixture(autouse=True)
 def configure_zoom(context):
     """
-    Applies a professional 75% zoom - the 'Sweet Spot' for this application.
+    Applies a 67% zoom level for large display screens.
     """
     context.add_init_script("""
         const applyZoom = () => {
-             if (document.body) { document.body.style.zoom = "75%"; }
+             if (document.body) { document.body.style.zoom = "67%"; }
              else { setTimeout(applyZoom, 10); }
         };
         applyZoom();
@@ -226,6 +226,21 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
         if failed:
             context.tracing.stop(path=str(trace_path))
             print(f"\n[TRACE SAVED] Failure recorded: {trace_path}")
+            try:
+                import allure
+                allure.attach(
+                    page.screenshot(full_page=True),
+                    name=f"Failure_Screenshot_{test_name}",
+                    attachment_type=allure.attachment_type.PNG
+                )
+                if trace_path.exists():
+                    allure.attach.file(
+                        source=str(trace_path),
+                        name=f"Playwright_Trace_{test_name}",
+                        attachment_type="application/zip"
+                    )
+            except Exception as e:
+                print(f"[ALLURE ATTACH NOTE] {e}")
         else:
             context.tracing.stop()
     except Exception:
@@ -233,6 +248,29 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
 
     page.close()
     context.close()
+
+
+def pytest_sessionfinish(session, exitstatus):
+    """
+    Automatically generates static Allure HTML report and opens browser dashboard at the end of test session.
+    """
+    if not hasattr(session.config, "workerinput"):
+        import subprocess
+        try:
+            env = os.environ.copy()
+            env["JAVA_HOME"] = r"C:\Users\Mohan(QAQC)\jdk-21"
+            env["PATH"] = r"C:\Users\Mohan(QAQC)\jdk-21\bin;C:\Users\Mohan(QAQC)\allure-2.45.0\bin;" + env.get("PATH", "")
+            subprocess.run(
+                'allure generate reports/allure-results -o reports/allure-report --clean',
+                shell=True,
+                env=env,
+                capture_output=True
+            )
+            print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
+            subprocess.Popen('allure open reports/allure-report', shell=True, env=env)
+            print("[ALLURE AUTO-OPEN] Opened interactive Allure report in default browser!")
+        except Exception as e:
+            print(f"\n[ALLURE AUTO-GENERATE NOTE] {e}")
 
 
 

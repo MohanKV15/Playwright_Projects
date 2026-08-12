@@ -49,66 +49,7 @@ class InspectionPage(BasePage):
         ).first
 
     def select_all_kendo_dropdowns(self) -> None:
-        """Selects 1st valid option for all Kendo dropdowns and syncs hidden inputs."""
-        # Wait for any AJAX-bound Kendo dropdowns in visible dialogs to populate
-        for _ in range(20):
-            has_unloaded = self.page.evaluate("""
-                () => {
-                    var jq = window.jQuery || window.$;
-                    if (!jq) return false;
-                    var unloaded = false;
-                    jq('.k-window:visible select, .k-window:visible input[data-role="dropdownlist"], [role="dialog"]:visible select, [role="dialog"]:visible input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant').each(function() {
-                        var ddl = jq(this).data('kendoDropDownList') || jq(this).closest('.k-dropdown, .k-widget').data('kendoDropDownList');
-                        if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
-                            try { ddl = window.kendo.widgetInstance(jq(this)); } catch(e) {}
-                        }
-                        if (ddl && ddl.dataSource && typeof ddl.dataSource.data === 'function') {
-                            if (ddl.dataSource.data().length === 0) unloaded = true;
-                        }
-                    });
-                    return unloaded;
-                }
-            """)
-            if not has_unloaded:
-                break
-            self.page.wait_for_timeout(300)
-
-        # Select 1st valid option using Kendo DropDownList API select() & trigger('change')
-        self.page.evaluate("""
-            () => {
-                var jq = window.jQuery || window.$;
-                if (!jq) return;
-
-                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
-                    var $el = jq(this);
-                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
-                    var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
-                    if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
-                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
-                    }
-                    if (ddl) {
-                        if (typeof ddl.enable === 'function') ddl.enable(true);
-                        var data = (ddl.dataSource && typeof ddl.dataSource.data === 'function') ? ddl.dataSource.data() : [];
-                        if (data.length > 0) {
-                            var hasOptionLabel = ddl.options && ddl.options.optionLabel;
-                            var idx = hasOptionLabel ? 1 : 0;
-                            if (idx < data.length || !hasOptionLabel) {
-                                if (typeof ddl.select === 'function') ddl.select(idx);
-                                if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                $el.trigger('change').trigger('input');
-                            }
-                        }
-                    }
-                });
-
-                // Sync hidden inspected_by input field
-                var staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
-                if (staffVal) {
-                    jq('#inspected_by').val(staffVal).trigger('change');
-                }
-            }
-        """)
-
+        """Selects 1st valid option for all Kendo dropdowns by delegating to KendoControls."""
         super().select_all_kendo_dropdowns()
 
     # ── Page Actions ──────────────────────────────────────────────────────────
