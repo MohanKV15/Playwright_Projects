@@ -34,7 +34,7 @@ class DocumentPage:
 
     def attach_document(
         self,
-        file_path: str,
+        file_path: str | None = None,
         subject: str = "Automated Subject",
         description: str = "Automated Description",
     ) -> None:
@@ -45,6 +45,11 @@ class DocumentPage:
         :param subject: Text content for the Subject field.
         :param description: Text content for the Description field.
         """
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = os.path.abspath(os.path.join(Config.PROJECT_ROOT, "testdata", "dummy.pdf"))
+
         logger.info(f"Uploading document asset: {file_path}")
         KendoControls.wait_for_loader(self.page)
         if self.attach_document_button.count() == 0 or not self.attach_document_button.is_visible():

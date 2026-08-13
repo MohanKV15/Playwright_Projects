@@ -25,9 +25,10 @@ class BasePage(KendoMixin):
 
    DEBUG_ARTIFACTS_DIR = PROJECT_ROOT / "reports" / "debug_artifacts"
    DASHBOARD_URL = "https://u-njhtcp.bemcorp.net/Portal/Page/Index/4321CustomerPortalDashboardFull"
+   _file_pdf = PROJECT_ROOT / "testdata" / "attachments" / "file.pdf"
    SUPPORTING_DOCUMENT_PATH = Path(
       os.getenv("NJHT_SUPPORTING_DOCUMENT_PATH")
-      or (PROJECT_ROOT / "testdata" / "attachments" / "file.pdf")
+      or (_file_pdf if _file_pdf.exists() else PROJECT_ROOT / "testdata" / "dummy.pdf")
    )
 
    def __init__(self, page: Page, script_name: str = "test"):

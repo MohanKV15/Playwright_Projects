@@ -113,8 +113,13 @@ class LicenseDocumentsAndLogPage(BasePage):
             logger.error(f"Failed to select current date on date picker {picker_index}: {e}")
             raise e
 
-    def attach_document(self, file_path: str, title: str = None, desc: str = None) -> None:
+    def attach_document(self, file_path: str | None = None, title: str = None, desc: str = None) -> None:
         """Clicks Attach Document, uploads a file, enters details, and saves."""
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = str(Config.PROJECT_ROOT / "testdata" / "dummy.pdf")
+
         logger.info(f"Attaching document: {file_path}")
         self.attach_doc_button.wait_for(state="visible", timeout=10000)
         self.attach_doc_button.click()

@@ -112,8 +112,13 @@ class PermitTransferDocumentsAndLogPage(BasePage):
         self.cancel_button.click()
         self.page.wait_for_timeout(1000)
 
-    def attach_document(self, file_path: str, title: str = None, desc: str = None, date_day: str = "26") -> None:
+    def attach_document(self, file_path: str | None = None, title: str = None, desc: str = None, date_day: str = "26") -> None:
         """Clicks Attach Document, uploads a file, selects date, enters title/description, and saves."""
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = str(Config.PROJECT_ROOT / "testdata" / "dummy.pdf")
+
         logger.info(f"Attaching document: {file_path}")
         self.attach_doc_button.click()
         self.page.wait_for_timeout(1000)

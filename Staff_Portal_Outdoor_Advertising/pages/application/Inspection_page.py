@@ -83,8 +83,13 @@ class InspectionPage(BasePage):
             self.page.get_by_label("Current focused date is").get_by_role("link", name="4").click()
         self.page.wait_for_timeout(500)
 
-    def upload_inspection_document(self, file_path: str) -> None:
+    def upload_inspection_document(self, file_path: str | None = None) -> None:
         """Uploads a file to the Kendo Upload element if present."""
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = str(Config.PROJECT_ROOT / "testdata" / "dummy.pdf")
+
         logger.info(f"Attempting to upload file: {file_path}")
         try:
             file_input = self.page.locator("input[type='file']").first
