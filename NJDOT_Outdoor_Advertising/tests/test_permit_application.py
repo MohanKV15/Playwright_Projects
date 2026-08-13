@@ -26,7 +26,7 @@ def test_permit_application_popup_flow(authenticated_page):
     permit_app_page.dismiss_dialog()
 
     # 6. Fill and submit the permit application form
-    permit_app_page.fill_permit_application_form(file_path=r"C:\Users\Mohan(QAQC)\Downloads\Smallpdf.pdf")
+    permit_app_page.fill_permit_application_form()
     
     # 7. Verify navigation to the payment gateway
     authenticated_page.wait_for_url("**/CommonCheckout/**", timeout=30000)

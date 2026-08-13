@@ -1,0 +1,169 @@
+# ==============================================================================
+# Azure DevOps CI/CD Pipeline - Playwright Python Automation Test Suite
+# ==============================================================================
+
+trigger:
+  branches:
+    include:
+      - main
+      - master
+  paths:
+    exclude:
+      - '**.md'
+      - '**.pdf'
+
+pr:
+  branches:
+    include:
+      - main
+      - master
+
+schedules:
+  - cron: "0 2 * * 1-5"
+    displayName: "Mon-Fri Nightly Regression Run"
+    branches:
+      include:
+        - main
+    always: true
+
+parameters:
+  - name: projectToRun
+    displayName: "Select Target Project Suite"
+    type: string
+    default: "All"
+    values:
+      - "All"
+      - "NJDOT_EPermitting_System"
+      - "NJDOT_Outdoor_Advertising"
+      - "Staff_Portal_EPermitting_System"
+      - "Staff_Portal_Outdoor_Advertising"
+
+  - name: parallelWorkers
+    displayName: "xdist Parallel Workers (-n)"
+    type: string
+    default: "2"
+
+variables:
+  - group: PlaywrightSecrets # Azure DevOps Variable Group (contains NJHT_EMAIL, NJHT_PASSWORD, etc.)
+  - name: CI
+    value: "true"
+  - name: PW_HEADLESS
+    value: "true"
+
+stages:
+  - stage: TestExecution
+    displayName: "Execute Playwright Automated Tests"
+    jobs:
+      - job: RunPlaywrightTests
+        displayName: "Run Playwright Test Suite"
+        pool:
+          vmImage: "ubuntu-latest"
+
+        steps:
+          - task: UsePythonVersion@0
+            displayName: "Set up Python 3.11"
+            inputs:
+              versionSpec: "3.11"
+              addToPath: true
+
+          - script: |
+              python -m pip install --upgrade pip setuptools wheel
+              pip install -r requirements.txt
+            displayName: "Install Python Dependencies"
+
+          - script: |
+              npx playwright install --with-deps chromium
+            displayName: "Install Playwright Chromium Browser & OS Dependencies"
+
+          - script: |
+              mkdir -p NJDOT_EPermitting_System/reports
+              mkdir -p NJDOT_Outdoor_Advertising/reports
+              mkdir -p Staff_Portal_EPermitting_System/reports
+              mkdir -p Staff_Portal_Outdoor_Advertising/reports
+            displayName: "Create Report Directories"
+
+          # --------------------------------------------------------------------
+          # Project 1: NJDOT EPermitting System
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing NJDOT_EPermitting_System..."
+              cd NJDOT_EPermitting_System
+              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+            displayName: "Run NJDOT EPermitting System Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_System'))
+            env:
+              NJHT_EMAIL: $(NJHT_EMAIL)
+              NJHT_PASSWORD: $(NJHT_PASSWORD)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 2: NJDOT Outdoor Advertising
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing NJDOT_Outdoor_Advertising..."
+              cd NJDOT_Outdoor_Advertising
+              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+            displayName: "Run NJDOT Outdoor Advertising Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_Outdoor_Advertising'))
+            env:
+              NJHT_EMAIL: $(NJHT_EMAIL)
+              NJHT_PASSWORD: $(NJHT_PASSWORD)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 3: Staff Portal EPermitting System
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing Staff_Portal_EPermitting_System..."
+              cd Staff_Portal_EPermitting_System
+              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+            displayName: "Run Staff Portal EPermitting System Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_EPermitting_System'))
+            env:
+              STAFF_EMAIL: $(STAFF_EMAIL)
+              STAFF_PASSWORD: $(STAFF_PASSWORD)
+              STAFF_PIN: $(STAFF_PIN)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 4: Staff Portal Outdoor Advertising
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing Staff_Portal_Outdoor_Advertising..."
+              cd Staff_Portal_Outdoor_Advertising
+              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+            displayName: "Run Staff Portal Outdoor Advertising Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_Outdoor_Advertising'))
+            env:
+              STAFF_EMAIL: $(STAFF_EMAIL)
+              STAFF_PASSWORD: $(STAFF_PASSWORD)
+              STAFF_PIN: $(STAFF_PIN)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Publish Test Results to Azure DevOps Pipeline UI
+          # --------------------------------------------------------------------
+          - task: PublishTestResults@2
+            displayName: "Publish JUnit Test Results to Azure DevOps"
+            condition: always()
+            inputs:
+              testResultsFormat: "JUnit"
+              testResultsFiles: "**/reports/junit.xml"
+              mergeTestResults: true
+              failTaskOnFailedTests: false
+              testRunTitle: "Playwright Automated Test Execution"
+
+          # --------------------------------------------------------------------
+          # Publish HTML & Artifact Reports (Screenshots, Traces, HTML)
+          # --------------------------------------------------------------------
+          - task: PublishBuildArtifacts@1
+            displayName: "Publish Test Artifacts (HTML Reports, Screenshots, Traces)"
+            condition: always()
+            inputs:
+              PathtoPublish: "$(Build.SourcesDirectory)"
+              ArtifactName: "PlaywrightTestReports"
+              publishLocation: "Container"

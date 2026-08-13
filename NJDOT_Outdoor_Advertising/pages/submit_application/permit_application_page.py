@@ -128,8 +128,13 @@ class PermitApplicationPage(BasePage):
         else:
             print(f"[DROPDOWN] Failed to select option in {element_id}")
 
-    def fill_permit_application_form(self, file_path: str = r"C:\Users\Mohan(QAQC)\Downloads\Smallpdf.pdf") -> None:
+    def fill_permit_application_form(self, file_path: str | None = None) -> None:
         """Fills the permit application form with dynamic Faker test data and uploads documents."""
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = str(Config.PROJECT_ROOT / "testdata" / "dummy.pdf")
+
         from faker import Faker
         fake = Faker()
         

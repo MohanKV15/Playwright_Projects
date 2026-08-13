@@ -195,7 +195,7 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
     # Register global download handler
     def handle_download(download):
         from pathlib import Path
-        downloads_dir = Path("c:/Users/Mohan(QAQC)/PlaywrightProjects/Staff_Portal_Outdoor_Advertising/downloads")
+        downloads_dir = Config.PROJECT_ROOT / "downloads"
         downloads_dir.mkdir(parents=True, exist_ok=True)
         
         filename = download.suggested_filename
@@ -253,7 +253,7 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
                     response = context.request.get(url)
                     if response.ok:
                         from pathlib import Path
-                        downloads_dir = Path("c:/Users/Mohan(QAQC)/PlaywrightProjects/Staff_Portal_Outdoor_Advertising/downloads")
+                        downloads_dir = Config.PROJECT_ROOT / "downloads"
                         downloads_dir.mkdir(parents=True, exist_ok=True)
                         dest_path = downloads_dir / filename
                         
@@ -340,23 +340,33 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
 
 def pytest_sessionfinish(session, exitstatus):
     """
-    Automatically generates static Allure HTML report and opens browser dashboard at the end of test session.
+    Automatically generates static Allure HTML report at the end of test session.
+    Bypasses opening interactive GUI server if running in CI/CD environment.
     """
     if not hasattr(session.config, "workerinput"):
         import subprocess
         try:
             env = os.environ.copy()
-            env["JAVA_HOME"] = r"C:\Users\Mohan(QAQC)\jdk-21"
-            env["PATH"] = r"C:\Users\Mohan(QAQC)\jdk-21\bin;C:\Users\Mohan(QAQC)\allure-2.45.0\bin;" + env.get("PATH", "")
-            subprocess.run(
+            local_jdk = r"C:\Users\Mohan(QAQC)\jdk-21"
+            local_allure = r"C:\Users\Mohan(QAQC)\allure-2.45.0\bin"
+            if os.path.exists(local_jdk):
+                env["JAVA_HOME"] = local_jdk
+            if os.path.exists(local_allure):
+                env["PATH"] = f"{local_jdk}\\bin;{local_allure};" + env.get("PATH", "")
+
+            res = subprocess.run(
                 'allure generate reports/allure-results -o reports/allure-report --clean',
                 shell=True,
                 env=env,
                 capture_output=True
             )
-            print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
-            subprocess.Popen('allure open reports/allure-report', shell=True, env=env)
-            print("[ALLURE AUTO-OPEN] Opened interactive Allure report in default browser!")
+            if res.returncode == 0:
+                print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
+                is_ci = os.getenv("CI") or os.getenv("TF_BUILD") or os.getenv("AZURE_HTTP_USER_AGENT")
+                auto_open = os.getenv("AUTO_OPEN_ALLURE", "false").strip().lower() in {"1", "true", "yes"}
+                if not is_ci and auto_open:
+                    subprocess.Popen('allure open reports/allure-report', shell=True, env=env)
+                    print("[ALLURE AUTO-OPEN] Opened interactive Allure report in browser.")
         except Exception as e:
             print(f"\n[ALLURE AUTO-GENERATE NOTE] {e}")
 

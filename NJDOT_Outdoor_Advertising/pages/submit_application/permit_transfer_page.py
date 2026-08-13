@@ -56,8 +56,13 @@ class PermitTransferPage(BasePage):
         expect(self.main_heading).to_be_visible(timeout=10000)
         expect(self.app_info_heading).to_be_visible(timeout=10000)
 
-    def fill_permit_transfer_form(self, file_path: str = r"C:\Users\Mohan(QAQC)\Downloads\Smallpdf.pdf") -> None:
+    def fill_permit_transfer_form(self, file_path: str | None = None) -> None:
         """Fills the permit transfer form with dynamic Faker test data."""
+        import os
+        from utils.config import Config
+        if not file_path or not os.path.exists(file_path):
+            file_path = str(Config.PROJECT_ROOT / "testdata" / "dummy.pdf")
+
         fake = Faker()
         
         logger.info("Filling Application Information...")
