@@ -1,5 +1,6 @@
 # ==============================================================================
 # Azure DevOps CI/CD Pipeline - Playwright Python Automation Test Suite
+# Enterprise Senior QA Grade Pipeline Configuration
 # ==============================================================================
 
 trigger:
@@ -38,17 +39,29 @@ parameters:
       - "Staff_Portal_EPermitting_System"
       - "Staff_Portal_Outdoor_Advertising"
 
+  - name: testType
+    displayName: "Select Test Execution Mode"
+    type: string
+    default: "Regression"
+    values:
+      - "Regression"
+      - "Smoke"
+
   - name: parallelWorkers
     displayName: "xdist Parallel Workers (-n)"
     type: string
     default: "2"
 
 variables:
-  - group: PlaywrightSecrets # Azure DevOps Variable Group (contains NJHT_EMAIL, NJHT_PASSWORD, etc.)
+  - group: PlaywrightSecrets # Azure DevOps Variable Group (contains NJHT_EMAIL, NJHT_PASSWORD, STAFF_EMAIL, STAFF_PASSWORD, STAFF_PIN)
   - name: CI
     value: "true"
   - name: PW_HEADLESS
     value: "true"
+  - name: PIP_CACHE_DIR
+    value: $(Pipeline.Workspace)/.pip_cache
+  - name: PLAYWRIGHT_BROWSERS_PATH
+    value: $(Pipeline.Workspace)/.ms-playwright
 
 stages:
   - stage: TestExecution
@@ -66,9 +79,31 @@ stages:
               versionSpec: "3.11"
               addToPath: true
 
+          # --------------------------------------------------------------------
+          # Enterprise Cache 1: Python Pip Dependencies Cache
+          # --------------------------------------------------------------------
+          - task: Cache@2
+            displayName: "Cache Python Pip Packages"
+            inputs:
+              key: 'pip | "$(Agent.OS)" | requirements.txt'
+              restoreKeys: |
+                pip | "$(Agent.OS)"
+              path: $(PIP_CACHE_DIR)
+
+          # --------------------------------------------------------------------
+          # Enterprise Cache 2: Playwright Chromium Browser Binaries Cache
+          # --------------------------------------------------------------------
+          - task: Cache@2
+            displayName: "Cache Playwright Browser Binaries"
+            inputs:
+              key: 'playwright | "$(Agent.OS)" | requirements.txt'
+              restoreKeys: |
+                playwright | "$(Agent.OS)"
+              path: $(PLAYWRIGHT_BROWSERS_PATH)
+
           - script: |
               python -m pip install --upgrade pip setuptools wheel
-              pip install -r requirements.txt
+              pip install --cache-dir $(PIP_CACHE_DIR) -r requirements.txt
             displayName: "Install Python Dependencies"
 
           - script: |
@@ -88,7 +123,11 @@ stages:
           - script: |
               echo "Executing NJDOT_EPermitting_System..."
               cd NJDOT_EPermitting_System
-              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
             displayName: "Run NJDOT EPermitting System Tests"
             condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_System'))
             env:
@@ -103,7 +142,11 @@ stages:
           - script: |
               echo "Executing NJDOT_Outdoor_Advertising..."
               cd NJDOT_Outdoor_Advertising
-              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
             displayName: "Run NJDOT Outdoor Advertising Tests"
             condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_Outdoor_Advertising'))
             env:
@@ -118,7 +161,11 @@ stages:
           - script: |
               echo "Executing Staff_Portal_EPermitting_System..."
               cd Staff_Portal_EPermitting_System
-              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
             displayName: "Run Staff Portal EPermitting System Tests"
             condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_EPermitting_System'))
             env:
@@ -134,7 +181,11 @@ stages:
           - script: |
               echo "Executing Staff_Portal_Outdoor_Advertising..."
               cd Staff_Portal_Outdoor_Advertising
-              python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
             displayName: "Run Staff Portal Outdoor Advertising Tests"
             condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_Outdoor_Advertising'))
             env:

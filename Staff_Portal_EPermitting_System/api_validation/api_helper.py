@@ -36,7 +36,7 @@ class ApiCaptureHelper:
         """Scans the captured traffic array and violently fails if any 4xx or 5xx errors occurred on internal APIS."""
         if ignored_domains is None:
             # We inherently ignore 3rd party analytic and helpdesk widgets that commonly block automation browsers
-            ignored_domains = ["atlassian.com", "google-analytics.com", "googletagmanager.com"]
+            ignored_domains = ["atlassian.com", "google-analytics.com", "googletagmanager.com", "analysis.windows.net", "powerbi.com"]
             
         failed_apis = []
         for r in self.responses:

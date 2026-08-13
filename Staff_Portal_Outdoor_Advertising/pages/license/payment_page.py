@@ -3,6 +3,7 @@ import logging
 from faker import Faker
 from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
+from utils.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -106,7 +107,7 @@ class LicensePaymentPage(BasePage):
         self.page.wait_for_timeout(2000)
 
         # Self-healing navigation/redirect check
-        target_url = "https://u-njoda.bemcorp.net/Portal/Page/Index/4319LicensePaymentDetailsStaffFull"
+        target_url = f"{Config.BASE_URL}/Portal/Page/Index/4319LicensePaymentDetailsStaffFull"
         if target_url not in self.page.url:
             logger.info(f"Page did not redirect automatically. Navigating directly to: {target_url}")
             self.page.goto(target_url)

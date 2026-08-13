@@ -48,7 +48,8 @@ class ReportPage(BasePage):
         if self.reports_link.is_visible():
             self.js_click(self.reports_link)
         else:
-            self.navigate("https://u-njhtsp.bemcorp.net/Home/Report")
+            from utils.config import Config
+            self.navigate(f"{Config.BASE_URL}/Home/Report")
 
         self.page.wait_for_load_state("domcontentloaded")
         self._wait_for_loader()

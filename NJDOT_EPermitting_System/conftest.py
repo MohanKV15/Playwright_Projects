@@ -2,6 +2,7 @@ import sys
 import os
 import json
 import logging
+import shutil
 import base64
 # from datetime import datetime
 from pathlib import Path
@@ -16,8 +17,16 @@ except ImportError:
     html_extras = None
 
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env.example")
+except Exception:
+    pass
+
 ZOOM_PERCENT = 75
-HEADLESS = os.getenv("PW_HEADLESS", "false").strip().lower() in {"1", "true", "yes", "on"}
+HEADLESS = os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"}
 CLEAN_DEBUG_ARTIFACTS = os.getenv("CLEAN_DEBUG_ARTIFACTS", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 PROJECT_ROOT = Path(__file__).resolve().parent
@@ -54,6 +63,18 @@ def pytest_configure(config):
                 AUTH_STATE_PATH.unlink()
             except Exception:
                 pass
+
+        # Clean old allure-results so only current test run results appear in Allure report
+        allure_results_dir = PROJECT_ROOT / "reports" / "allure-results"
+        if allure_results_dir.exists():
+            for item in allure_results_dir.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                except Exception:
+                    pass
 
 
 def _cleanup_debug_artifacts() -> None:
@@ -140,11 +161,28 @@ def _add_zoom_script(page) -> None:
 
 
 @pytest.fixture(scope="session")
-def shared_browser(playwright):
+def browser_type_launch_options(pytestconfig):
+    is_cli_headed = False
+    try:
+        is_cli_headed = pytestconfig.getoption("headed", False)
+    except Exception:
+        pass
+    is_headless = not is_cli_headed and (os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"})
+    return {"headless": is_headless}
+
+@pytest.fixture(scope="session")
+def shared_browser(playwright, request):
     """Launch a single browser instance for the test session to avoid repeated
     browser startup costs. Tests still create fresh contexts for isolation.
     """
-    browser = playwright.chromium.launch(headless=HEADLESS)
+    is_cli_headed = False
+    try:
+        is_cli_headed = request.config.getoption("--headed", False)
+    except Exception:
+        pass
+
+    is_headless = not is_cli_headed and (os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"})
+    browser = playwright.chromium.launch(headless=is_headless)
     yield browser
     try:
         browser.close()
@@ -429,7 +467,7 @@ def pytest_sessionfinish(session, exitstatus):
             if res.returncode == 0:
                 print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
                 is_ci = os.getenv("CI") or os.getenv("TF_BUILD") or os.getenv("AZURE_HTTP_USER_AGENT")
-                auto_open = os.getenv("AUTO_OPEN_ALLURE", "false").strip().lower() in {"1", "true", "yes"}
+                auto_open = os.getenv("AUTO_OPEN_ALLURE", "true").strip().lower() in {"1", "true", "yes"}
                 if not is_ci and auto_open:
                     subprocess.Popen('allure open reports/allure-report', shell=True, env=env)
                     print("[ALLURE AUTO-OPEN] Opened interactive Allure report in browser.")

@@ -24,7 +24,8 @@ class BasePage(KendoMixin):
    """Core base class with robust handling (clean + stable)."""
 
    DEBUG_ARTIFACTS_DIR = PROJECT_ROOT / "reports" / "debug_artifacts"
-   DASHBOARD_URL = "https://u-njhtcp.bemcorp.net/Portal/Page/Index/4321CustomerPortalDashboardFull"
+   BASE_HOST = (os.getenv("BASE_URL") or os.getenv("PYTEST_BASE_URL") or "https://u-njhtcp.bemcorp.net").rstrip("/")
+   DASHBOARD_URL = f"{BASE_HOST}/Portal/Page/Index/4321CustomerPortalDashboardFull"
    _file_pdf = PROJECT_ROOT / "testdata" / "attachments" / "file.pdf"
    SUPPORTING_DOCUMENT_PATH = Path(
       os.getenv("NJHT_SUPPORTING_DOCUMENT_PATH")

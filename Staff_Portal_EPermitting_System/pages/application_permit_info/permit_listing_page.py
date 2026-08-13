@@ -2,6 +2,7 @@ import logging
 import re
 from playwright.sync_api import Page, expect
 from pages.base_page import BasePage
+from utils.config import Config
 
 logger = logging.getLogger(__name__)
 
@@ -34,8 +35,10 @@ class PermitListingPage(BasePage):
         self.next_page_button = page.get_by_role("link", name=re.compile(r"Go to the next page", re.I))
         self.first_record_edit_button = page.locator("#gridEdit, a.k-grid-edit").first
 
-    def navigate_to_permit_listing(self, dashboard_url: str = "https://u-njhtsp.bemcorp.net/Home/Dashboard?MenuName=Dashboard") -> None:
+    def navigate_to_permit_listing(self, dashboard_url: str | None = None) -> None:
         """Navigates to Dashboard and selects Permit Listing from sidebar menu."""
+        if not dashboard_url:
+            dashboard_url = Config.DASHBOARD_URL
         logger.info("Navigating to Permit Listing.")
         for attempt in range(3):
             try:

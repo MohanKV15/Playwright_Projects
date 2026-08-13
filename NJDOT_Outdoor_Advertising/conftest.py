@@ -1,6 +1,7 @@
 import pytest
 import json
 import os
+import shutil
 import base64
 import re
 from datetime import datetime
@@ -9,6 +10,17 @@ from playwright.sync_api import Browser, Page
 from pytest_html import extras
 from utils.config import Config
 from pages.login.login_page import LoginPage
+
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    load_dotenv(Path(__file__).resolve().parent.parent / ".env.example")
+except Exception:
+    pass
+
+HEADLESS = os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"}
+CLEAN_DEBUG_ARTIFACTS = os.getenv("CLEAN_DEBUG_ARTIFACTS", "false").strip().lower() in {"1", "true", "yes", "on"}
 
 # Create .auth directory if it doesn't exist
 AUTH_DIR = Path(".auth")
@@ -35,6 +47,28 @@ def pytest_configure(config):
             except Exception:
                 pass
 
+        # Clean old allure-results so only current test run results appear in Allure report
+        allure_results_dir = Path("reports/allure-results")
+        if allure_results_dir.exists():
+            for item in allure_results_dir.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                    elif item.is_dir():
+                        shutil.rmtree(item)
+                except Exception:
+                    pass
+
+@pytest.fixture(scope="session")
+def browser_type_launch_options(pytestconfig):
+    is_cli_headed = False
+    try:
+        is_cli_headed = pytestconfig.getoption("headed", False)
+    except Exception:
+        pass
+    is_headless = not is_cli_headed and (os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"})
+    return {"headless": is_headless}
+
 @pytest.fixture(scope="session")
 def auth_storage(browser, browser_context_args):
     """
@@ -57,8 +91,10 @@ def auth_storage(browser, browser_context_args):
         with open(login_data_path) as f:
             valid_user = json.load(f)["valid_users"][0]
             
+        email = os.getenv("NJHT_EMAIL") or valid_user["email"]
+        password = os.getenv("NJHT_PASSWORD") or valid_user["password"]
         login_page.load(Config.LOGIN_URL)
-        login_page.login(email=valid_user["email"], password=valid_user["password"])
+        login_page.login(email=email, password=password)
         
         # Wait for the main accounts portal link to become visible
         login_page.outdoor_advertising_link.wait_for(state="visible", timeout=Config.TIMEOUT)
@@ -297,7 +333,9 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
         with open(login_data_path) as f:
             valid_user = json.load(f)["valid_users"][0]
         
-        login_page.login(email=valid_user["email"], password=valid_user["password"])
+        email = os.getenv("NJHT_EMAIL") or valid_user["email"]
+        password = os.getenv("NJHT_PASSWORD") or valid_user["password"]
+        login_page.login(email=email, password=password)
         
         # Ensure we reach the accounts portal dashboard
         login_page.outdoor_advertising_link.wait_for(state="visible", timeout=Config.TIMEOUT)
@@ -369,7 +407,7 @@ def pytest_sessionfinish(session, exitstatus):
             if res.returncode == 0:
                 print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
                 is_ci = os.getenv("CI") or os.getenv("TF_BUILD") or os.getenv("AZURE_HTTP_USER_AGENT")
-                auto_open = os.getenv("AUTO_OPEN_ALLURE", "false").strip().lower() in {"1", "true", "yes"}
+                auto_open = os.getenv("AUTO_OPEN_ALLURE", "true").strip().lower() in {"1", "true", "yes"}
                 if not is_ci and auto_open:
                     subprocess.Popen('allure open reports/allure-report', shell=True, env=env)
                     print("[ALLURE AUTO-OPEN] Opened interactive Allure report in browser.")
