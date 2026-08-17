@@ -11,6 +11,7 @@ with open(Config.PROJECT_ROOT / "testdata" / "login_data.json") as f:
 
 class TestLogin:
 
+    @pytest.mark.smoke
     @pytest.mark.parametrize("user", test_data["valid_users"])
     def test_login_valid(self, page, user):
         """Verifies successful login flow into the Dashboard with verified credentials."""

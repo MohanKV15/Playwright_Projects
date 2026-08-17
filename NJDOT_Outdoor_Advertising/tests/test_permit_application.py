@@ -3,6 +3,7 @@ from pages.submit_application.submit_application_page import SubmitApplicationPa
 from pages.submit_application.permit_application_page import PermitApplicationPage
 from pages.submit_application.payment_page import PaymentPage
 
+@pytest.mark.smoke
 def test_permit_application_popup_flow(authenticated_page):
     """
     Validates clicking 'Permit Application' launches the warning alert dialog,

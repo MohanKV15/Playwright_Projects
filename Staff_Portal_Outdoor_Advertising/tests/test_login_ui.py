@@ -11,6 +11,7 @@ def login_test_data():
 
 class TestLogin:
     
+    @pytest.mark.smoke
     def test_login_valid(self, page: Page, login_test_data):
         """
         Verify successful login with valid credentials.

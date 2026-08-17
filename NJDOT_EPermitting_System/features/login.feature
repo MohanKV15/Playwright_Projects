@@ -3,6 +3,7 @@ Feature: Login functionality
   I want to log in to the NJDOT E-Permitting System
   So that I can manage my permit applications
 
+  @smoke
   @authenticated
   Scenario: Valid Login
     Given I have a valid authenticated session

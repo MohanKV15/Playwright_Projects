@@ -3,6 +3,7 @@ from playwright.sync_api import expect
 from pages.login.login_page import LoginPage
 from utils.config import Config
 
+@pytest.mark.smoke
 def test_portal_login_and_select_app_and_logout(page):
     """
     [Positive] Validates end-to-end user login to NJDOT portal, selection of

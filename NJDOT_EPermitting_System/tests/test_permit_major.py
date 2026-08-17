@@ -30,6 +30,7 @@ def _build_owner_info() -> dict:
     }
 
 
+@pytest.mark.smoke
 @pytest.mark.order(4)
 @pytest.mark.authenticated
 @ensure_valid_session
