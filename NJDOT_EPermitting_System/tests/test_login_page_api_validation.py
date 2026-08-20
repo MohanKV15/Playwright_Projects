@@ -22,8 +22,8 @@ def test_login_page_api_validation(page):
     try:
         login_page = LoginPage(page)
         login_page.goto(data["professional"]["url"])
-        email = os.getenv("NJHT_EMAIL") or data["professional"]["email"]
-        password = os.getenv("NJHT_PASSWORD") or data["professional"]["password"]
+        email = data["professional"]["email"]
+        password = data["professional"]["password"]
         login_page.login(
             email,
             password,

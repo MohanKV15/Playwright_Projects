@@ -11,3 +11,9 @@ faker>=20.0.0
 requests>=2.31.0
 urllib3>=2.0.0
 python-dotenv>=1.0.0
+
+# Enterprise RAG & AI QA Automation Extensions
+langchain>=0.2.0
+langchain-community>=0.2.0
+langchain-openai>=0.1.0
+chromadb>=0.5.0

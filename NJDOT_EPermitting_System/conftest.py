@@ -17,11 +17,17 @@ except ImportError:
     html_extras = None
 
 
+def _get_valid_env(key: str) -> str | None:
+    val = os.getenv(key)
+    if val and not ("example.com" in val.lower() or val.lower().startswith("your_")):
+        return val
+    return None
+
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env.example")
 except Exception:
     pass
 
@@ -231,6 +237,21 @@ def pytest_runtest_makereport(item, call):
         except Exception as ex:
             logging.error("Screenshot capture failed: %s", ex)
 
+        # ---------- RAG AI FAILURE DIAGNOSTICS (SAFE OPTIONAL HOOK) ----------
+        if os.getenv("ENABLE_RAG_DIAGNOSTICS", "false").strip().lower() in {"1", "true", "yes"}:
+            try:
+                from utils.rag_engine import QARagEngine
+                rag = QARagEngine(PROJECT_ROOT.parent)
+                if rag.is_available():
+                    failure_trace = str(rep.longrepr)
+                    page_url = page.url if page else "Unknown"
+                    analysis = rag.analyze_failure(test_name, failure_trace, page_url=page_url)
+                    logging.info("[RAG DIAGNOSTIC] %s", analysis)
+                    if html_extras is not None:
+                        extras.append(html_extras.text(analysis, name="AI RAG Failure Diagnosis"))
+            except Exception as rag_err:
+                logging.debug("RAG Diagnostic Note: %s", rag_err)
+
     rep.extras = extras
 
 
@@ -243,8 +264,8 @@ def pytest_sessionfinish(session, exitstatus):
 def auth_storage_state_path(playwright, shared_browser):
     AUTH_DIR.mkdir(parents=True, exist_ok=True)
     credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
-    email = os.getenv("NJHT_EMAIL") or credentials.get("email")
-    password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
+    email = _get_valid_env("NJHT_EMAIL") or credentials.get("email")
+    password = _get_valid_env("NJHT_PASSWORD") or credentials.get("password")
     
     # We use a single shared auth state path
     auth_state_path = AUTH_STATE_PATH
@@ -365,8 +386,8 @@ def authenticated_page(shared_browser: Browser, request, auth_storage_state_path
     if login_page.email_input.is_visible():
         print(f"\n[SELF-HEALING] Session expired or invalid for Worker {worker_id}. Performing fresh login...")
         credentials = json.loads(TEST_DATA_PATH.read_text(encoding="utf-8"))["professional"]
-        email = os.getenv("NJHT_EMAIL") or credentials.get("email")
-        password = os.getenv("NJHT_PASSWORD") or credentials.get("password")
+        email = _get_valid_env("NJHT_EMAIL") or credentials.get("email")
+        password = _get_valid_env("NJHT_PASSWORD") or credentials.get("password")
         
         login_page.goto(credentials["url"])
         login_page.login(email, password)

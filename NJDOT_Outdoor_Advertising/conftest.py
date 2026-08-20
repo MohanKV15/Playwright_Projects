@@ -2,6 +2,7 @@ import pytest
 import json
 import os
 import shutil
+import logging
 import base64
 import re
 from datetime import datetime
@@ -11,11 +12,17 @@ from pytest_html import extras
 from utils.config import Config
 from pages.login.login_page import LoginPage
 
+def _get_valid_env(key: str) -> str | None:
+    val = os.getenv(key)
+    if val and not ("example.com" in val.lower() or val.lower().startswith("your_")):
+        return val
+    return None
+
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env.example")
 except Exception:
     pass
 
@@ -91,13 +98,19 @@ def auth_storage(browser, browser_context_args):
         with open(login_data_path) as f:
             valid_user = json.load(f)["valid_users"][0]
             
-        email = os.getenv("NJHT_EMAIL") or valid_user["email"]
-        password = os.getenv("NJHT_PASSWORD") or valid_user["password"]
+        email = _get_valid_env("NJHT_EMAIL") or valid_user["email"]
+        password = _get_valid_env("NJHT_PASSWORD") or valid_user["password"]
         login_page.load(Config.LOGIN_URL)
         login_page.login(email=email, password=password)
         
-        # Wait for the main accounts portal link to become visible
-        login_page.outdoor_advertising_link.wait_for(state="visible", timeout=Config.TIMEOUT)
+        # Wait for redirect to CADashboardFull or portal page to settle
+        try:
+            page.wait_for_url("**/CADashboardFull**", timeout=15000)
+        except Exception:
+            try:
+                page.wait_for_load_state("domcontentloaded", timeout=10000)
+            except Exception:
+                pass
         
         # Give the session cookies a moment to settle in the browser storage jar
         page.wait_for_timeout(2000)
@@ -205,8 +218,21 @@ def pytest_runtest_makereport(item, call):
                     print(f"\n[REPORTING] [ERROR] Failed to capture failure screenshot: {e}")
 
             # Add trace link on test failure
-            report_extras.append(extras.url(trace_rel_path, name="🔍 View Full Trace (ZIP)"))
-            
+            # ---------- RAG AI FAILURE DIAGNOSTICS (SAFE OPTIONAL HOOK) ----------
+            if os.getenv("ENABLE_RAG_DIAGNOSTICS", "false").strip().lower() in {"1", "true", "yes"}:
+                try:
+                    from utils.rag_engine import QARagEngine
+                    rag = QARagEngine(PROJECT_ROOT.parent)
+                    if rag.is_available():
+                        failure_trace = str(rep.longrepr)
+                        page_url = page.url if page else "Unknown"
+                        analysis = rag.analyze_failure(item.name, failure_trace, page_url=page_url)
+                        logging.info("[RAG DIAGNOSTIC] %s", analysis)
+                        if extras is not None:
+                            report_extras.append(extras.text(analysis, name="AI RAG Failure Diagnosis"))
+                except Exception as rag_err:
+                    logging.debug("RAG Diagnostic Note: %s", rag_err)
+
         rep.extras = report_extras
 
 def pytest_html_report_title(report):
@@ -333,12 +359,15 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
         with open(login_data_path) as f:
             valid_user = json.load(f)["valid_users"][0]
         
-        email = os.getenv("NJHT_EMAIL") or valid_user["email"]
-        password = os.getenv("NJHT_PASSWORD") or valid_user["password"]
+        email = _get_valid_env("NJHT_EMAIL") or valid_user["email"]
+        password = _get_valid_env("NJHT_PASSWORD") or valid_user["password"]
         login_page.login(email=email, password=password)
         
-        # Ensure we reach the accounts portal dashboard
-        login_page.outdoor_advertising_link.wait_for(state="visible", timeout=Config.TIMEOUT)
+        # Ensure we reach the dashboard
+        try:
+            page.wait_for_url("**/CADashboardFull**", timeout=15000)
+        except Exception:
+            pass
         
         # Update storage state
         context.storage_state(path=str(auth_storage))

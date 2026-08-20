@@ -143,10 +143,9 @@ class PermitApplicationPage(BasePage):
         expect(self.partial_form).to_be_visible(timeout=15000)
         
         # 2. Dimensions (Face Height / Face Width)
-        logger.info("Entering face dimensions")
-        self.face_height.fill(str(fake.random_int(min=10, max=99)))
-        self.face_width.fill(str(fake.random_int(min=10, max=99)))
-        self.face_width.press("Enter")
+        logger.info("Entering face dimensions via Kendo Numeric API")
+        self._set_kendo_numeric_value("ODA_Outdoor_Face_Detail_Face_Height1", 20)
+        self._set_kendo_numeric_value("ODA_Outdoor_Face_Detail_Face_Width1", 50)
         
         # 3. Select Sign Type (Kendo Dropdown - 1st valid option)
         logger.info("Selecting Sign Type: 1st valid option")

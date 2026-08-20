@@ -50,7 +50,7 @@ parameters:
   - name: parallelWorkers
     displayName: "xdist Parallel Workers (-n)"
     type: string
-    default: "2"
+    default: "4"
 
 variables:
   - group: PlaywrightSecrets # Azure DevOps Variable Group (contains NJHT_EMAIL, NJHT_PASSWORD, STAFF_EMAIL, STAFF_PASSWORD, STAFF_PIN)

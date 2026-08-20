@@ -44,10 +44,11 @@ class BasePage(KendoMixin):
    # -----------------------------
    def _capture_debug_artifacts(self, scenario: str):
        try:
-           timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-           path = self.DEBUG_ARTIFACTS_DIR / f"{timestamp}_{scenario}.png"
-           self.page.screenshot(path=str(path))
-           self.logger.info(f"Screenshot saved: {path}")
+           if not self.page.is_closed():
+               timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+               path = self.DEBUG_ARTIFACTS_DIR / f"{timestamp}_{scenario}.png"
+               self.page.screenshot(path=str(path))
+               self.logger.info(f"Screenshot saved: {path}")
        except Exception as e:
            self.logger.error(f"Screenshot failed: {e}")
 

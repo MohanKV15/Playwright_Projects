@@ -68,9 +68,20 @@ class LoginPage(BasePage):
         self.login_button.click()
 
     def select_outdoor_advertising(self) -> None:
-        """Clicks the link to enter the Outdoor Advertising module."""
-        logger.info("Selecting '**TEST** Outdoor Advertising' application link")
-        self.outdoor_advertising_link.click()
+        """Clicks the link to enter the Outdoor Advertising module if present and not already on dashboard."""
+        logger.info("Selecting 'Outdoor Advertising' application link if needed")
+        if "CADashboardFull" in self.page.url:
+            logger.info("Already on CADashboardFull dashboard.")
+            return
+        try:
+            if self.outdoor_advertising_link.is_visible(timeout=3000):
+                self.outdoor_advertising_link.click()
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=10000)
+                except Exception:
+                    pass
+        except Exception:
+            pass
 
     def logout(self) -> None:
         """Clicks the logout link to clean up user session."""

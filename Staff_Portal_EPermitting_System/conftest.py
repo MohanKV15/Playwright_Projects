@@ -1,4 +1,5 @@
 import pytest
+import logging
 import json
 import os
 import shutil
@@ -8,11 +9,17 @@ from playwright.sync_api import Browser, Page
 from utils.config import Config
 from pages.login.login_page import LoginPage
 
+def _get_valid_env(key: str) -> str | None:
+    val = os.getenv(key)
+    if val and not ("example.com" in val.lower() or val.lower().startswith("your_")):
+        return val
+    return None
+
+
 try:
     from dotenv import load_dotenv
     load_dotenv()
     load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-    load_dotenv(Path(__file__).resolve().parent.parent / ".env.example")
 except Exception:
     pass
 
@@ -85,9 +92,9 @@ def auth_storage(browser, browser_context_args, tmp_path_factory):
         login_page = LoginPage(page)
         with open(Config.PROJECT_ROOT / "testdata" / "login_data.json") as f:
             valid_user = json.load(f)["valid_users"][0]
-        email = os.getenv("STAFF_EMAIL") or valid_user["email"]
-        password = os.getenv("STAFF_PASSWORD") or valid_user["password"]
-        pin = os.getenv("STAFF_PIN") or valid_user.get("pin", "11")
+        email = _get_valid_env("STAFF_EMAIL") or valid_user["email"]
+        password = _get_valid_env("STAFF_PASSWORD") or valid_user["password"]
+        pin = _get_valid_env("STAFF_PIN") or valid_user.get("pin", "11")
         login_page.load(Config.LOGIN_URL)
         login_page.login(email=email, password=password, pin=pin)
         
@@ -195,9 +202,23 @@ def pytest_runtest_makereport(item, call):
         trace_rel_path = f"debug_artifacts/{test_name}_{worker_id}.zip"
 
         if rep.failed:
-            # We add the link if the test failed. 
-            # In the final HTML, this link will be clickable.
             extra.append(pytest_html.extras.url(trace_rel_path, name="🔍 View Full Trace (ZIP)"))
+
+            # ---------- RAG AI FAILURE DIAGNOSTICS (SAFE OPTIONAL HOOK) ----------
+            if os.getenv("ENABLE_RAG_DIAGNOSTICS", "false").strip().lower() in {"1", "true", "yes"}:
+                try:
+                    from utils.rag_engine import QARagEngine
+                    rag = QARagEngine(PROJECT_ROOT.parent)
+                    if rag.is_available():
+                        page = item.funcargs.get("page") or item.funcargs.get("authenticated_page")
+                        page_url = page.url if page else "Unknown"
+                        failure_trace = str(rep.longrepr)
+                        analysis = rag.analyze_failure(item.name, failure_trace, page_url=page_url)
+                        logging.info("[RAG DIAGNOSTIC] %s", analysis)
+                        if pytest_html is not None:
+                            extra.append(pytest_html.extras.text(analysis, name="AI RAG Failure Diagnosis"))
+                except Exception as rag_err:
+                    logging.debug("RAG Diagnostic Note: %s", rag_err)
             
         rep.extra = extra
 
@@ -246,9 +267,9 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
         with open(Config.PROJECT_ROOT / "testdata" / "login_data.json") as f:
             valid_user = json.load(f)["valid_users"][0]
         
-        email = os.getenv("STAFF_EMAIL") or valid_user["email"]
-        password = os.getenv("STAFF_PASSWORD") or valid_user["password"]
-        pin = os.getenv("STAFF_PIN") or valid_user.get("pin", "11")
+        email = _get_valid_env("STAFF_EMAIL") or valid_user["email"]
+        password = _get_valid_env("STAFF_PASSWORD") or valid_user["password"]
+        pin = _get_valid_env("STAFF_PIN") or valid_user.get("pin", "11")
         login_page.login(email=email, password=password, pin=pin)
         
         # Ensure we reach the dashboard

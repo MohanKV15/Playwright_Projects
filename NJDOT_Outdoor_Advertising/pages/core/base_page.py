@@ -33,8 +33,11 @@ class BasePage:
         except Exception:
             pass
             
-        # 3. Wait for all background network traffic to finish
-        self.page.wait_for_load_state("networkidle")
+        # 3. Wait for background network traffic to settle if possible
+        try:
+            self.page.wait_for_load_state("networkidle", timeout=5000)
+        except Exception:
+            pass
 
     def _wait_for_page_ready(self) -> None:
         """
