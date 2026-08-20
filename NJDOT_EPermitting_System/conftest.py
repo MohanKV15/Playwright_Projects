@@ -4,7 +4,6 @@ import json
 import logging
 import shutil
 import base64
-# from datetime import datetime
 from pathlib import Path
 from playwright.sync_api import Browser
 
