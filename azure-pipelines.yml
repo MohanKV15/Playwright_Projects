@@ -117,6 +117,34 @@ stages:
               mkdir -p Staff_Portal_Outdoor_Advertising/reports
             displayName: "Create Report Directories"
 
+          - script: |
+              echo "=== DETECTING CHANGED SUB-PROJECTS ==="
+              CHANGED_FILES=$(git diff --name-only HEAD~1 HEAD 2>/dev/null || echo "ALL")
+              echo "Changed files in commit:"
+              echo "$CHANGED_FILES"
+
+              # Check if global files or all projects modified
+              if echo "$CHANGED_FILES" | grep -q "ALL" || echo "$CHANGED_FILES" | grep -vE "^(NJDOT_EPermitting_System|NJDOT_Outdoor_Advertising|Staff_Portal_EPermitting_System|Staff_Portal_Outdoor_Advertising)/"; then
+                echo "Global files modified or full run required. Enabling all projects."
+                echo "##vso[task.setvariable variable=RUN_ALL]true"
+              else
+                echo "##vso[task.setvariable variable=RUN_ALL]false"
+              fi
+
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_EPermitting_System/"; then
+                echo "##vso[task.setvariable variable=RUN_NJDOT_EPERMITTING]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_Outdoor_Advertising/"; then
+                echo "##vso[task.setvariable variable=RUN_NJDOT_OUTDOOR]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^Staff_Portal_EPermitting_System/"; then
+                echo "##vso[task.setvariable variable=RUN_STAFF_EPERMITTING]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^Staff_Portal_Outdoor_Advertising/"; then
+                echo "##vso[task.setvariable variable=RUN_STAFF_OUTDOOR]true"
+              fi
+            displayName: "Detect Changed Sub-Projects for Selective Execution"
+
           # --------------------------------------------------------------------
           # Project 1: NJDOT EPermitting System
           # --------------------------------------------------------------------
@@ -129,7 +157,7 @@ stages:
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
             displayName: "Run NJDOT EPermitting System Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_System'))
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_System'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_EPERMITTING'], 'true'))))
             env:
               NJHT_EMAIL: $(NJHT_EMAIL)
               NJHT_PASSWORD: $(NJHT_PASSWORD)
@@ -148,7 +176,7 @@ stages:
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
             displayName: "Run NJDOT Outdoor Advertising Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'NJDOT_Outdoor_Advertising'))
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_Outdoor_Advertising'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_OUTDOOR'], 'true'))))
             env:
               NJHT_EMAIL: $(NJHT_EMAIL)
               NJHT_PASSWORD: $(NJHT_PASSWORD)
@@ -167,7 +195,7 @@ stages:
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
             displayName: "Run Staff Portal EPermitting System Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_EPermitting_System'))
+            condition: or(eq('${{ parameters.projectToRun }}', 'Staff_Portal_EPermitting_System'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_EPERMITTING'], 'true'))))
             env:
               STAFF_EMAIL: $(STAFF_EMAIL)
               STAFF_PASSWORD: $(STAFF_PASSWORD)
@@ -187,13 +215,14 @@ stages:
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
             displayName: "Run Staff Portal Outdoor Advertising Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'All'), eq('${{ parameters.projectToRun }}', 'Staff_Portal_Outdoor_Advertising'))
+            condition: or(eq('${{ parameters.projectToRun }}', 'Staff_Portal_Outdoor_Advertising'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_OUTDOOR'], 'true'))))
             env:
               STAFF_EMAIL: $(STAFF_EMAIL)
               STAFF_PASSWORD: $(STAFF_PASSWORD)
               STAFF_PIN: $(STAFF_PIN)
               CI: "true"
               PW_HEADLESS: "true"
+
 
           # --------------------------------------------------------------------
           # Publish Test Results to Azure DevOps Pipeline UI
