@@ -62,10 +62,12 @@ class QARagEngine:
         embeddings, _ = self._get_embeddings_and_llm()
 
         sub_projects = [
-            "NJDOT_EPermitting_System",
-            "NJDOT_Outdoor_Advertising",
-            "Staff_Portal_EPermitting_System",
-            "Staff_Portal_Outdoor_Advertising"
+            "NJDOT_EPermitting_Customer_Portal",
+            "NJDOT_EPermitting_Staff_Portal",
+            "NJDOT_ODA_Customer_Portal",
+            "NJDOT_ODA_Staff_Portal",
+            "IDOT_ODA_Customer_Portal",
+            "IDOT_ODA_Staff_Portal",
         ]
 
         documents = []
@@ -167,7 +169,7 @@ class QARagEngine:
         except Exception as e:
             return f"RAG analysis error: {e}"
 
-    def generate_test_script(self, requirement_prompt: str, target_project: str = "NJDOT_EPermitting_System") -> str:
+    def generate_test_script(self, requirement_prompt: str, target_project: str = "NJDOT_EPermitting_Customer_Portal") -> str:
         """
         Generates a complete Pytest + Playwright script using existing indexed Page Objects.
         """

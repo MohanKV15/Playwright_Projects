@@ -28,7 +28,7 @@ def main():
     # Generate command
     gen_parser = subparsers.add_parser("generate", help="Generate Pytest Playwright Test Script using RAG Memory")
     gen_parser.add_argument("--prompt", type=str, required=True, help="Test requirement in plain English")
-    gen_parser.add_argument("--project", type=str, default="NJDOT_EPermitting_System", help="Target sub-project name")
+    gen_parser.add_argument("--project", type=str, default="NJDOT_EPermitting_Customer_Portal", help="Target sub-project name")
 
     # Analyze command
     analyze_parser = subparsers.add_parser("analyze", help="Analyze a Playwright Test Failure Trace")

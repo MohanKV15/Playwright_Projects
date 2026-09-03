@@ -34,10 +34,10 @@ parameters:
     default: "All"
     values:
       - "All"
-      - "NJDOT_EPermitting_System"
-      - "NJDOT_Outdoor_Advertising"
-      - "Staff_Portal_EPermitting_System"
-      - "Staff_Portal_Outdoor_Advertising"
+      - "NJDOT_EPermitting_Customer_Portal"
+      - "NJDOT_EPermitting_Staff_Portal"
+      - "NJDOT_ODA_Customer_Portal"
+      - "NJDOT_ODA_Staff_Portal"
 
   - name: testType
     displayName: "Select Test Execution Mode"
@@ -111,10 +111,10 @@ stages:
             displayName: "Install Playwright Chromium Browser & OS Dependencies"
 
           - script: |
-              mkdir -p NJDOT_EPermitting_System/reports
-              mkdir -p NJDOT_Outdoor_Advertising/reports
-              mkdir -p Staff_Portal_EPermitting_System/reports
-              mkdir -p Staff_Portal_Outdoor_Advertising/reports
+              mkdir -p NJDOT_EPermitting_Customer_Portal/reports
+              mkdir -p NJDOT_EPermitting_Staff_Portal/reports
+              mkdir -p NJDOT_ODA_Customer_Portal/reports
+              mkdir -p NJDOT_ODA_Staff_Portal/reports
             displayName: "Create Report Directories"
 
           - script: |
@@ -124,40 +124,40 @@ stages:
               echo "$CHANGED_FILES"
 
               # Check if global files or all projects modified
-              if echo "$CHANGED_FILES" | grep -q "ALL" || echo "$CHANGED_FILES" | grep -vE "^(NJDOT_EPermitting_System|NJDOT_Outdoor_Advertising|Staff_Portal_EPermitting_System|Staff_Portal_Outdoor_Advertising)/"; then
+              if echo "$CHANGED_FILES" | grep -q "ALL" || echo "$CHANGED_FILES" | grep -vE "^(NJDOT_EPermitting_Customer_Portal|NJDOT_EPermitting_Staff_Portal|NJDOT_ODA_Customer_Portal|NJDOT_ODA_Staff_Portal)/"; then
                 echo "Global files modified or full run required. Enabling all projects."
                 echo "##vso[task.setvariable variable=RUN_ALL]true"
               else
                 echo "##vso[task.setvariable variable=RUN_ALL]false"
               fi
 
-              if echo "$CHANGED_FILES" | grep -q "^NJDOT_EPermitting_System/"; then
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_EPermitting_Customer_Portal/"; then
                 echo "##vso[task.setvariable variable=RUN_NJDOT_EPERMITTING]true"
               fi
-              if echo "$CHANGED_FILES" | grep -q "^NJDOT_Outdoor_Advertising/"; then
-                echo "##vso[task.setvariable variable=RUN_NJDOT_OUTDOOR]true"
-              fi
-              if echo "$CHANGED_FILES" | grep -q "^Staff_Portal_EPermitting_System/"; then
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_EPermitting_Staff_Portal/"; then
                 echo "##vso[task.setvariable variable=RUN_STAFF_EPERMITTING]true"
               fi
-              if echo "$CHANGED_FILES" | grep -q "^Staff_Portal_Outdoor_Advertising/"; then
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_ODA_Customer_Portal/"; then
+                echo "##vso[task.setvariable variable=RUN_NJDOT_OUTDOOR]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^NJDOT_ODA_Staff_Portal/"; then
                 echo "##vso[task.setvariable variable=RUN_STAFF_OUTDOOR]true"
               fi
             displayName: "Detect Changed Sub-Projects for Selective Execution"
 
           # --------------------------------------------------------------------
-          # Project 1: NJDOT EPermitting System
+          # Project 1: NJDOT EPermitting Customer Portal
           # --------------------------------------------------------------------
           - script: |
-              echo "Executing NJDOT_EPermitting_System..."
-              cd NJDOT_EPermitting_System
+              echo "Executing NJDOT_EPermitting_Customer_Portal..."
+              cd NJDOT_EPermitting_Customer_Portal
               if [ "${{ parameters.testType }}" = "Smoke" ]; then
                 python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               else
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
-            displayName: "Run NJDOT EPermitting System Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_System'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_EPERMITTING'], 'true'))))
+            displayName: "Run NJDOT EPermitting Customer Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_Customer_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_EPERMITTING'], 'true'))))
             env:
               NJHT_EMAIL: $(NJHT_EMAIL)
               NJHT_PASSWORD: $(NJHT_PASSWORD)
@@ -165,37 +165,18 @@ stages:
               PW_HEADLESS: "true"
 
           # --------------------------------------------------------------------
-          # Project 2: NJDOT Outdoor Advertising
+          # Project 2: NJDOT EPermitting Staff Portal
           # --------------------------------------------------------------------
           - script: |
-              echo "Executing NJDOT_Outdoor_Advertising..."
-              cd NJDOT_Outdoor_Advertising
+              echo "Executing NJDOT_EPermitting_Staff_Portal..."
+              cd NJDOT_EPermitting_Staff_Portal
               if [ "${{ parameters.testType }}" = "Smoke" ]; then
                 python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               else
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
-            displayName: "Run NJDOT Outdoor Advertising Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_Outdoor_Advertising'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_OUTDOOR'], 'true'))))
-            env:
-              NJHT_EMAIL: $(NJHT_EMAIL)
-              NJHT_PASSWORD: $(NJHT_PASSWORD)
-              CI: "true"
-              PW_HEADLESS: "true"
-
-          # --------------------------------------------------------------------
-          # Project 3: Staff Portal EPermitting System
-          # --------------------------------------------------------------------
-          - script: |
-              echo "Executing Staff_Portal_EPermitting_System..."
-              cd Staff_Portal_EPermitting_System
-              if [ "${{ parameters.testType }}" = "Smoke" ]; then
-                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
-              else
-                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
-              fi
-            displayName: "Run Staff Portal EPermitting System Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'Staff_Portal_EPermitting_System'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_EPERMITTING'], 'true'))))
+            displayName: "Run NJDOT EPermitting Staff Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_EPermitting_Staff_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_EPERMITTING'], 'true'))))
             env:
               STAFF_EMAIL: $(STAFF_EMAIL)
               STAFF_PASSWORD: $(STAFF_PASSWORD)
@@ -204,18 +185,37 @@ stages:
               PW_HEADLESS: "true"
 
           # --------------------------------------------------------------------
-          # Project 4: Staff Portal Outdoor Advertising
+          # Project 3: NJDOT ODA Customer Portal
           # --------------------------------------------------------------------
           - script: |
-              echo "Executing Staff_Portal_Outdoor_Advertising..."
-              cd Staff_Portal_Outdoor_Advertising
+              echo "Executing NJDOT_ODA_Customer_Portal..."
+              cd NJDOT_ODA_Customer_Portal
               if [ "${{ parameters.testType }}" = "Smoke" ]; then
                 python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               else
                 python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
               fi
-            displayName: "Run Staff Portal Outdoor Advertising Tests"
-            condition: or(eq('${{ parameters.projectToRun }}', 'Staff_Portal_Outdoor_Advertising'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_OUTDOOR'], 'true'))))
+            displayName: "Run NJDOT ODA Customer Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_ODA_Customer_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_NJDOT_OUTDOOR'], 'true'))))
+            env:
+              NJHT_EMAIL: $(NJHT_EMAIL)
+              NJHT_PASSWORD: $(NJHT_PASSWORD)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 4: NJDOT ODA Staff Portal
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing NJDOT_ODA_Staff_Portal..."
+              cd NJDOT_ODA_Staff_Portal
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
+            displayName: "Run NJDOT ODA Staff Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'NJDOT_ODA_Staff_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_STAFF_OUTDOOR'], 'true'))))
             env:
               STAFF_EMAIL: $(STAFF_EMAIL)
               STAFF_PASSWORD: $(STAFF_PASSWORD)
