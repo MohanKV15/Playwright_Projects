@@ -28,7 +28,7 @@ class PermitTransferDocumentsAndLogPage(BasePage):
         
         # Date Picker elements
         self.select_button = page.get_by_role("button", name="select")
-        self.day_link = lambda d: page.get_by_role("link", name=str(d), exact=True)
+        self.day_link = lambda d: page.get_by_role("link", name=str(d), exact=True).first
 
         # Communication Fields
         self.subject_input = page.get_by_role("textbox", name="Subject")

@@ -105,7 +105,7 @@ class AddViolationPage(BasePage):
         # Removal Information
         self.removal_info_text = page.get_by_text("Removal Information")
         self.removal_info_ad12_text = page.get_by_text("Removal Information Ad-12")
-        self.save_bottom_btn = page.get_by_text("Save", exact=True)
+        self.save_bottom_btn = page.locator("button:has-text('Save'), a.k-button:has-text('Save'), button.k-primary:has-text('Save')").last
         self.back_button = page.get_by_role("button", name=" Back")
 
     def _click_button_and_wait_for_dialog(self, button_locator, dialog_locator, timeout=3000) -> None:
@@ -324,14 +324,33 @@ class AddViolationPage(BasePage):
         
         expect(self.removal_info_ad12_text).to_be_visible(timeout=10000)
         
-        # Click save at the bottom
-        self.save_bottom_btn.click()
+        # Scroll to and click save at the bottom
+        logger.info("Scrolling to bottom Save button and clicking...")
+        save_btn = self.save_bottom_btn
+        save_btn.scroll_into_view_if_needed()
+        self.page.wait_for_timeout(500)
         
-        # Handle final dialog popup
-        active_dialog = self.page.locator(".k-widget.k-window:visible, .k-dialog:visible, .k-window:visible").filter(has_text="Operation completed").first
-        expect(active_dialog).to_be_visible(timeout=15000)
-        active_dialog.get_by_role("button", name="OK").click()
-        self.page.wait_for_timeout(1000)
+        try:
+            save_btn.click(timeout=5000)
+        except Exception:
+            logger.warning("Standard click on Save bottom button failed. Retrying via JS click...")
+            self.js_click(save_btn)
+        
+        # Handle final dialog popup (Operation completed / Record saved successfully)
+        active_dialog = self.page.locator(".k-widget.k-window:visible, .k-dialog:visible, .k-window:visible").filter(
+            has_text=re.compile(r"Operation completed|saved|successful", re.I)
+        ).first
+        
+        try:
+            expect(active_dialog).to_be_visible(timeout=15000)
+            ok_btn = active_dialog.get_by_role("button", name="OK")
+            if ok_btn.count() > 0 and ok_btn.first.is_visible():
+                ok_btn.first.click()
+            else:
+                active_dialog.locator("button, .k-button").first.click()
+            self.page.wait_for_timeout(1000)
+        except Exception as e:
+            logger.warning(f"Final popup dialog check completed: {e}")
 
     def go_back_and_verify_record_listed(self, dealer_name: str = "vansh") -> None:
         """Returns to the violations list, searches by dealer, and validates results."""

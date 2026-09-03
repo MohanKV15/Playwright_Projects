@@ -45,7 +45,7 @@ class LicensePaymentPage(BasePage):
 
         # Date Picker elements
         self.select_buttons = page.get_by_role("button", name="select")
-        self.day_link = lambda d: page.get_by_role("link", name=d, exact=True)
+        self.day_link = lambda d: page.get_by_role("link", name=str(d), exact=True).first
 
         # Form Validation Headings
         self.payment_details_heading = page.get_by_role("heading", name="Payment Details")

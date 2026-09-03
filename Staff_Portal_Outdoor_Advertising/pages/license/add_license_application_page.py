@@ -48,7 +48,7 @@ class AddLicenseApplicationPage(BasePage):
 
         # Date pickers (calendar dropdown triggers & day selectors)
         self.select_buttons = page.get_by_label("select")
-        self.day_link = lambda day: page.get_by_role("link", name=day, exact=True)
+        self.day_link = lambda day: page.get_by_role("link", name=str(day), exact=True).first
 
         # Status Dropdown
         self.status_dropdown_trigger = page.locator("#frmLicDetail").get_by_text("--Select Status--")

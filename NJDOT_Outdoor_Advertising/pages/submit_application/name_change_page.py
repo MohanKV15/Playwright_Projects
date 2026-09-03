@@ -84,11 +84,39 @@ class NameChangePage(BasePage):
         self.page.once("dialog", lambda dialog: dialog.accept())
         self.ok_button.click()
 
+    def handle_survey_popup_if_present(self) -> None:
+        """Handles the 'Would you like to respond to survey?' popup if it appears by clicking 'No'."""
+        try:
+            logger.info("Checking for survey popup...")
+            no_candidates = [
+                self.page.get_by_role("button", name="No", exact=True),
+                self.page.locator(".k-dialog-wrapper button:has-text('No')"),
+                self.page.locator("button:has-text('No')"),
+            ]
+            for candidate in no_candidates:
+                if candidate.count() > 0 and candidate.first.is_visible(timeout=3000):
+                    logger.info("Survey popup detected! Clicking 'No' button...")
+                    candidate.first.click()
+                    self.page.wait_for_timeout(1000)
+                    break
+        except Exception as e:
+            logger.debug(f"Survey popup not visible or already closed: {e}")
+
     def verify_success_and_return(self) -> None:
         """Verifies the success screen text and clicks Return Home."""
         logger.info("Verifying Success Screen...")
         expect(self.success_heading).to_be_visible(timeout=30000)
         expect(self.success_message).to_be_visible()
         
+        # Handle survey popup if present before clicking Return Home
+        self.handle_survey_popup_if_present()
+
         logger.info("Clicking Return Home button...")
-        self.return_home_btn.click()
+        try:
+            self.return_home_btn.click(timeout=10000)
+        except Exception:
+            # Fallback in case overlay persists or click is intercepted
+            logger.warning("Standard click on Return Home failed/intercepted, retrying after checking survey popup or forcing click...")
+            self.handle_survey_popup_if_present()
+            self.return_home_btn.click(force=True)
+

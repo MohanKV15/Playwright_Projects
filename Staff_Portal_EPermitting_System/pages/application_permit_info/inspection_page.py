@@ -104,15 +104,16 @@ class InspectionPage(BasePage):
         """Validates that the Add/Edit Inspection Review modal dialog has opened."""
         candidates = [
             self.page.locator("#div4319InspectionReviewStaffAdd_wnd_title"),
-            self.review_modal_title,
+            self.page.locator(".k-window:visible .k-window-title"),
+            self.page.locator(".k-window-title:has-text('Add/Edit Inspection Review')"),
             self.page.locator("#btnReviewSubmit"),
-            self.review_modal_dialog,
-            self.page.locator("[role='dialog']:visible"),
+            self.page.locator(".k-window:visible, .k-dialog:visible, [role='dialog']:visible"),
         ]
 
         for loc in candidates:
             try:
-                if loc.count() > 0 and loc.is_visible():
+                if loc.count() > 0 and loc.first.is_visible():
+                    logger.info("Inspection Review modal successfully opened and verified.")
                     return
             except Exception:
                 continue
@@ -130,13 +131,41 @@ class InspectionPage(BasePage):
         logger.info("Adding new Inspection Review.")
         self._wait_for_loader()
 
-        if self.add_new_button.count() > 0 and self.add_new_button.is_visible():
-            self.js_click(self.add_new_button)
-        else:
-            self.page.evaluate("$('#btnAddNewReview, #btnAddNew, a:contains(\"Add New\"), button:contains(\"Add New\")').first().click()")
+        add_btn_candidates = [
+            self.page.locator("#btnAddNewReview"),
+            self.page.locator("#btnAddNew"),
+            self.page.get_by_role("button", name=re.compile(r"Add New", re.I)),
+            self.page.get_by_role("link", name=re.compile(r"Add New", re.I)),
+            self.page.locator("a:has-text('Add New'), button:has-text('Add New'), .btn:has-text('Add New')"),
+        ]
+
+        clicked = False
+        for candidate in add_btn_candidates:
+            try:
+                if candidate.count() > 0 and candidate.first.is_visible():
+                    candidate.first.scroll_into_view_if_needed()
+                    self.page.wait_for_timeout(300)
+                    try:
+                        candidate.first.click(timeout=3000)
+                    except Exception:
+                        self.js_click(candidate.first)
+                    clicked = True
+                    break
+            except Exception:
+                continue
+
+        if not clicked:
+            self.page.evaluate("""
+                () => {
+                    var jq = window.jQuery || window.$;
+                    if (jq) {
+                        jq('#btnAddNewReview, #btnAddNew, a:contains("Add New"), button:contains("Add New")').first().click();
+                    }
+                }
+            """)
 
         self._wait_for_loader()
-        self.page.wait_for_timeout(500)
+        self.page.wait_for_timeout(1000)
 
         # Confirm modal is open and visible
         self.verify_add_new_review_modal_opened()
