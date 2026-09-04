@@ -11,21 +11,21 @@
     "test_case_id": "TC_LOG_002",
     "description": "Valid Email and Invalid Password",
     "email": "sprabhu@bemsys.com",
-    "password": "test1233",
+    "password": "WrongPassword#123",
     "expected_error": "You have entered an invalid"
   },
   "invalid_email_valid_password": {
     "test_case_id": "TC_LOG_003",
     "description": "Invalid Email and Valid Password",
-    "email": "test@gmail.com",
+    "email": "nonexistent.customer@bemsys.com",
     "password": "Security@#",
     "expected_error": "You have entered an invalid"
   },
   "invalid_login": {
     "test_case_id": "TC_LOG_004",
-    "description": "Invalid Email and Invalid Password",
-    "email": "wrong@email.com",
-    "password": "wrongpassword",
+    "description": "Invalid Email and Invalid Password (non-existent customer credentials)",
+    "email": "invalid.customer@illinois.gov",
+    "password": "InvalidPassword#123",
     "expected_error": "You have entered an invalid"
   },
   "empty_login": {

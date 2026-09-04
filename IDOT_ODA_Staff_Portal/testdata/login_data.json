@@ -1,0 +1,42 @@
+{
+  "portal_url": "https://u-idsp.bemcorp.net/Accounts/Account/Account",
+  "default_pin": "11",
+  "valid_credentials": {
+    "test_case_id": "TC_STAFF_LOG_001",
+    "description": "Valid PIN, Email, and Password",
+    "pin": "11",
+    "email": "sprabhu@bemsys.com",
+    "password": "Security@#"
+  },
+  "invalid_email_and_password": {
+    "test_case_id": "TC_STAFF_LOG_002",
+    "description": "Invalid Email and Invalid Password (non-existent staff credentials)",
+    "pin": "11",
+    "email": "invalid.staff@illinois.gov",
+    "password": "InvalidPassword#123",
+    "expected_error": "You have entered an invalid"
+  },
+  "valid_email_invalid_password": {
+    "test_case_id": "TC_STAFF_LOG_003",
+    "description": "Valid Email and Invalid Password",
+    "pin": "11",
+    "email": "sprabhu@bemsys.com",
+    "password": "WrongPassword#123",
+    "expected_error": "You have entered an invalid"
+  },
+  "invalid_email_valid_password": {
+    "test_case_id": "TC_STAFF_LOG_004",
+    "description": "Invalid Email and Valid Password",
+    "pin": "11",
+    "email": "nonexistent.staff@bemsys.com",
+    "password": "Security@#",
+    "expected_error": "You have entered an invalid"
+  },
+  "empty_credentials": {
+    "test_case_id": "TC_STAFF_LOG_005",
+    "description": "Empty Email and Empty Password",
+    "pin": "11",
+    "email": "",
+    "password": ""
+  }
+}
