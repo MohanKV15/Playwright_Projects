@@ -325,9 +325,9 @@ def authenticated_dashboard(authenticated_staff_page: Page) -> DashboardPage:
 
 
 @pytest.fixture(scope="function")
-def authenticated_primary_highway(authenticated_staff_page: Page) -> PrimaryHighwayPage:
-    """Provides an authenticated PrimaryHighwayPage."""
-    return PrimaryHighwayPage(authenticated_staff_page)
+def authenticated_primary_highway(authenticated_dashboard: DashboardPage) -> PrimaryHighwayPage:
+    """Provides an authenticated PrimaryHighwayPage positioned on the application search view."""
+    return PrimaryHighwayPage(authenticated_dashboard.page)
 
 
 @pytest.fixture(scope="function")
@@ -337,9 +337,9 @@ def interstate_highway_page(page: Page) -> InterstateHighwayPage:
 
 
 @pytest.fixture(scope="function")
-def authenticated_interstate_highway(authenticated_staff_page: Page) -> InterstateHighwayPage:
-    """Provides an authenticated InterstateHighwayPage."""
-    return InterstateHighwayPage(authenticated_staff_page)
+def authenticated_interstate_highway(authenticated_dashboard: DashboardPage) -> InterstateHighwayPage:
+    """Provides an authenticated InterstateHighwayPage positioned on the application search view."""
+    return InterstateHighwayPage(authenticated_dashboard.page)
 
 
 @pytest.fixture(scope="function")

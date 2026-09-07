@@ -1,11 +1,30 @@
 import logging
+from typing import Optional, Union, List
 from playwright.sync_api import Page, Locator
+from pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox
 
 logger = logging.getLogger(__name__)
 
 class BasePage:
     def __init__(self, page: Page):
         self.page = page
+        self.kendo_dropdown = KendoDropdown(page)
+        self.kendo_datepicker = KendoDatePicker(page)
+        self.kendo_numeric = KendoNumericTextBox(page)
+
+    def select_kendo_dropdown(self, target: Union[Locator, str], option_text: str, timeout_ms: int = 5000) -> bool:
+        """Selects an option from a Kendo DropDownList using the KendoDropdown component."""
+        self._wait_for_loader()
+        res = self.kendo_dropdown.select(target, option_text, timeout_ms=timeout_ms)
+        self._wait_for_loader()
+        return res
+
+    def set_kendo_datepicker(self, field_id: str, date_str: str) -> bool:
+        """Sets date string in a Kendo DatePicker using the KendoDatePicker component."""
+        self._wait_for_loader()
+        res = self.kendo_datepicker.set_date_by_id(field_id, date_str)
+        self._wait_for_loader()
+        return res
 
     def navigate(self, url: str):
         self.page.goto(url)

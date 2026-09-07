@@ -130,6 +130,11 @@ class LoginPage(BasePage):
             except Exception:
                 pass
 
+    def verify_and_dismiss_invalid_popup(self) -> None:
+        """Asserts invalid login alert is visible, then clicks OK to dismiss."""
+        self.verify_invalid_login_popup()
+        self.dismiss_error_modal()
+
     def is_at_login_page(self) -> bool:
         """Checks if current browser state is at the Login page."""
         return "Accounts/Account" in self.page.url or self.email_input.is_visible()

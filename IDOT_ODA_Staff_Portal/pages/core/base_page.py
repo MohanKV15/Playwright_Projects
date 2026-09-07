@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Union
 from playwright.sync_api import Page, Locator, expect
 from IDOT_ODA_Staff_Portal.utils.config import Config
+from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox
 
 DEBUG_ARTIFACTS_DIR = Config.PROJECT_ROOT / "reports" / "debug_artifacts"
 ZOOM_PERCENT = Config.ZOOM_PERCENT
@@ -23,6 +24,9 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.kendo_dropdown = KendoDropdown(page)
+        self.kendo_datepicker = KendoDatePicker(page)
+        self.kendo_numeric = KendoNumericTextBox(page)
         self._apply_zoom_script()
 
     def _apply_zoom_script(self) -> None:
@@ -120,6 +124,27 @@ class BasePage:
         except Exception as e:
             self.logger.error(f"JS click failed: {e}")
             return False
+
+    def select_kendo_dropdown(self, field_id: str, option_text: Optional[str] = None, index: int = 1) -> bool:
+        """Selects an option from a Kendo DropDownList using the KendoDropdown component."""
+        self._wait_for_loader()
+        result = self.kendo_dropdown.select_by_id(field_id, option_text, index)
+        self._wait_for_loader()
+        return result
+
+    def set_kendo_datepicker(self, field_id: str, date_str: str) -> bool:
+        """Sets date string in a Kendo DatePicker using the KendoDatePicker component."""
+        self._wait_for_loader()
+        result = self.kendo_datepicker.set_date_by_id(field_id, date_str)
+        self._wait_for_loader()
+        return result
+
+    def set_kendo_numeric(self, field_id: str, value: float) -> bool:
+        """Sets numeric value in a Kendo NumericTextBox using the KendoNumericTextBox component."""
+        self._wait_for_loader()
+        result = self.kendo_numeric.set_value_by_id(field_id, value)
+        self._wait_for_loader()
+        return result
 
     def handle_kendo_alert(self, timeout_ms: int = 5000) -> bool:
         """Detects and clicks OK on Kendo alert/confirm dialogs if displayed."""

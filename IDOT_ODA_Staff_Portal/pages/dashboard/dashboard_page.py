@@ -160,32 +160,15 @@ class DashboardPage(BasePage):
         return False
 
     def select_application_status(self, status_name: str) -> bool:
-        """Selects an Application Status option from the dropdown."""
+        """Selects an Application Status option using KendoDropdown component."""
         self.logger.info(f"Selecting Application Status: '{status_name}'")
         self.dismiss_error_modal_if_present()
         self._wait_for_loader()
-        try:
-            if not self.open_status_dropdown():
-                return False
-
-            option = self.page.get_by_role("option", name=status_name).or_(
-                self.page.locator(".k-animation-container:visible li, #ApplicationStatus_listbox li").filter(has_text=status_name)
-            ).first
-
-            if option.is_visible(timeout=3000):
-                option.click(force=True)
-                self._wait_for_loader()
-                self.page.wait_for_timeout(500)
-                return True
-            else:
-                self.page.keyboard.press("Escape")
-        except Exception as e:
-            self.logger.warning(f"Could not select status '{status_name}': {e}")
-            try:
-                self.page.keyboard.press("Escape")
-            except Exception:
-                pass
-        return False
+        if self.select_kendo_dropdown("ApplicationStatus", status_name):
+            return True
+        # Fallback to UI interaction via KendoDropdown component
+        dropdown_trigger = self.page.locator("#filterViewDiv span.k-input, #filterViewDiv .k-dropdown").first
+        return self.kendo_dropdown.select_by_locator(dropdown_trigger, status_name)
 
     def search_until_records_found(self, candidate_statuses: Optional[List[str]] = None) -> bool:
         """
@@ -325,6 +308,24 @@ class DashboardPage(BasePage):
             expect(section).to_be_visible(timeout=20000)
 
         self.logger.info("All Application Details sections verified successfully!")
+
+    def search_and_open_first_record(self, candidate_statuses: Optional[List[str]] = None) -> str:
+        """
+        Streamlined composite search workflow:
+        1. Iterates application statuses dynamically until records appear.
+        2. Retrieves the 1st record's permit number.
+        3. Searches specifically by that permit number.
+        4. Clicks the Action/Edit button to open Application Details.
+        Returns the target permit number.
+        """
+        records_found = self.search_until_records_found(candidate_statuses=candidate_statuses)
+        if not records_found:
+            raise AssertionError("Failed to retrieve any permit records in Permits table across tested statuses")
+
+        target_permit_number = self.get_first_record_permit_number()
+        self.search_by_permit_number(target_permit_number)
+        self.click_first_record_action_button()
+        return target_permit_number
 
     # -------------------------------------------------------------------------
     # Logout Handling

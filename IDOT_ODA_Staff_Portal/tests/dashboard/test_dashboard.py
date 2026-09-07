@@ -23,19 +23,9 @@ def test_dashboard_search_and_application_details_flow(authenticated_dashboard: 
     # 1. Verify Application/Permit Search view branding
     authenticated_dashboard.verify_search_page_elements()
 
-    # 2. Dynamic Search: iterate statuses until records appear in Permits table
-    records_found = authenticated_dashboard.search_until_records_found()
-    assert records_found, "Failed to retrieve any permit records in Permits table across tested statuses"
+    # 2. Search & Open First Record Application Details
+    target_permit = authenticated_dashboard.search_and_open_first_record()
+    assert target_permit, "Target permit number was empty"
 
-    # 3. Extract 1st record's Permit # from table
-    target_permit_number = authenticated_dashboard.get_first_record_permit_number()
-    assert target_permit_number, "Permit number from first row was empty"
-
-    # 4. Search specifically using the 1st record's Permit #
-    authenticated_dashboard.search_by_permit_number(target_permit_number)
-
-    # 5. Click Action/Edit button on the matching record
-    authenticated_dashboard.click_first_record_action_button()
-
-    # 6. Observe and verify all Application Details sections are clearly displaying
+    # 3. Observe and verify all Application Details sections are clearly displaying
     authenticated_dashboard.verify_application_details_sections()

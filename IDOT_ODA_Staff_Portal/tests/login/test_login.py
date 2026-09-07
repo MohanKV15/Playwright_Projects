@@ -64,11 +64,8 @@ def test_invalid_email_and_password(login_page: LoginPage):
         pin=data.get("pin", "11"),
     )
 
-    # 3. Verify 'You have entered an invalid' alert popup
-    login_page.verify_invalid_login_popup()
-
-    # 4. Dismiss modal by clicking OK
-    login_page.dismiss_error_modal()
+    # 3. Verify 'You have entered an invalid' alert popup and dismiss
+    login_page.verify_and_dismiss_invalid_popup()
 
 
 @pytest.mark.login
@@ -90,11 +87,8 @@ def test_valid_email_invalid_password(login_page: LoginPage):
         pin=data.get("pin", "11"),
     )
 
-    # 3. Verify 'You have entered an invalid' alert popup
-    login_page.verify_invalid_login_popup()
-
-    # 4. Dismiss modal by clicking OK
-    login_page.dismiss_error_modal()
+    # 3. Verify 'You have entered an invalid' alert popup and dismiss
+    login_page.verify_and_dismiss_invalid_popup()
 
 
 @pytest.mark.login
@@ -116,11 +110,8 @@ def test_invalid_email_valid_password(login_page: LoginPage):
         pin=data.get("pin", "11"),
     )
 
-    # 3. Verify 'You have entered an invalid' alert popup
-    login_page.verify_invalid_login_popup()
-
-    # 4. Dismiss modal by clicking OK
-    login_page.dismiss_error_modal()
+    # 3. Verify 'You have entered an invalid' alert popup and dismiss
+    login_page.verify_and_dismiss_invalid_popup()
 
 
 @pytest.mark.login

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Union
 from playwright.sync_api import Page, Locator, expect
 from IDOT_ODA_Customer_Portal.utils.config import Config
+from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox
 
 DEBUG_ARTIFACTS_DIR = Config.PROJECT_ROOT / "reports" / "debug_artifacts"
 ZOOM_PERCENT = Config.ZOOM_PERCENT
@@ -23,6 +24,9 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
         self.logger = logging.getLogger(self.__class__.__name__)
+        self.kendo_dropdown = KendoDropdown(page)
+        self.kendo_datepicker = KendoDatePicker(page)
+        self.kendo_numeric = KendoNumericTextBox(page)
         self._apply_zoom_script()
 
     def _apply_zoom_script(self) -> None:
@@ -109,29 +113,9 @@ class BasePage:
     def select_kendo_dropdown(self, dropdown_locator_or_selector: Union[Locator, str], item_text: str, timeout_ms: int = 10000) -> bool:
         """Opens a Kendo UI dropdown and selects the item matching item_text."""
         self._wait_for_loader()
-        try:
-            locator = dropdown_locator_or_selector if isinstance(dropdown_locator_or_selector, Locator) else self.page.locator(dropdown_locator_or_selector)
-            locator.scroll_into_view_if_needed()
-            locator.click(timeout=timeout_ms)
-            self.page.wait_for_timeout(300)
-
-            # Search in open popup list
-            item_option = self.page.locator(".k-animation-container:visible li, .k-list-container:visible li").filter(
-                has_text=re.compile(rf"^\s*{re.escape(item_text)}\s*$", re.I)
-            ).first
-            
-            if item_option.count() == 0 or not item_option.is_visible():
-                item_option = self.page.locator(".k-animation-container:visible li, .k-list-container:visible li").filter(
-                    has_text=item_text
-                ).first
-
-            item_option.click(timeout=timeout_ms)
-            self._wait_for_loader()
-            self.logger.info(f"Selected '{item_text}' from Kendo dropdown.")
-            return True
-        except Exception as e:
-            self.logger.error(f"Failed to select '{item_text}' from Kendo dropdown: {e}")
-            return False
+        res = self.kendo_dropdown.select(dropdown_locator_or_selector, item_text, timeout_ms=timeout_ms)
+        self._wait_for_loader()
+        return res
 
     def set_kendo_datepicker(self, picker_locator_or_selector: Union[Locator, str], date_str: str) -> bool:
         """Sets date string in a Kendo datepicker input and triggers change event."""

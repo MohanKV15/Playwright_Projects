@@ -166,10 +166,7 @@ class AddLicenseApplicationPage(BasePage):
 
         # State Dropdown selection
         logger.info(f"Selecting State: {state}")
-        self.state_dropdown_trigger.click()
-        self.page.wait_for_timeout(500)
-        self.js_click(self.state_option(state))
-        self.page.wait_for_timeout(500)
+        self.select_kendo_dropdown(self.state_dropdown_trigger, state)
 
         # Zip Code
         logger.info(f"Filling Zip Code: {zip_code}")
@@ -207,10 +204,7 @@ class AddLicenseApplicationPage(BasePage):
 
         # Set Status Dropdown selection
         logger.info(f"Selecting Status: {status}")
-        self.status_dropdown_trigger.click()
-        self.page.wait_for_timeout(500)
-        self.js_click(self.status_option(status))
-        self.page.wait_for_timeout(500)
+        self.select_kendo_dropdown(self.status_dropdown_trigger, status)
 
     def click_save(self) -> None:
         """Clicks Save button."""

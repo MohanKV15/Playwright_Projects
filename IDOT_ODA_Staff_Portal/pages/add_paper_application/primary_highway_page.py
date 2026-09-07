@@ -79,16 +79,24 @@ class PrimaryHighwayPage(BasePage):
 
         modal = self.company_search_dialog.first
         expect(modal).to_be_visible(timeout=20000)
+        self.company_name_input.click(force=True)
         self.company_name_input.fill(company_name)
 
         search_btn = modal.locator("button:has-text('Search'), input[value='Search']").first
         expect(search_btn).to_be_visible(timeout=10000)
         search_btn.click(force=True)
+        self.page.wait_for_timeout(800)
         self._wait_for_loader()
 
         # Wait for search results table to load with checkboxes
-        checkboxes = modal.locator("input[type='checkbox'], #selectedChk")
-        expect(checkboxes.first).to_be_visible(timeout=15000)
+        checkboxes = modal.locator("#selectedChk, input[type='checkbox']")
+        try:
+            checkboxes.first.wait_for(state="visible", timeout=20000)
+        except Exception:
+            self.company_name_input.press("Enter")
+            self.page.wait_for_timeout(800)
+            self._wait_for_loader()
+            expect(checkboxes.first).to_be_visible(timeout=15000)
 
         # Check preferred company row if present, otherwise select first available checkbox
         preferred_row = modal.locator("tr").filter(has_text=preferred_company).first
@@ -110,40 +118,6 @@ class PrimaryHighwayPage(BasePage):
 
         self.logger.info(f"Selected company: '{selected_name}'")
         return selected_name
-
-    # -------------------------------------------------------------------------
-    # Dropdown & Form Filling Helpers
-    # -------------------------------------------------------------------------
-    def _select_kendo_dropdown(self, field_id: str, option_text: Optional[str] = None, index: int = 1) -> None:
-        """Selects an option from a Kendo DropDownList by element ID."""
-        try:
-            self.page.evaluate(
-                f"""
-                (() => {{
-                    const ddl = $('#{field_id}').data('kendoDropDownList');
-                    if (!ddl) return;
-                    const target = '{option_text or ""}';
-                    if (target) {{
-                        const data = ddl.dataSource.data();
-                        for (let i = 0; i < data.length; i++) {{
-                            const text = (ddl.text(data[i]) || '').toLowerCase();
-                            if (text.includes(target.toLowerCase())) {{
-                                ddl.select(i + (ddl.options.optionLabel ? 1 : 0));
-                                ddl.trigger('change');
-                                return;
-                            }}
-                        }}
-                    }}
-                    if (ddl.dataSource.data().length > 0) {{
-                        ddl.select({index});
-                        ddl.trigger('change');
-                    }}
-                }})();
-                """
-            )
-            self._wait_for_loader()
-        except Exception as e:
-            self.logger.warning(f"Dropdown selection for #{field_id}: {e}")
 
     def fill_sign_information(
         self,
@@ -177,12 +151,12 @@ class PrimaryHighwayPage(BasePage):
             """
         )
 
-        # Dropdowns
-        self._select_kendo_dropdown("StructureType", structure_type, index=1)
-        self._select_kendo_dropdown("ConfigNumber", "1", index=1)
-        self._select_kendo_dropdown("VerticalSupports", None, index=1)
-        self._select_kendo_dropdown("NumOfSupports", "1", index=2)
-        self._select_kendo_dropdown("SignLighting", None, index=1)
+        # Dropdowns via KendoDropdown component
+        self.select_kendo_dropdown("StructureType", structure_type, index=1)
+        self.select_kendo_dropdown("ConfigNumber", "1", index=1)
+        self.select_kendo_dropdown("VerticalSupports", None, index=1)
+        self.select_kendo_dropdown("NumOfSupports", "1", index=2)
+        self.select_kendo_dropdown("SignLighting", None, index=1)
 
         # Face Width, Height, and execute square feet calculation functions
         self.logger.info(f"Setting Face Width={face_width}, Face Height={face_height}")
@@ -227,15 +201,15 @@ class PrimaryHighwayPage(BasePage):
         )
 
         # Cascading Dropdowns: District -> County -> Route
-        self._select_kendo_dropdown("EP_Permit_Application_District", district, index=1)
+        self.select_kendo_dropdown("EP_Permit_Application_District", district, index=1)
         self.page.wait_for_timeout(500)
         self._wait_for_loader()
 
-        self._select_kendo_dropdown("EP_Permit_Application_County", county, index=1)
+        self.select_kendo_dropdown("EP_Permit_Application_County", county, index=1)
         self.page.wait_for_timeout(500)
         self._wait_for_loader()
 
-        self._select_kendo_dropdown("EP_Permit_Application_Route", route, index=1)
+        self.select_kendo_dropdown("EP_Permit_Application_Route", route, index=1)
         self._wait_for_loader()
 
     def fill_property_owner_information(
@@ -350,3 +324,49 @@ class PrimaryHighwayPage(BasePage):
                 expect(self.partial_form).to_contain_text(expected_city)
 
         self.logger.info("Application saved verification completed successfully!")
+
+    def fill_and_submit_application(
+        self,
+        company_name: str = "test",
+        preferred_company: str = "IDOTOAtest2",
+        structure_type: str = "Fence Mounted",
+        face_width: str = "10",
+        face_height: str = "10",
+        district: str = "District 1",
+        county: str = "Cook",
+        route: str = "100th St",
+        owner_name: Optional[str] = None,
+        owner_address1: Optional[str] = None,
+        owner_address2: Optional[str] = None,
+        city: Optional[str] = None,
+        attachment_path: Optional[Path] = None,
+    ) -> str:
+        """
+        Streamlined composite workflow that fills all application sections and submits:
+        1. Searches & selects company.
+        2. Fills sign information (dates, dimensions, structure type).
+        3. Fills location information (radios, cascading dropdowns).
+        4. Fills property owner details.
+        5. Uploads attachment.
+        6. Submits form and extracts generated Application Number.
+        """
+        self.search_and_select_company(company_name=company_name, preferred_company=preferred_company)
+        self.fill_sign_information(
+            structure_type=structure_type,
+            face_width=face_width,
+            face_height=face_height,
+        )
+        self.fill_location_information(
+            district=district,
+            county=county,
+            route=route,
+        )
+        if owner_name:
+            self.fill_property_owner_information(
+                owner_name=owner_name,
+                address1=owner_address1 or "",
+                address2=owner_address2 or "",
+                city=city or "",
+            )
+        self.upload_attachments(file_path=attachment_path)
+        return self.save_and_get_application_number()
