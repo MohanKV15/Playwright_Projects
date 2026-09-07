@@ -28,7 +28,11 @@ from IDOT_ODA_Staff_Portal.utils.config import Config
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
 from IDOT_ODA_Staff_Portal.pages.login.login_page import LoginPage
 from IDOT_ODA_Staff_Portal.pages.dashboard.dashboard_page import DashboardPage
-from IDOT_ODA_Staff_Portal.pages.add_paper_application import PrimaryHighwayPage, InterstateHighwayPage
+from IDOT_ODA_Staff_Portal.pages.add_paper_application import (
+    PrimaryHighwayPage,
+    InterstateHighwayPage,
+    AdvertisingRegistrationPage,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -340,6 +344,18 @@ def interstate_highway_page(page: Page) -> InterstateHighwayPage:
 def authenticated_interstate_highway(authenticated_dashboard: DashboardPage) -> InterstateHighwayPage:
     """Provides an authenticated InterstateHighwayPage positioned on the application search view."""
     return InterstateHighwayPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def advertising_registration_page(page: Page) -> AdvertisingRegistrationPage:
+    """Returns an initialized AdvertisingRegistrationPage instance."""
+    return AdvertisingRegistrationPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_advertising_registration(authenticated_dashboard: DashboardPage) -> AdvertisingRegistrationPage:
+    """Provides an authenticated AdvertisingRegistrationPage positioned on the application search view."""
+    return AdvertisingRegistrationPage(authenticated_dashboard.page)
 
 
 @pytest.fixture(scope="function")
