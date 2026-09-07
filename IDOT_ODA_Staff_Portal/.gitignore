@@ -1,0 +1,25 @@
+# Authentication session states
+.auth/
+
+# Pytest and Python caches
+.pytest_cache/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Test execution outputs and reports
+reports/
+allure-results/
+test-results/
+*.zip
+*.png
+*.log
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/
+.idea/

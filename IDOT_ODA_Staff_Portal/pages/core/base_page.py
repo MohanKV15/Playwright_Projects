@@ -77,6 +77,13 @@ class BasePage:
         except Exception:
             pass
 
+        try:
+            visible_dialogs = self.page.locator(".k-window:visible, .k-dialog:visible")
+            if visible_dialogs.count() == 0:
+                self.page.locator(".k-overlay").wait_for(state="hidden", timeout=timeout)
+        except Exception:
+            pass
+
     def navigate(self, url: str, timeout_ms: int = 30000) -> None:
         """Navigates to URL with resilient fallback handling."""
         self.logger.info(f"Navigating to URL: {url}")
@@ -89,18 +96,37 @@ class BasePage:
         self._wait_for_loader()
 
     def safe_click(self, locator_or_selector: Union[Locator, str], timeout_ms: int = 10000) -> bool:
-        """Waits for element, scrolls into view, and clicks safely."""
+        """Waits for element, scrolls into view (with sticky header offset), and clicks safely."""
         self._wait_for_loader()
         try:
             locator = locator_or_selector if isinstance(locator_or_selector, Locator) else self.page.locator(locator_or_selector)
             locator.wait_for(state="visible", timeout=timeout_ms)
             locator.scroll_into_view_if_needed()
+            # Scroll up slightly to avoid occlusion under sticky top headers
+            try:
+                self.page.evaluate("window.scrollBy(0, -100)")
+            except Exception:
+                pass
             locator.click(timeout=timeout_ms)
             self._wait_for_loader()
             return True
         except Exception as e:
             self.logger.warning(f"Click failed on {locator_or_selector}: {e}. Trying JS click.")
             return self.js_click(locator_or_selector)
+
+    def dispatch_bubble_click(self, locator_or_selector: Union[Locator, str]) -> bool:
+        """Dispatches a native JS click event that bubbles up the DOM for complex Kendo buttons."""
+        self._wait_for_loader()
+        try:
+            locator = locator_or_selector if isinstance(locator_or_selector, Locator) else self.page.locator(locator_or_selector)
+            locator.wait_for(state="visible", timeout=5000)
+            locator.scroll_into_view_if_needed()
+            locator.evaluate("el => el.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, view: window }))")
+            self._wait_for_loader()
+            return True
+        except Exception as e:
+            self.logger.error(f"Dispatch bubble click failed: {e}")
+            return False
 
     def safe_fill(self, locator_or_selector: Union[Locator, str], value: str, timeout_ms: int = 10000) -> bool:
         """Fills text into target locator safely."""
@@ -125,10 +151,16 @@ class BasePage:
             self.logger.error(f"JS click failed: {e}")
             return False
 
-    def select_kendo_dropdown(self, field_id: str, option_text: Optional[str] = None, index: int = 1) -> bool:
+    def select_kendo_dropdown(
+        self,
+        target: Union[Locator, str],
+        option_text: Optional[str] = None,
+        index: int = 1,
+        timeout_ms: int = 5000,
+    ) -> bool:
         """Selects an option from a Kendo DropDownList using the KendoDropdown component."""
         self._wait_for_loader()
-        result = self.kendo_dropdown.select_by_id(field_id, option_text, index)
+        result = self.kendo_dropdown.select(target, option_text=option_text, index=index, timeout_ms=timeout_ms)
         self._wait_for_loader()
         return result
 

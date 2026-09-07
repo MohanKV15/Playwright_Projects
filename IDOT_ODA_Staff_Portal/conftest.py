@@ -13,7 +13,7 @@ import sys
 import time
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, Optional
+from typing import Tuple, Optional, Union
 
 import pytest
 from playwright.sync_api import Browser, BrowserContext, Page
@@ -103,9 +103,9 @@ def _get_staff_credentials() -> Tuple[str, str, str]:
     return email, password, pin
 
 
-def _add_zoom_script(page: Page) -> None:
+def _add_zoom_script(target: Union[Page, BrowserContext]) -> None:
     """Applies configured screen zoom cleanly without layout or viewport distortion."""
-    page.add_init_script(
+    target.add_init_script(
         f"""
         (() => {{
             const applyZoom = () => {{
@@ -239,6 +239,16 @@ def browser_context_args(browser_context_args: dict) -> dict:
     }
 
 
+@pytest.fixture(autouse=True)
+def configure_zoom(context: BrowserContext) -> None:
+    """
+    Applies configured screen zoom cleanly across the entire browser context,
+    ensuring all pages, popups, and frames inherit zoom automatically.
+    """
+    _add_zoom_script(context)
+
+
+
 # ---------------------------------------------------------------------------
 # Core Playwright Page Fixture
 # ---------------------------------------------------------------------------
@@ -368,6 +378,7 @@ def authenticated_page(
         **browser_context_args,
         storage_state=str(auth_storage) if auth_storage.exists() else None,
     )
+    _add_zoom_script(context)
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
     page = context.new_page()

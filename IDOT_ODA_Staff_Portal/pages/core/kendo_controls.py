@@ -73,6 +73,19 @@ class KendoDropdown:
             self.logger.warning(f"KendoDropdown select_by_locator failed for '{option_text}': {e}")
         return False
 
+    def select(self, target: Union[Locator, str], option_text: Optional[str] = None, index: int = 1, timeout_ms: int = 5000) -> bool:
+        """
+        Polymorphic select:
+        - If target is a string ID/selector, attempts select_by_id first using Kendo JS API.
+        - Falls back to select_by_locator (UI-based selection).
+        """
+        if isinstance(target, str):
+            clean_id = target.lstrip("#")
+            if " " not in clean_id and (clean_id.isalnum() or "_" in clean_id or "-" in clean_id):
+                if self.select_by_id(clean_id, option_text=option_text, index=index):
+                    return True
+        return self.select_by_locator(target, option_text=option_text or "", timeout_ms=timeout_ms)
+
     def get_options(self, field_id: str) -> List[str]:
         """Returns all text options available in the Kendo DropDownList dataSource."""
         clean_id = field_id.lstrip("#")
