@@ -133,19 +133,41 @@ def _record_failure_diagnostics(
     trace_path: Path,
     test_name: str,
 ) -> None:
-    """Saves Playwright zip traces and Allure screenshots on test failure."""
-    failed = hasattr(request.node, "rep_call") and request.node.rep_call.failed
+    """
+    Saves Playwright zip traces, disk screenshots, and Allure evidence on test failure.
+    Guarantees only the latest failure evidence is retained.
+    """
+    failed = (
+        (hasattr(request.node, "rep_call") and request.node.rep_call.failed)
+        or (hasattr(request.node, "rep_setup") and request.node.rep_setup.failed)
+    )
+    worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
+    screenshot_path = DEBUG_ARTIFACTS_DIR / f"{test_name}_{worker_id}_failure.png"
+
     try:
         if failed:
+            DEBUG_ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+            # 1. Stop and persist latest Playwright trace
             context.tracing.stop(path=str(trace_path))
-            logger.info(f"Playwright trace saved on failure: {trace_path}")
+            logger.info(f"Latest Playwright trace saved on failure: {trace_path}")
+
+            # 2. Capture and persist latest failure screenshot to disk
+            screenshot_bytes = None
+            try:
+                screenshot_bytes = page.screenshot(full_page=True, path=str(screenshot_path))
+                logger.info(f"Latest failure screenshot saved: {screenshot_path}")
+            except Exception as ss_err:
+                logger.debug(f"Screenshot capture fallback: {ss_err}")
+
+            # 3. Attach evidence to Allure report
             try:
                 import allure
-                allure.attach(
-                    page.screenshot(full_page=True),
-                    name=f"Failure_Screenshot_{test_name}",
-                    attachment_type=allure.attachment_type.PNG,
-                )
+                if screenshot_bytes:
+                    allure.attach(
+                        screenshot_bytes,
+                        name=f"Failure_Screenshot_{test_name}",
+                        attachment_type=allure.attachment_type.PNG,
+                    )
                 if trace_path.exists():
                     allure.attach.file(
                         source=str(trace_path),
@@ -155,16 +177,24 @@ def _record_failure_diagnostics(
             except Exception as e:
                 logger.debug(f"Allure attachment diagnostic note: {e}")
         else:
+            # On pass: discard trace and remove any old failure artifacts for this test
             context.tracing.stop()
+            if trace_path.exists():
+                trace_path.unlink(missing_ok=True)
+            if screenshot_path.exists():
+                screenshot_path.unlink(missing_ok=True)
     except Exception:
-        context.tracing.stop()
+        try:
+            context.tracing.stop()
+        except Exception:
+            pass
 
 
 # ---------------------------------------------------------------------------
 # Pytest Hooks
 # ---------------------------------------------------------------------------
 def pytest_configure(config: pytest.Config) -> None:
-    """Cleans up stale session locks and old Allure results on the master process."""
+    """Cleans up stale session locks, debug artifacts, and old Allure results on session start."""
     if not hasattr(config, "workerinput"):
         # Clean stale lock file in .auth
         lock_file = AUTH_DIR / "login.lock"
@@ -194,13 +224,40 @@ def pytest_configure(config: pytest.Config) -> None:
                 except Exception:
                     pass
 
+        # Clean old debug_artifacts so previous session artifacts never bleed through
+        if DEBUG_ARTIFACTS_DIR.exists():
+            for item in DEBUG_ARTIFACTS_DIR.iterdir():
+                try:
+                    if item.is_file():
+                        item.unlink()
+                except Exception:
+                    pass
+
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
-    """Attaches test outcome report to item for failure detection in fixtures."""
+    """
+    Attaches test outcome report to item for failure detection and
+    embeds trace links and failure screenshots into pytest-html report.
+    """
     outcome = yield
     rep = outcome.get_result()
     setattr(item, f"rep_{rep.when}", rep)
+
+    pytest_html = item.config.pluginmanager.getplugin("html")
+    if rep.when == "call" and pytest_html:
+        extra = getattr(rep, "extra", [])
+        if rep.failed:
+            test_name = item.name.replace("[", "_").replace("]", "_")
+            worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
+            trace_rel_path = f"debug_artifacts/{test_name}_{worker_id}.zip"
+            extra.append(pytest_html.extras.url(trace_rel_path, name="🔍 View Latest Trace (ZIP)"))
+
+            screenshot_file = DEBUG_ARTIFACTS_DIR / f"{test_name}_{worker_id}_failure.png"
+            if screenshot_file.exists():
+                extra.append(pytest_html.extras.image(str(screenshot_file), name="📸 Failure Screenshot"))
+        rep.extra = extra
+
 
 
 # ---------------------------------------------------------------------------
@@ -262,11 +319,13 @@ def page(context: BrowserContext, request: pytest.FixtureRequest) -> Page:
     worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
     trace_path = DEBUG_ARTIFACTS_DIR / f"{test_name}_{worker_id}.zip"
 
-    if trace_path.exists():
-        try:
-            trace_path.unlink()
-        except Exception:
-            pass
+    if DEBUG_ARTIFACTS_DIR.exists():
+        for old_file in DEBUG_ARTIFACTS_DIR.glob(f"{test_name}*"):
+            try:
+                old_file.unlink()
+            except Exception:
+                pass
+
 
     context.tracing.start(screenshots=True, snapshots=True, sources=True)
 
@@ -368,11 +427,13 @@ def authenticated_page(
     worker_id = os.getenv("PYTEST_XDIST_WORKER", "gw0")
     trace_path = DEBUG_ARTIFACTS_DIR / f"{test_name}_{worker_id}.zip"
 
-    if trace_path.exists():
-        try:
-            trace_path.unlink()
-        except Exception:
-            pass
+    if DEBUG_ARTIFACTS_DIR.exists():
+        for old_file in DEBUG_ARTIFACTS_DIR.glob(f"{test_name}*"):
+            try:
+                old_file.unlink()
+            except Exception:
+                pass
+
 
     context = browser.new_context(
         **browser_context_args,
