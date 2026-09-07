@@ -259,8 +259,38 @@ def pytest_runtest_makereport(item: pytest.Item, call: pytest.CallInfo):
         rep.extra = extra
 
 
+def pytest_html_report_title(report) -> None:
+    """Sets a clean, professional title for the pytest-html report."""
+    report.title = f"IDOT ODA Staff Portal Test Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
 
-# ---------------------------------------------------------------------------
+
+def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
+    """
+    Automatically compiles static Allure HTML report at the conclusion of the test session.
+    Matches the automated reporting hook implemented across NJDOT portals.
+    """
+    if not hasattr(session.config, "workerinput"):
+        import subprocess
+        try:
+            env = os.environ.copy()
+            local_jdk = r"C:\Users\Mohan(QAQC)\jdk-21"
+            local_allure = r"C:\Users\Mohan(QAQC)\allure-2.45.0\bin"
+            if os.path.exists(local_jdk):
+                env["JAVA_HOME"] = local_jdk
+            if os.path.exists(local_allure):
+                env["PATH"] = f"{local_jdk}\\bin;{local_allure};" + env.get("PATH", "")
+
+            res = subprocess.run(
+                "allure generate reports/allure-results -o reports/allure-report --clean",
+                shell=True,
+                env=env,
+                capture_output=True,
+            )
+            if res.returncode == 0:
+                logger.info("[ALLURE AUTO-GENERATE] Generated static HTML report at reports/allure-report/index.html")
+        except Exception as e:
+            logger.debug(f"Allure auto-generation note: {e}")
+
 # Browser & Context Configuration Fixtures
 # ---------------------------------------------------------------------------
 @pytest.fixture(scope="session")
