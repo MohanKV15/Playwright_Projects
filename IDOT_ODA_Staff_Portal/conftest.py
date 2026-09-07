@@ -74,8 +74,8 @@ def _get_staff_credentials() -> Tuple[str, str, str]:
     Priority:
     1. Environment variables (STAFF_EMAIL, STAFF_PASSWORD, STAFF_PIN)
     2. testdata/login_data.json valid_credentials
-    3. Production defaults as resilient fallbacks.
     """
+
     valid_user = {}
     login_data_file = TESTDATA_DIR / "login_data.json"
     if login_data_file.exists():
@@ -88,19 +88,27 @@ def _get_staff_credentials() -> Tuple[str, str, str]:
     email = (
         _get_valid_env("STAFF_EMAIL")
         or _get_valid_env("IDOT_STAFF_EMAIL")
-        or valid_user.get("email", "sprabhu@bemsys.com")
+        or valid_user.get("email")
     )
     password = (
         _get_valid_env("STAFF_PASSWORD")
         or _get_valid_env("IDOT_STAFF_PASSWORD")
-        or valid_user.get("password", "Security@#")
+        or valid_user.get("password")
     )
     pin = (
         _get_valid_env("STAFF_PIN")
         or _get_valid_env("IDOT_STAFF_PIN")
         or valid_user.get("pin", "11")
     )
+
+    if not email or not password:
+        raise ValueError(
+            "Staff credentials not configured. Please define STAFF_EMAIL and STAFF_PASSWORD "
+            "in your .env file or under 'valid_credentials' in testdata/login_data.json."
+        )
+
     return email, password, pin
+
 
 
 def _add_zoom_script(target: Union[Page, BrowserContext]) -> None:
