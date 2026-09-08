@@ -1,0 +1,1 @@
+"""GIS navigation tests package."""
