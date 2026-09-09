@@ -52,7 +52,10 @@ class TechnicalReviewPage(BasePage):
         self._wait_for_loader()
         if not self.reviewers_assigned_heading.is_visible():
             self.js_click(self.technical_review_link)
-            self.page.wait_for_load_state("domcontentloaded")
+            try:
+                self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
             self._wait_for_loader()
 
     def verify_initial_headers(self) -> None:

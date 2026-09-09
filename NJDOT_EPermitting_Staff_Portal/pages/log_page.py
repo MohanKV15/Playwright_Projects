@@ -42,7 +42,10 @@ class LogPage:
         else:
             self.page.evaluate("$('a[href*=\"PermitLog\"]:visible, a:contains(\"Log\"):visible').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         KendoControls.wait_for_loader(self.page)
 
     def verify_initial_layout(self) -> None:

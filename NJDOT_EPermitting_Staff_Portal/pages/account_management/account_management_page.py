@@ -72,7 +72,10 @@ class AccountManagementPage(BasePage):
         logger.info("Navigating to Account Management section.")
         self._wait_for_loader()
         self.safe_click(self.account_management_link)
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_account_management_loaded(self) -> None:
@@ -128,8 +131,10 @@ class AccountManagementPage(BasePage):
 
         logger.info("Saving applicant details.")
         self.js_click(self.save_button)
-        self._wait_for_loader()
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         if self.form_wrapper.is_visible():
             expect(self.form_wrapper).to_be_visible(timeout=15000)
 

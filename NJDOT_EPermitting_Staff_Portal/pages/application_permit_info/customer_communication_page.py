@@ -32,7 +32,10 @@ class CustomerCommunicationPage(BasePage):
         self._wait_for_loader()
         if not self.comms_heading.is_visible():
             self.js_click(self.customer_comms_tab)
-            self.page.wait_for_load_state("domcontentloaded")
+            try:
+                self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
             self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

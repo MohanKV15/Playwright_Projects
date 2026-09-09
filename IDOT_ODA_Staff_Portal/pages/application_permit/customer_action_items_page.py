@@ -6,6 +6,7 @@ from playwright.sync_api import Locator, Page, expect
 
 from IDOT_ODA_Staff_Portal.pages.application_permit.application_details_page import ApplicationDetailsPage
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
+from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDropdown
 
 logger = logging.getLogger(__name__)
 fake = Faker()
@@ -32,6 +33,7 @@ class CustomerActionItemsPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
         self.logger = logger
+        self.kendo_dropdown = KendoDropdown(page)
 
         # 1. Navigation & Context
         self.app_details = ApplicationDetailsPage(page)

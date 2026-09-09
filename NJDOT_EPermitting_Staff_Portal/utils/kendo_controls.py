@@ -105,11 +105,29 @@ class KendoControls:
                             if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
                                 var items = ddl.dataSource.data();
                                 if (items && items.length > 0) {
+                                    var targetIdx = -1;
                                     var hasOptionLabel = ddl.options && ddl.options.optionLabel;
-                                    var idx = hasOptionLabel ? 1 : 0;
-                                    if (idx < items.length || !hasOptionLabel) {
-                                        if (typeof ddl.select === 'function') ddl.select(idx);
+                                    var startIdx = hasOptionLabel ? 1 : 0;
+                                    for (var i = 0; i < items.length; i++) {
+                                        var item = items[i];
+                                        if (!item) continue;
+                                        var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
+                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
+                                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                                            targetIdx = i;
+                                            break;
+                                        }
+                                    }
+                                    if (targetIdx === -1 && items.length > 0) {
+                                        targetIdx = (startIdx < items.length) ? startIdx : 0;
+                                    }
+                                    if (targetIdx >= 0 && targetIdx < items.length) {
+                                        if (typeof ddl.select === 'function') ddl.select(targetIdx);
                                         if (typeof ddl.trigger === 'function') ddl.trigger('change');
+                                        if (ddl.element && ddl.element.length) {
+                                            ddl.element.trigger('change').trigger('input');
+                                            try { if (jq.validator) ddl.element.valid(); } catch(e) {}
+                                        }
                                         $el.trigger('change').trigger('input');
                                     }
                                 }

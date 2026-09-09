@@ -52,7 +52,10 @@ class PermitListingPage(BasePage):
                         self.page.wait_for_timeout(1500)
 
                 self.permit_listing_link.evaluate("el => el.click()")
-                self.page.wait_for_load_state("domcontentloaded")
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+                except Exception:
+                    pass
                 self._wait_for_loader()
                 return
             except Exception as e:
@@ -112,8 +115,10 @@ class PermitListingPage(BasePage):
             if len(cols) > 0 and cols[0]:
                 app_no = cols[0]
 
-        self.js_click(target_btn)
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
         return {"status": "success", "app_no": app_no}
 
@@ -186,9 +191,11 @@ class PermitListingPage(BasePage):
                     if len(cols) > 0 and cols[0]:
                         app_no = cols[0]
 
-                logger.info(f"Attempting to edit record {attempt + 1}: App No '{app_no}'")
                 self.js_click(btn)
-                self.page.wait_for_load_state("domcontentloaded")
+                try:
+                    self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+                except Exception:
+                    pass
                 self._wait_for_loader()
 
                 if self.is_server_error_page():

@@ -1,4 +1,6 @@
 import pytest
+
+pytest_plugins = ["fixtures.page_fixtures"]
 import json
 import os
 import shutil

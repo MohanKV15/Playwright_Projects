@@ -38,6 +38,8 @@ parameters:
       - "NJDOT_EPermitting_Staff_Portal"
       - "NJDOT_ODA_Customer_Portal"
       - "NJDOT_ODA_Staff_Portal"
+      - "IDOT_ODA_Staff_Portal"
+      - "IDOT_ODA_Customer_Portal"
 
   - name: testType
     displayName: "Select Test Execution Mode"
@@ -124,7 +126,7 @@ stages:
               echo "$CHANGED_FILES"
 
               # Check if global files or all projects modified
-              if echo "$CHANGED_FILES" | grep -q "ALL" || echo "$CHANGED_FILES" | grep -vE "^(NJDOT_EPermitting_Customer_Portal|NJDOT_EPermitting_Staff_Portal|NJDOT_ODA_Customer_Portal|NJDOT_ODA_Staff_Portal)/"; then
+              if echo "$CHANGED_FILES" | grep -q "ALL" || echo "$CHANGED_FILES" | grep -vE "^(NJDOT_EPermitting_Customer_Portal|NJDOT_EPermitting_Staff_Portal|NJDOT_ODA_Customer_Portal|NJDOT_ODA_Staff_Portal|IDOT_ODA_Staff_Portal|IDOT_ODA_Customer_Portal)/"; then
                 echo "Global files modified or full run required. Enabling all projects."
                 echo "##vso[task.setvariable variable=RUN_ALL]true"
               else
@@ -142,6 +144,12 @@ stages:
               fi
               if echo "$CHANGED_FILES" | grep -q "^NJDOT_ODA_Staff_Portal/"; then
                 echo "##vso[task.setvariable variable=RUN_STAFF_OUTDOOR]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^IDOT_ODA_Staff_Portal/"; then
+                echo "##vso[task.setvariable variable=RUN_IDOT_STAFF]true"
+              fi
+              if echo "$CHANGED_FILES" | grep -q "^IDOT_ODA_Customer_Portal/"; then
+                echo "##vso[task.setvariable variable=RUN_IDOT_CUSTOMER]true"
               fi
             displayName: "Detect Changed Sub-Projects for Selective Execution"
 
@@ -222,6 +230,46 @@ stages:
               STAFF_PIN: $(STAFF_PIN)
               CI: "true"
               PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 5: IDOT ODA Staff Portal
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing IDOT_ODA_Staff_Portal..."
+              cd IDOT_ODA_Staff_Portal
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
+            displayName: "Run IDOT ODA Staff Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'IDOT_ODA_Staff_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_IDOT_STAFF'], 'true'))))
+            env:
+              STAFF_EMAIL: $(STAFF_EMAIL)
+              STAFF_PASSWORD: $(STAFF_PASSWORD)
+              STAFF_PIN: $(STAFF_PIN)
+              CI: "true"
+              PW_HEADLESS: "true"
+
+          # --------------------------------------------------------------------
+          # Project 6: IDOT ODA Customer Portal
+          # --------------------------------------------------------------------
+          - script: |
+              echo "Executing IDOT_ODA_Customer_Portal..."
+              cd IDOT_ODA_Customer_Portal
+              if [ "${{ parameters.testType }}" = "Smoke" ]; then
+                python -m pytest -m "smoke" -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              else
+                python -m pytest -n ${{ parameters.parallelWorkers }} --reruns 1 -v
+              fi
+            displayName: "Run IDOT ODA Customer Portal Tests"
+            condition: or(eq('${{ parameters.projectToRun }}', 'IDOT_ODA_Customer_Portal'), and(eq('${{ parameters.projectToRun }}', 'All'), or(eq(variables['RUN_ALL'], 'true'), eq(variables['RUN_IDOT_CUSTOMER'], 'true'))))
+            env:
+              NJHT_EMAIL: $(NJHT_EMAIL)
+              NJHT_PASSWORD: $(NJHT_PASSWORD)
+              CI: "true"
+              PW_HEADLESS: "true"
+
 
 
           # --------------------------------------------------------------------

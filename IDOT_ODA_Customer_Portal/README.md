@@ -11,6 +11,9 @@ IDOT_ODA_Customer_Portal/
 ├── conftest.py               # Fixtures, conditional Playwright tracing, authentication, and reporting hooks
 ├── pytest.ini                # Pytest command-line options, report targets, and marker registrations
 ├── requirements.txt          # Python dependencies
+├── fixtures/                 # Fixture Dependency Injection Layer
+│   ├── page_fixtures.py      # Page Object Model fixtures
+│   └── __init__.py
 ├── utils/
 │   └── config.py             # Standard Config class (URLs, timeouts, and root paths)
 ├── pages/                    # Page Object Model (POM) layer

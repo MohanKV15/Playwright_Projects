@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional, Union
 from playwright.sync_api import Page, expect
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
+from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDropdown, KendoNumericTextBox
 from IDOT_ODA_Staff_Portal.utils.config import Config
 
 logger = logging.getLogger(__name__)
@@ -18,6 +19,8 @@ class PrimaryHighwayPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
+        self.kendo_dropdown = KendoDropdown(page)
+        self.kendo_numeric = KendoNumericTextBox(page)
 
         # Navigation Locators
         self.add_paper_button = page.get_by_role("button", name="Add Paper Application")
@@ -45,6 +48,23 @@ class PrimaryHighwayPage(BasePage):
     # -------------------------------------------------------------------------
     # Navigation Actions
     # -------------------------------------------------------------------------
+    # Kendo Widget Delegations
+    # -------------------------------------------------------------------------
+    def select_kendo_dropdown(
+        self,
+        target: Union[str, any],
+        option_text: Optional[str] = None,
+        index: int = 1,
+        timeout_ms: int = 5000,
+    ) -> bool:
+        """Selects an option from a Kendo DropDownList using KendoDropdown component."""
+        self._wait_for_loader()
+        res = self.kendo_dropdown.select(target, option_text=option_text, index=index, timeout_ms=timeout_ms)
+        self._wait_for_loader()
+        return res
+
+    # -------------------------------------------------------------------------
+
     def navigate_to_add_paper_application(self) -> None:
         """Clicks 'Add Paper Application' button and asserts Application List displays."""
         self.logger.info("Clicking 'Add Paper Application' button")

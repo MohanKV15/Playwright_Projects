@@ -35,7 +35,10 @@ class PermitDetailsPage(BasePage):
         self._wait_for_loader()
         if not self.permit_details_heading.is_visible():
             self.js_click(self.permit_details_tab)
-            self.page.wait_for_load_state("domcontentloaded")
+            try:
+                self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
             self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

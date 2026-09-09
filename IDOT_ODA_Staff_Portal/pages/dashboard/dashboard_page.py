@@ -2,6 +2,7 @@ import re
 from typing import List, Optional
 from playwright.sync_api import Page, Locator, expect
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
+from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDropdown
 
 
 class DashboardPage(BasePage):
@@ -12,6 +13,7 @@ class DashboardPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
+        self.kendo_dropdown = KendoDropdown(page)
 
         # 1. Staff Portal Landing & Navigation
         self.staff_heading = page.locator("h3:has-text('Outdoor Advertising System')").or_(
@@ -164,7 +166,7 @@ class DashboardPage(BasePage):
         self.logger.info(f"Selecting Application Status: '{status_name}'")
         self.dismiss_error_modal_if_present()
         self._wait_for_loader()
-        if self.select_kendo_dropdown("ApplicationStatus", status_name):
+        if self.kendo_dropdown.select("ApplicationStatus", status_name):
             return True
         # Fallback to UI interaction via KendoDropdown component
         dropdown_trigger = self.page.locator("#filterViewDiv span.k-input, #filterViewDiv .k-dropdown").first

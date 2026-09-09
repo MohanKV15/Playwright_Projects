@@ -61,7 +61,10 @@ class MyTicklersPage(BasePage):
             else:
                 self.page.evaluate("$('a:contains(\"My Ticklers\"), span:contains(\"My Ticklers\")').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:
@@ -115,7 +118,10 @@ class MyTicklersPage(BasePage):
                 with self.page.expect_popup(timeout=15000) as popup_info:
                     self.js_click(notif_btn)
                 popup = popup_info.value
-                popup.wait_for_load_state("domcontentloaded")
+                try:
+                    popup.wait_for_load_state("domcontentloaded", timeout=3000)
+                except Exception:
+                    pass
                 try:
                     expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
                 except Exception as e:

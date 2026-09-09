@@ -67,7 +67,10 @@ class MT121Page(BasePage):
         else:
             self.page.evaluate("$('a:contains(\"MT-\"), span:contains(\"MT-\")').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

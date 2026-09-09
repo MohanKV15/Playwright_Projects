@@ -1,11 +1,14 @@
 import pytest
 import logging
+
+pytest_plugins = ["fixtures.page_fixtures"]
 import json
 import os
 import shutil
 from datetime import datetime
 from pathlib import Path
-from playwright.sync_api import Browser, Page
+from typing import Union
+from playwright.sync_api import Browser, BrowserContext, Page
 from utils.config import Config
 from pages.login.login_page import LoginPage
 
@@ -73,6 +76,29 @@ def browser_type_launch_options(pytestconfig):
     is_headless = not is_cli_headed and (os.getenv("PW_HEADLESS", "true").strip().lower() in {"1", "true", "yes", "on"})
     return {"headless": is_headless}
 
+def _add_zoom_script(target: Union[Page, BrowserContext]) -> None:
+    """Applies configured screen zoom cleanly without layout or viewport distortion."""
+    target.add_init_script(
+        f"""
+        (() => {{
+            const applyZoom = () => {{
+                if (document.body) {{
+                    document.body.style.zoom = '{Config.ZOOM_PERCENT}%';
+                }} else {{
+                    setTimeout(applyZoom, 10);
+                }}
+            }};
+            if (document.readyState === 'loading') {{
+                document.addEventListener('DOMContentLoaded', applyZoom, {{ once: true }});
+            }} else {{
+                applyZoom();
+            }}
+            window.addEventListener('load', applyZoom);
+        }})();
+        """
+    )
+
+
 @pytest.fixture(scope="session")
 def auth_storage(browser, browser_context_args, tmp_path_factory):
     """
@@ -88,6 +114,7 @@ def auth_storage(browser, browser_context_args, tmp_path_factory):
     def perform_fresh_login():
         print(f"\n[AUTH] Worker {os.getenv('PYTEST_XDIST_WORKER', 'gw0')} performing fresh physical login...")
         context = browser.new_context(**browser_context_args)
+        _add_zoom_script(context)
         page = context.new_page()
         login_page = LoginPage(page)
         with open(Config.PROJECT_ROOT / "testdata" / "login_data.json") as f:
@@ -169,19 +196,12 @@ def browser_context_args(browser_context_args):
     }
 
 @pytest.fixture(autouse=True)
-def configure_zoom(context):
+def configure_zoom(context: BrowserContext) -> None:
     """
-    Applies a 67% zoom level for large display screens.
+    Applies configured screen zoom cleanly across the browser context,
+    ensuring all pages, popups, and frames inherit zoom automatically.
     """
-    context.add_init_script("""
-        const applyZoom = () => {
-             if (document.body) { document.body.style.zoom = "67%"; }
-             else { setTimeout(applyZoom, 10); }
-        };
-        applyZoom();
-    """)
-    yield
-
+    _add_zoom_script(context)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
@@ -227,6 +247,15 @@ def pytest_html_report_title(report):
 
 
 @pytest.fixture
+def page(context: BrowserContext) -> Page:
+    """Standard Playwright page fixture with configured zoom applied."""
+    _add_zoom_script(context)
+    page = context.new_page()
+    yield page
+    page.close()
+
+
+@pytest.fixture
 def authenticated_page(browser, browser_context_args, auth_storage, request):
     """
     PROFESSIONAL FIXTURE:
@@ -252,6 +281,7 @@ def authenticated_page(browser, browser_context_args, auth_storage, request):
         **browser_context_args,
         storage_state=str(auth_storage) if auth_storage.exists() else None
     )
+    _add_zoom_script(context)
     
     # 3. Start Tracing
     context.tracing.start(screenshots=True, snapshots=True, sources=True)

@@ -43,3 +43,19 @@ python -m pytest tests/ -n 4 -v -s
 ```powershell
 python -m pytest tests/ -v -s --slowmo 1500
 ```
+
+**Run specific domain suites using markers:**
+```powershell
+# Smoke tests only
+python -m pytest -m smoke -v
+
+# Dashboard workflows
+python -m pytest -m dashboard -v
+
+# Paper application creation
+python -m pytest -m add_paper_application -v
+
+# License workflows
+python -m pytest -m license -v
+```
+

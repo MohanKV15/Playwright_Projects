@@ -59,7 +59,10 @@ class PreApplicationPage(BasePage):
         else:
             self.page.evaluate("$('a:contains(\"Pre-Application\"), span:contains(\"Pre-Application\")').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:
@@ -169,7 +172,10 @@ class PreApplicationPage(BasePage):
         edit_btn = self.grid_rows.first.locator("#gridEdit, .k-grid-edit, a.k-button, button").first if self.grid_rows.count() > 0 else self.first_edit_button
         if edit_btn.count() > 0 and edit_btn.is_visible():
             self.js_click(edit_btn)
-            self.page.wait_for_load_state("domcontentloaded")
+            try:
+                self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
             self._wait_for_loader()
 
     def verify_pre_application_info(self) -> None:

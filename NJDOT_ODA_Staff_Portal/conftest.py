@@ -1,4 +1,6 @@
 import pytest
+
+pytest_plugins = ["fixtures.page_fixtures"]
 import logging
 import json
 import os

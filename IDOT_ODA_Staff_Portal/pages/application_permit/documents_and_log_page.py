@@ -6,6 +6,7 @@ from faker import Faker
 from playwright.sync_api import Locator, Page, expect
 
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
+from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDatePicker
 from IDOT_ODA_Staff_Portal.utils.config import Config
 
 logger = logging.getLogger(__name__)
@@ -30,6 +31,7 @@ class DocumentsAndLogPage(BasePage):
     def __init__(self, page: Page):
         super().__init__(page)
         self.logger = logger
+        self.kendo_datepicker = KendoDatePicker(page)
 
         # 1. Main Action Buttons
         self.attach_document_button = page.locator("button:has-text('Attach Document')").first

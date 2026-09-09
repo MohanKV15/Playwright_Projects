@@ -50,7 +50,26 @@ NJDOT_ODA_Customer_Portal/
   pytest -n 3
   ```
 
+- **Run specific domain suites using markers**:
+  ```bash
+  # Smoke tests only
+  pytest -m smoke
+
+  # Login tests
+  pytest -m login
+
+  # Customer action items
+  pytest -m action_items
+
+  # Permit application workflows
+  pytest -m permit_application
+
+  # License applications
+  pytest -m license_application
+  ```
+
 - **Collect tests without execution**:
   ```bash
   pytest --collect-only
   ```
+

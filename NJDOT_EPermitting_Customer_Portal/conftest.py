@@ -10,6 +10,8 @@ from playwright.sync_api import Browser
 
 import pytest
 
+pytest_plugins = ["fixtures.page_fixtures"]
+
 try:
     from pytest_html import extras as html_extras
 except ImportError:

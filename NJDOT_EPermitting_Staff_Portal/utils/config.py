@@ -7,3 +7,4 @@ class Config:
     LOGIN_URL = f"{BASE_URL}/Account/LogOutUser"
     DASHBOARD_URL = f"{BASE_URL}/Home/Dashboard?MenuName=Dashboard"
     TIMEOUT = 60000 # 60 seconds for slow staging environments
+    ZOOM_PERCENT = int(os.getenv("ZOOM_PERCENT", "67"))

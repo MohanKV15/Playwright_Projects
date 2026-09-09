@@ -363,3 +363,35 @@ class KendoNumericTextBox:
         except Exception as e:
             self.logger.warning(f"KendoNumericTextBox set_value_by_id failed for #{clean_id}: {e}")
             return False
+
+
+class KendoControls:
+    """
+    Composite/Facilitator controller providing unified access to all Kendo UI widgets
+    (Dropdowns, DatePickers, NumericTextBoxes, and Alert dialogs).
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.dropdown = KendoDropdown(page)
+        self.datepicker = KendoDatePicker(page)
+        self.numeric = KendoNumericTextBox(page)
+
+    @staticmethod
+    def handle_kendo_alert(page: Page, timeout_ms: int = 5000) -> bool:
+        """Detects and clicks OK on Kendo alert/confirm dialogs if displayed."""
+        try:
+            active_dialog = page.locator(
+                ".k-window:visible, .k-dialog:visible, [role='dialog']:visible"
+            ).first
+            if active_dialog.is_visible(timeout=timeout_ms):
+                ok_btn = active_dialog.locator(
+                    "button:has-text('OK'), .k-button:has-text('OK'), button:has-text('Yes'), .k-dialog-buttongroup button, [role='button']:has-text('OK')"
+                ).first
+                if ok_btn.is_visible(timeout=2000):
+                    ok_btn.click()
+                    return True
+        except Exception:
+            pass
+        return False
+

@@ -94,7 +94,10 @@ class AdministrativeProcessPage(BasePage):
                 with self.page.expect_popup(timeout=timeout) as popup_info:
                     self.js_click(action_button)
                 popup = popup_info.value
-                popup.wait_for_load_state("domcontentloaded")
+                try:
+                    popup.wait_for_load_state("domcontentloaded", timeout=3000)
+                except Exception:
+                    pass
                 try:
                     expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
                 except Exception as e:
@@ -114,7 +117,10 @@ class AdministrativeProcessPage(BasePage):
         else:
             self.page.evaluate("$('a:contains(\"Administrative Process\"), span:contains(\"Administrative Process\")').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def navigate_to_next_record(self) -> None:
@@ -126,7 +132,10 @@ class AdministrativeProcessPage(BasePage):
         ).first
         if next_btn.is_visible():
             self.js_click(next_btn)
-            self.page.wait_for_load_state("domcontentloaded")
+            try:
+                self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+            except Exception:
+                pass
             self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

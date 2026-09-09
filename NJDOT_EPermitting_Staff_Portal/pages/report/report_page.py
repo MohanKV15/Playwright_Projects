@@ -51,7 +51,10 @@ class ReportPage(BasePage):
             from utils.config import Config
             self.navigate(f"{Config.BASE_URL}/Home/Report")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

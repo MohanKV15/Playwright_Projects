@@ -44,7 +44,10 @@ class GenerateDocumentsPage(BasePage):
         else:
             self.page.evaluate("$('a:contains(\"Generate Documents\"), span:contains(\"Generate Documents\")').first().click()")
 
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:
@@ -71,7 +74,10 @@ class GenerateDocumentsPage(BasePage):
                 with self.page.expect_popup(timeout=10000) as popup_info:
                     self.js_click(gen_btn)
                 popup = popup_info.value
-                popup.wait_for_load_state("domcontentloaded")
+                try:
+                    popup.wait_for_load_state("domcontentloaded", timeout=3000)
+                except Exception:
+                    pass
                 try:
                     expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
                 except Exception as e:
@@ -110,7 +116,10 @@ class GenerateDocumentsPage(BasePage):
                 with self.page.expect_popup(timeout=10000) as popup_info:
                     self.js_click(gen_btn2)
                 popup = popup_info.value
-                popup.wait_for_load_state("domcontentloaded")
+                try:
+                    popup.wait_for_load_state("domcontentloaded", timeout=3000)
+                except Exception:
+                    pass
                 try:
                     expect(popup.locator("#mainCanvas, body")).to_be_visible(timeout=10000)
                 except Exception as e:

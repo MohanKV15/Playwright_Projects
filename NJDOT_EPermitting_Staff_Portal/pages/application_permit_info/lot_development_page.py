@@ -58,8 +58,10 @@ class LotDevelopmentPage(BasePage):
         """Navigates to the Lot Development/Frontages tab."""
         logger.info("Navigating to Lot Development/Frontages tab.")
         self._wait_for_loader()
-        self.js_click(self.lot_development_tab)
-        self.page.wait_for_load_state("domcontentloaded")
+        try:
+            self.page.wait_for_load_state("domcontentloaded", timeout=2000)
+        except Exception:
+            pass
         self._wait_for_loader()
 
     def verify_initial_layout(self) -> None:

@@ -18,31 +18,44 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
 
-        # ── Modular Sub-Components ────────────────────────────────────────────
-        self.document_page = DocumentPage(page)
-        self.log_page = LogPage(page)
+        # ── Modular Sub-Components (Lazy Evaluated to prevent God Object overhead) ─
+        self._document_page = None
+        self._log_page = None
 
         # ── Loading & Overlay Controls ─────────────────────────────────────────
         self.loading_overlay = page.locator(".k-loading-mask, .k-loading-image, #loading, .spinner-border")
 
-        # ── Backwards Compatible Attribute Mapping for Document Controls ──────
-        self.attach_document_button = self.document_page.attach_document_button
-        self.document_type_dropdown = self.document_page.document_type_dropdown
-        self.choose_file_input = self.document_page.choose_file_input
-        self.save_document_button = self.document_page.save_document_button
-        self.subject_input = self.document_page.subject_input
-        self.description_input = self.document_page.description_input
+    def __getattr__(self, name: str):
+        """
+        Dynamically delegates document and communication log attributes on-demand
+        without eagerly constructing sub-components or blocking subclass attribute assignment.
+        """
+        doc_attrs = {
+            "document_page", "attach_document_button", "document_type_dropdown",
+            "choose_file_input", "save_document_button", "subject_input",
+            "description_input", "create_package_button",
+            "select_attachments_confirm_button", "ok_button"
+        }
+        if name in doc_attrs:
+            if not hasattr(self, "_document_page") or self._document_page is None:
+                self._document_page = DocumentPage(self.page)
+            if name == "document_page":
+                return self._document_page
+            return getattr(self._document_page, name)
 
-        # ── Backwards Compatible Attribute Mapping for Communication Controls ──
-        self.add_communication_button = self.log_page.add_communication_button
-        self.communication_modal_container = self.log_page.communication_modal_container
-        self.communication_date_picker = self.log_page.communication_date_picker
-        self.log_app_header = self.log_page.log_app_header
+        log_attrs = {
+            "log_page", "add_communication_button",
+            "communication_modal_container", "communication_date_picker",
+            "log_app_header"
+        }
+        if name in log_attrs:
+            if not hasattr(self, "_log_page") or self._log_page is None:
+                self._log_page = LogPage(self.page)
+            if name == "log_page":
+                return self._log_page
+            return getattr(self._log_page, name)
 
-        # ── Backwards Compatible Attribute Mapping for Package Controls ───────
-        self.create_package_button = self.document_page.create_package_button
-        self.select_attachments_confirm_button = self.document_page.select_attachments_confirm_button
-        self.ok_button = self.document_page.ok_button
+        raise AttributeError(f"'{type(self).__name__}' object has no attribute '{name}'")
 
     # ── Core Navigation & Synchronization Mechanics ───────────────────────────
 
