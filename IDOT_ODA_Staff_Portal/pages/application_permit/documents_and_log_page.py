@@ -108,11 +108,11 @@ class DocumentsAndLogPage(BasePage):
         self.logger.info(f"Document '{doc_title}' saved successfully")
 
         # Return to previous details URL if redirected away
-        if return_url and "4321LogAttachStaffFull" in self.page.url:
+        if return_url and self.page.url != return_url:
             self.logger.info(f"Returning to previous view: {return_url}")
             self.navigate(return_url)
             self._wait_for_loader()
-            self.page.wait_for_timeout(800)
+            self.page.wait_for_timeout(1000)
 
         return {"title": doc_title, "description": doc_desc}
 

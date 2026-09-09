@@ -1,4 +1,5 @@
 import logging
+import time
 from datetime import datetime
 from typing import Optional, Union, List
 from playwright.sync_api import Page, Locator, expect
@@ -118,32 +119,38 @@ class KendoDropdown:
         except Exception:
             return ""
 
-    def select_first_valid_by_id(self, field_id: str) -> str:
+    def select_first_valid_by_id(self, field_id: str, timeout_ms: int = 10000) -> str:
         """
         Uses Kendo DropDownList JS API to select the 1st valid non-placeholder option.
+        Waits up to timeout_ms for the widget and its dataSource to be initialized.
         Triggers 'change' event and returns the selected text immediately.
         """
         clean_id = field_id.lstrip("#")
-        try:
-            res = self.page.evaluate(
-                f"""
-                (() => {{
-                    const ddl = $('#{clean_id}').data('kendoDropDownList');
-                    if (!ddl) return null;
-                    const data = ddl.dataSource.data();
-                    if (!data || data.length === 0) return null;
-                    const targetIndex = ddl.options.optionLabel ? 1 : 0;
-                    ddl.select(targetIndex);
-                    ddl.trigger('change');
-                    return ddl.text();
-                }})();
-                """
-            )
-            if res:
-                self.logger.info(f"Selected 1st valid option for #{clean_id} via API: '{res}'")
-                return str(res)
-        except Exception as e:
-            self.logger.warning(f"select_first_valid_by_id failed for #{clean_id}: {e}")
+        start_time = time.time()
+        timeout_sec = timeout_ms / 1000.0
+        while time.time() - start_time < timeout_sec:
+            try:
+                res = self.page.evaluate(
+                    f"""
+                    (() => {{
+                        const ddl = $('#{clean_id}').data('kendoDropDownList');
+                        if (!ddl) return null;
+                        const data = ddl.dataSource.data();
+                        if (!data || data.length === 0) return null;
+                        const targetIndex = ddl.options.optionLabel ? 1 : 0;
+                        ddl.select(targetIndex);
+                        ddl.trigger('change');
+                        return ddl.text();
+                    }})();
+                    """
+                )
+                if res:
+                    self.logger.info(f"Selected 1st valid option for #{clean_id} via API: '{res}'")
+                    return str(res)
+            except Exception:
+                pass
+            self.page.wait_for_timeout(200)
+        self.logger.warning(f"select_first_valid_by_id timed out waiting for #{clean_id}")
         return ""
 
     def select_first_valid_option(self, dropdown_locator: Union[Locator, str], timeout_ms: int = 5000) -> str:

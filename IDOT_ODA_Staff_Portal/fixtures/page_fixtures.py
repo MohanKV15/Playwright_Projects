@@ -15,10 +15,13 @@ from IDOT_ODA_Staff_Portal.pages.add_paper_application import (
     DirectionalSignPage,
 )
 from IDOT_ODA_Staff_Portal.pages.GIS_navigation.GIS_page import GISPage
-from IDOT_ODA_Staff_Portal.pages.GIS_navigation.GIS_page import GISPage
 from IDOT_ODA_Staff_Portal.pages.application_permit import (
     ApplicationDetailsPage,
     InspectionPage,
+    DocumentsAndLogPage,
+    CustomerActionItemsPage,
+    ReviewPage,
+    AmendmentPage,
 )
 
 
@@ -144,4 +147,53 @@ def inspection_page(page: Page) -> InspectionPage:
 def authenticated_inspection(authenticated_dashboard: DashboardPage) -> InspectionPage:
     """Provides an authenticated InspectionPage positioned on the staff portal."""
     return InspectionPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def documents_and_log_page(page: Page) -> DocumentsAndLogPage:
+    """Returns an initialized DocumentsAndLogPage instance."""
+    return DocumentsAndLogPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_documents_and_log(authenticated_dashboard: DashboardPage) -> DocumentsAndLogPage:
+    """Provides an authenticated DocumentsAndLogPage positioned on the staff portal."""
+    return DocumentsAndLogPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def customer_action_items_page(page: Page) -> CustomerActionItemsPage:
+    """Returns an initialized CustomerActionItemsPage instance."""
+    return CustomerActionItemsPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_customer_action_items(authenticated_dashboard: DashboardPage) -> CustomerActionItemsPage:
+    """Provides an authenticated CustomerActionItemsPage positioned on the staff portal."""
+    return CustomerActionItemsPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def review_page(page: Page) -> ReviewPage:
+    """Returns an initialized ReviewPage instance."""
+    return ReviewPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_review(authenticated_dashboard: DashboardPage) -> ReviewPage:
+    """Provides an authenticated ReviewPage positioned on the staff portal."""
+    return ReviewPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def amendment_page(page: Page) -> AmendmentPage:
+    """Returns an initialized AmendmentPage instance."""
+    return AmendmentPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_amendment(authenticated_dashboard: DashboardPage) -> AmendmentPage:
+    """Provides an authenticated AmendmentPage positioned on the staff portal."""
+    return AmendmentPage(authenticated_dashboard.page)
+
 

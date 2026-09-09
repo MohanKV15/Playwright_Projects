@@ -22,6 +22,7 @@ def test_inspection_full_workflow(
     8. Add Communication log with Faker-generated subject and description, and save.
     9. Verify that once saved, the record displays inside the table (#LogListGrid).
     10. Open Send Email dialog and cancel it.
+    11. Click Cancel on details page, verify redirection to listing, and verify saved entry in #InspectionList.
     """
     # 1-3. Search company, select 1st record, navigate to Inspection
     record_info = authenticated_inspection.navigate_to_inspection(company_name="IDOTOAtest2")
