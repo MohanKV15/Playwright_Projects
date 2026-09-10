@@ -22,16 +22,8 @@ def test_amendment_full_workflow(
     """
     amendment_pg = authenticated_amendment
 
-    with allure.step("1. Activate permit session and navigate to Amendment page"):
-        amendment_pg.navigate_to_amendment(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify listing view elements loaded"):
-        amendment_pg.verify_amendment_page_loaded()
-
-    with allure.step("3. Execute Add New Amendment alert or dynamic Faker form submission workflow"):
-        result = amendment_pg.handle_add_amendment_workflow()
+    with allure.step("1. Execute full Amendment workflow (navigate, verify listing, handle alert/form workflow)"):
+        result = authenticated_amendment.execute_amendment_full_workflow(company_name="IDOTOAtest2")
         assert result is not None, "Amendment workflow failed to return execution result"
-        if result.get("description"):
-            amendment_pg.logger.info("Successfully created amendment with Faker description: %s", result["description"])
 
 

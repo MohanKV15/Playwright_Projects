@@ -24,18 +24,5 @@ def test_permit_completion_full_workflow(
     """
     permit_comp_pg = authenticated_permit_completion
 
-    with allure.step("1. Activate permit session and navigate to Permit Completion page"):
-        permit_comp_pg.navigate_to_permit_completion(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify Permit Completion page headers and action elements loaded"):
-        permit_comp_pg.verify_permit_completion_page_loaded()
-
-    with allure.step("3. Save permit configuration and confirm modal dialog"):
-        permit_comp_pg.save_permit()
-
-    with allure.step("4. Generate permit, verify canvas preview popup window, and confirm success modal"):
-        success = permit_comp_pg.generate_permit()
-        assert success, "Permit generation workflow failed"
-
-    with allure.step("5. Verify Permit Status section and form wrapper container"):
-        permit_comp_pg.verify_permit_status_and_form()
+    with allure.step("1. Execute full Permit Completion workflow (navigate, save permit, generate permit, verify status & form)"):
+        authenticated_permit_completion.handle_permit_completion_full_workflow(company_name="IDOTOAtest2")

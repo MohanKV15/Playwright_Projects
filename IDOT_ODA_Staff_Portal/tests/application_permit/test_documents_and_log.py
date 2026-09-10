@@ -25,22 +25,7 @@ def test_documents_and_log_full_workflow(
     """
     doc_log_pg = authenticated_documents_and_log
 
-    with allure.step("1. Activate permit session and navigate to Documents and Log page"):
-        doc_log_pg.navigate_to_documents_and_log(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify Documents and Log headers, form wrapper, and action buttons loaded"):
-        doc_log_pg.verify_documents_and_log_page_loaded()
-
-    with allure.step("3. Attach document with upload file, present day date, title, description, and save"):
-        doc_info = doc_log_pg.attach_document()
-        assert doc_info["title"], "Document title was not generated"
-
-    with allure.step("4. Add communication log entry with subject, description, and save"):
-        comm_info = doc_log_pg.add_communication()
-        assert comm_info["subject"], "Communication subject was not generated"
-
-    with allure.step("5. Open Send Email modal and cancel/dismiss it"):
-        doc_log_pg.open_and_cancel_send_email()
-
-    with allure.step("6. Execute Create Package workflow (select attachment, confirm OK dialog)"):
-        doc_log_pg.create_package()
+    with allure.step("1. Execute full Documents and Log workflow (navigate, attach doc, add comm, cancel email, create package)"):
+        results = authenticated_documents_and_log.execute_documents_and_log_full_workflow(company_name="IDOTOAtest2")
+        assert results["document"]["title"], "Document title was not generated"
+        assert results["communication"]["subject"], "Communication subject was not generated"

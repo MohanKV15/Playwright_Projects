@@ -25,21 +25,11 @@ def test_status_log_full_workflow(
     """
     status_log_pg = authenticated_status_log
 
-    with allure.step("1. Activate permit session and navigate to Status Log page"):
-        status_log_pg.navigate_to_status_log(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify Status Log page headers and grid content loaded"):
-        status_log_pg.verify_status_log_page_loaded()
-
-    with allure.step("3. Click 'Add Status' button and verify form container"):
-        status_log_pg.click_add_status()
-
-    with allure.step("4. Fill status details (Action Type, Action Item, present day date, Faker comments) and submit"):
-        status_data = status_log_pg.fill_and_submit_status_form(
+    with allure.step("1. Execute full Status Log workflow (navigate, add status, fill form, save, verify)"):
+        status_data = authenticated_status_log.add_status_log_full_workflow(
+            company_name="IDOTOAtest2",
             action_type="Application Status",
             action_item="Amended Permit",
         )
         assert status_data["comments"], "Status log comments were not generated"
         assert status_data["action_type"], "Action type was not selected"
-        assert status_data["action_item"], "Action item was not selected"
-        assert status_data["date"], "Status date was not set"

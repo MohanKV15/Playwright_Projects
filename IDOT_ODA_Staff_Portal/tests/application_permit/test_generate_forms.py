@@ -25,14 +25,5 @@ def test_generate_forms_full_workflow(
     """
     gen_forms_pg = authenticated_generate_forms
 
-    with allure.step("1. Activate permit session and navigate to Generate Forms page"):
-        gen_forms_pg.navigate_to_generate_forms(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify Generate Forms page headers and form container loaded"):
-        gen_forms_pg.verify_generate_forms_page_loaded()
-
-    with allure.step("3. Click 1st generate form button (nth(2)), verify popup canvas preview, and confirm OK alert"):
-        first_popup = gen_forms_pg.generate_first_form()
-
-    with allure.step("4. Click 2nd generate form button (nth(3)), verify popup canvas preview, close popups, and verify layout"):
-        gen_forms_pg.generate_second_form(first_popup=first_popup)
+    with allure.step("1. Execute full Generate Forms workflow (navigate, generate 1st form preview, generate 2nd form preview, verify)"):
+        authenticated_generate_forms.generate_forms_full_workflow(company_name="IDOTOAtest2")

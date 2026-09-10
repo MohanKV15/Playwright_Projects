@@ -191,3 +191,14 @@ class AmendmentPage(BasePage):
         else:
             self.logger.info("No erection popup detected; completing Amendment form submission flow")
             return self.fill_and_submit_amendment_form(description=description)
+
+    def execute_amendment_full_workflow(self, company_name: str = "IDOTOAtest2") -> Dict[str, str]:
+        """
+        Composite high-level workflow:
+        1. Navigates to Amendment page
+        2. Verifies listing view
+        3. Handles Add New Amendment (alert popup or form submission)
+        """
+        self.navigate_to_amendment(company_name=company_name)
+        self.verify_amendment_page_loaded()
+        return self.handle_add_amendment_workflow()

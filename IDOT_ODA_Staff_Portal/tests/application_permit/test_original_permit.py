@@ -26,8 +26,5 @@ def test_original_permit_full_workflow(
     """
     original_permit_pg = authenticated_original_permit
 
-    with allure.step("1. Activate permit session and navigate to Original Permit page"):
-        original_permit_pg.navigate_to_original_permit(company_name="IDOTOAtest2")
-
-    with allure.step("2. Verify Original Permit page headers, section headings, and layout container"):
-        original_permit_pg.verify_original_permit_page_loaded()
+    with allure.step("1. Execute full Original Permit workflow (navigate & verify headers, sections, layout)"):
+        authenticated_original_permit.original_permit_full_workflow(company_name="IDOTOAtest2")

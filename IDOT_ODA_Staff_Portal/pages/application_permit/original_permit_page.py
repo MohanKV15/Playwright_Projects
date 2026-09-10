@@ -84,3 +84,12 @@ class OriginalPermitPage(BasePage):
         expect(self.heading_location_information).to_be_visible(timeout=timeout_ms)
         expect(self.partial_form_container).to_be_visible(timeout=timeout_ms)
         self.logger.info("Original Permit page verified successfully!")
+
+    def original_permit_full_workflow(self, company_name: str = "IDOTOAtest2") -> None:
+        """
+        Composite high-level workflow:
+        1. Navigates to Original Permit page
+        2. Verifies page headers, Sign Information, Location Information, and layout container
+        """
+        self.navigate_to_original_permit(company_name=company_name)
+        self.verify_original_permit_page_loaded()
