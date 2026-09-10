@@ -22,8 +22,6 @@ def test_payment_listing_full_workflow(
     4. Fill payment type ('Permit Application Fee'), payment method ('Credit Card'), and Faker comments.
     5. Save form, verify 'Record updated successfully.' confirmation modal, click OK, and verify return to listing view.
     """
-    payment_pg = authenticated_payment_listing
-
     with allure.step("1. Execute full Payment Listing workflow (navigate, add payment, fill details, save, verify)"):
         payment_data = authenticated_payment_listing.create_new_payment_full_workflow(company_name="IDOTOAtest2")
         assert payment_data["comments"], "Payment comments were not generated"

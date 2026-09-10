@@ -21,17 +21,15 @@ def test_review_full_workflow(
     3. Create and assign reviewer (present date, 1st dropdown options, Faker comments, save, OK).
     4. Verify newly assigned reviewer appears in Reviewers Assigned grid table.
     """
-    review_page = authenticated_review
-
     with allure.step("1. Activate permit session and navigate to Review"):
-        review_page.navigate_to_review(company_name="IDOTOAtest2")
+        authenticated_review.navigate_to_review(company_name="IDOTOAtest2")
 
     with allure.step("2. Create and assign reviewer with dynamic role and Faker comments"):
-        reviewer_data = review_page.create_reviewer()
+        reviewer_data = authenticated_review.create_reviewer()
         assert all(reviewer_data.values()), f"Reviewer assignment data was incomplete: {reviewer_data}"
 
     with allure.step("3. Verify newly assigned reviewer appears in Reviewers Assigned grid table"):
-        matching_row = review_page.verify_reviewer_in_grid(
+        matching_row = authenticated_review.verify_reviewer_in_grid(
             expected_reviewer=reviewer_data["reviewer"],
             expected_role=reviewer_data["role"],
         )

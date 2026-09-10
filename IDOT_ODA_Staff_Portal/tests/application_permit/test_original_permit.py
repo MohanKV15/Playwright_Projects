@@ -24,7 +24,5 @@ def test_original_permit_full_workflow(
        - 'Location Information' heading
        - Form wrapper container layout (#partial-form)
     """
-    original_permit_pg = authenticated_original_permit
-
     with allure.step("1. Execute full Original Permit workflow (navigate & verify headers, sections, layout)"):
         authenticated_original_permit.original_permit_full_workflow(company_name="IDOTOAtest2")

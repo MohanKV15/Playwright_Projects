@@ -23,8 +23,6 @@ def test_documents_and_log_full_workflow(
     5. Send Email modal (open modal and click Cancel to dismiss).
     6. Create Package (click button, select attachment checkbox, click Select Attachments, confirm OK dialog).
     """
-    doc_log_pg = authenticated_documents_and_log
-
     with allure.step("1. Execute full Documents and Log workflow (navigate, attach doc, add comm, cancel email, create package)"):
         results = authenticated_documents_and_log.execute_documents_and_log_full_workflow(company_name="IDOTOAtest2")
         assert results["document"]["title"], "Document title was not generated"

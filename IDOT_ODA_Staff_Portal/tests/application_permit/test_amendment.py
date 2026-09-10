@@ -20,8 +20,6 @@ def test_amendment_full_workflow(
     2. Verify listing page elements (Permit details, Modification Requests heading, k-grid).
     3. Execute and verify Add Amendment dialog workflow (Add New -> Alert -> OK -> Listing).
     """
-    amendment_pg = authenticated_amendment
-
     with allure.step("1. Execute full Amendment workflow (navigate, verify listing, handle alert/form workflow)"):
         result = authenticated_amendment.execute_amendment_full_workflow(company_name="IDOTOAtest2")
         assert result is not None, "Amendment workflow failed to return execution result"

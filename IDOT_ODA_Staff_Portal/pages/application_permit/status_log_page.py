@@ -45,8 +45,8 @@ class StatusLogPage(BasePage):
         # 2. Listing View Elements
         self.header_app_details_permit = page.get_by_text("Application Details Permit").first
         self.heading_status_log = page.get_by_role("heading", name="Status Log").or_(
-            page.locator("h1, h2, h3, h4, h5, div, span").filter(has_text="Status Log")
-        ).first
+            page.get_by_text("Status Log")
+        ).filter(visible=True).first
         self.grid_content = page.locator(".k-grid-content").first
         self.add_status_button = page.get_by_role("button", name=" Add Status").or_(
             page.get_by_role("button", name=" Add Status")
@@ -105,10 +105,7 @@ class StatusLogPage(BasePage):
         self._wait_for_loader()
 
         expect(self.app_details.permit_grid_rows.first).to_be_visible(timeout=25000)
-        first_row = self.app_details.permit_grid_rows.first
-
-        # Activate permit session by clicking action button on 1st record row
-        action_btn = first_row.locator("button, a.k-button, [role='button']").first
+        action_btn = self.app_details.permit_grid_rows.first.locator("button, a.k-button, [role='button']").first
         expect(action_btn).to_be_visible(timeout=15000)
         action_btn.click(force=True)
         self._wait_for_loader()

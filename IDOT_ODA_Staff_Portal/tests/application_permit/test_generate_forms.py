@@ -23,7 +23,5 @@ def test_generate_forms_full_workflow(
     4. Click 2nd document generation button (nth(3)), verify preview canvas (#mainCanvas) in popup window,
        close popup windows, and verify section layout container (#partial-form > section > div > div).
     """
-    gen_forms_pg = authenticated_generate_forms
-
     with allure.step("1. Execute full Generate Forms workflow (navigate, generate 1st form preview, generate 2nd form preview, verify)"):
         authenticated_generate_forms.generate_forms_full_workflow(company_name="IDOTOAtest2")

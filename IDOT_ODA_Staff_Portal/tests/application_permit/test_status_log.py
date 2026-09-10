@@ -23,8 +23,6 @@ def test_status_log_full_workflow(
     5. Set present day date and populate Comments field with dynamic Faker generated text.
     6. Save form, verify 'Operation completed' modal alert, click OK, and verify return to listing view.
     """
-    status_log_pg = authenticated_status_log
-
     with allure.step("1. Execute full Status Log workflow (navigate, add status, fill form, save, verify)"):
         status_data = authenticated_status_log.add_status_log_full_workflow(
             company_name="IDOTOAtest2",

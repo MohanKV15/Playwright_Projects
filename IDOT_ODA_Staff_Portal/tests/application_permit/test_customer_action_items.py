@@ -22,20 +22,18 @@ def test_customer_action_items_full_workflow(
     4. Verify newly created record appears in the listing table.
     5. Re-open record from table and verify details form displays accurately.
     """
-    cai_page = authenticated_customer_action_items
-
     with allure.step("1. Activate permit session and navigate to Customer Action Items"):
-        cai_page.navigate_to_customer_action_items(company_name="IDOTOAtest2")
+        authenticated_customer_action_items.navigate_to_customer_action_items(company_name="IDOTOAtest2")
 
     with allure.step("2. Create Customer Action Item with document attachment and dynamic Faker message"):
-        saved_data = cai_page.create_customer_action_item(attach_document=True)
+        saved_data = authenticated_customer_action_items.create_customer_action_item(attach_document=True)
         assert all(saved_data.values()), f"Customer action item form data was incomplete: {saved_data}"
 
     with allure.step("3. Verify newly created record in listing table"):
-        saved_row = cai_page.verify_action_item_in_table()
+        saved_row = authenticated_customer_action_items.verify_action_item_in_table()
         assert saved_row, "Created customer action item row was not found in listing table"
 
     with allure.step("4. Open record from table and verify details form displays accurately"):
-        cai_page.open_action_item_and_verify_details(saved_row)
+        authenticated_customer_action_items.open_action_item_and_verify_details(saved_row)
 
 

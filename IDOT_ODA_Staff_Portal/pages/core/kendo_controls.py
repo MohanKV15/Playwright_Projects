@@ -198,7 +198,7 @@ class KendoDropdown:
             pass
 
         # 2. UI interaction fallback
-        loc.click()
+        loc.click(force=True)
         self.page.wait_for_timeout(200)
 
         items = self.page.locator(

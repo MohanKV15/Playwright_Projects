@@ -22,7 +22,5 @@ def test_permit_completion_full_workflow(
     4. Generate permit, verify preview canvas (#mainCanvas) in popup window, close popup, and confirm 'Generated successfully' modal.
     5. Verify 'Permit Status' heading and form wrapper layout container (#partial-form).
     """
-    permit_comp_pg = authenticated_permit_completion
-
     with allure.step("1. Execute full Permit Completion workflow (navigate, save permit, generate permit, verify status & form)"):
         authenticated_permit_completion.handle_permit_completion_full_workflow(company_name="IDOTOAtest2")
