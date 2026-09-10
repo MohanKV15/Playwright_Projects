@@ -108,3 +108,69 @@ class KendoUtils:
             return False
             
         return True
+
+    @staticmethod
+    def select_dropdown_by_id(page: Page, element_id: str, value_text: str = None) -> None:
+        """
+        Selects a Kendo DropDownList option by element ID using Kendo API.
+        If value_text is provided, matches and selects that option.
+        Otherwise, selects the first valid (non-placeholder) option.
+        """
+        logger.info(f"Selecting '{value_text or 'first valid'}' for Kendo widget: {element_id}")
+        try:
+            page.wait_for_function(
+                f"""() => {{
+                    var jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    var el = jq("{element_id}");
+                    if (el.length === 0) return false;
+                    var dropdown = el.data("kendoDropDownList");
+                    return dropdown && dropdown.dataSource && dropdown.dataSource.data().length > 0;
+                }}""",
+                timeout=15000
+            )
+        except Exception as e:
+            logger.warning(f"Wait for Kendo dropdown {element_id} note: {e}")
+
+        result = page.evaluate(
+            """([sel, valText]) => {
+                var jq = window.jQuery || window.$;
+                if (!jq) return null;
+                var el = jq(sel);
+                var dropdown = el.data("kendoDropDownList");
+                if (!dropdown) return null;
+                
+                var index = -1;
+                if (valText) {
+                    var data = dropdown.dataSource.data();
+                    var textProp = dropdown.options.dataTextField;
+                    for (var i = 0; i < data.length; i++) {
+                        var itemText = data[i][textProp];
+                        if (itemText && itemText.toString().trim() === valText) {
+                            index = i;
+                            break;
+                        }
+                    }
+                }
+                
+                var selectIndex = -1;
+                if (index !== -1) {
+                    selectIndex = dropdown.options.optionLabel ? index + 1 : index;
+                } else {
+                    selectIndex = dropdown.options.optionLabel ? 1 : 0;
+                }
+                
+                dropdown.select(selectIndex);
+                dropdown.trigger("change");
+                if (dropdown.element && dropdown.element.length) {
+                    dropdown.element.trigger("change").trigger("input");
+                    try { if (jq.validator) dropdown.element.valid(); } catch(e) {}
+                }
+                return dropdown.text();
+            }""",
+            [element_id, value_text]
+        )
+        if result:
+            logger.info(f"Successfully selected '{result}' in {element_id}")
+        else:
+            logger.warning(f"Failed to select option in {element_id}")

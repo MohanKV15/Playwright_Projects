@@ -2,6 +2,7 @@ import re
 import logging
 from playwright.sync_api import Page, expect
 from pages.core.base_page import BasePage
+from pages.core.kendo_utils import KendoUtils
 
 logger = logging.getLogger(__name__)
 
@@ -74,59 +75,8 @@ class PermitApplicationPage(BasePage):
         self.ok_button.click()
 
     def _select_first_valid_option(self, element_id: str, value_text: str = None) -> None:
-        """
-        Selects a Kendo DropDownList option using JavaScript.
-        If value_text is provided, matches and selects that option.
-        Otherwise, selects the first valid (non-placeholder) option.
-        """
-        print(f"\n[DROPDOWN] Selecting '{value_text or 'first valid'}' for Kendo widget: {element_id}")
-        
-        # Bypassed scrolling hidden element into view to improve execution speed.
-        # Kendo dropdown selection via JavaScript evaluation works directly without scrolling.
-            
-        # 2. Wait up to 15 seconds for the data source to be populated (critical for AJAX)
-        self.page.wait_for_function(f"""() => {{
-            var el = jQuery("{element_id}");
-            if (el.length === 0) return false;
-            var dropdown = el.data("kendoDropDownList");
-            return dropdown && dropdown.dataSource && dropdown.dataSource.data().length > 0;
-        }}""", timeout=15000)
-        
-        # 3. Select option via Kendo API and trigger 'change'
-        result = self.page.evaluate(f"""([sel, valText]) => {{
-            var el = jQuery(sel);
-            var dropdown = el.data("kendoDropDownList");
-            if (!dropdown) return null;
-            
-            var index = -1;
-            if (valText) {{
-                var data = dropdown.dataSource.data();
-                var textProp = dropdown.options.dataTextField;
-                for (var i = 0; i < data.length; i++) {{
-                    var itemText = data[i][textProp];
-                    if (itemText && itemText.toString().trim() === valText) {{
-                        index = i;
-                        break;
-                    }}
-                }}
-            }}
-            
-            var selectIndex = -1;
-            if (index !== -1) {{
-                selectIndex = dropdown.options.optionLabel ? index + 1 : index;
-            }} else {{
-                selectIndex = dropdown.options.optionLabel ? 1 : 0;
-            }}
-            
-            dropdown.select(selectIndex);
-            dropdown.trigger("change");
-            return dropdown.text();
-        }}""", [element_id, value_text])
-        
-        if result:
-            print(f"[DROPDOWN] Successfully selected '{result}' in {element_id}")
-        else:
-            print(f"[DROPDOWN] Failed to select option in {element_id}")
+        """Selects a Kendo DropDownList option using centralized KendoUtils."""
+        KendoUtils.select_dropdown_by_id(self.page, element_id, value_text)
 
     def fill_permit_application_form(self, file_path: str | None = None) -> None:
         """Fills the permit application form with dynamic Faker test data and uploads documents."""

@@ -38,6 +38,10 @@ class KendoDropdown:
                             if (text.includes(target)) {{
                                 ddl.select(i + (ddl.options.optionLabel ? 1 : 0));
                                 ddl.trigger('change');
+                                if (ddl.element && ddl.element.length) {{
+                                    ddl.element.trigger('change').trigger('input');
+                                    try {{ if (window.jQuery && window.jQuery.validator) ddl.element.valid(); }} catch(e) {{}}
+                                }}
                                 return true;
                             }}
                         }}
@@ -45,6 +49,10 @@ class KendoDropdown:
                     if (ddl.dataSource.data().length > 0) {{
                         ddl.select({index});
                         ddl.trigger('change');
+                        if (ddl.element && ddl.element.length) {{
+                            ddl.element.trigger('change').trigger('input');
+                            try {{ if (window.jQuery && window.jQuery.validator) ddl.element.valid(); }} catch(e) {{}}
+                        }}
                         return true;
                     }}
                     return false;

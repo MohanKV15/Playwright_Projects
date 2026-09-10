@@ -99,9 +99,9 @@ class KendoControls:
                     }
                     if (ddl) {
                         if (typeof ddl.enable === 'function') ddl.enable(true);
-                        var curVal = typeof ddl.value === 'function' ? ddl.value() : '';
+                        var curVal = (typeof ddl.value === 'function' ? ddl.value() : '').toString().trim();
                         var curText = (typeof ddl.text === 'function' ? ddl.text() : '').trim();
-                        if (!curVal || curVal === '' || curText.startsWith('--') || curText.toLowerCase().startsWith('select')) {
+                        if (!curVal || curVal === '' || curVal === '0' || curVal === '-1' || curText.startsWith('--') || curText.toLowerCase().includes('select')) {
                             if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
                                 var items = ddl.dataSource.data();
                                 if (items && items.length > 0) {
@@ -112,8 +112,8 @@ class KendoControls:
                                         var item = items[i];
                                         if (!item) continue;
                                         var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
-                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
-                                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value.toString().trim() : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value.toString().trim() : txt);
+                                        if (txt && val !== undefined && val !== null && val !== '' && val !== '0' && val !== '-1' && !txt.startsWith('--') && !txt.toLowerCase().includes('select') && !txt.toLowerCase().includes('no data')) {
                                             targetIdx = i;
                                             break;
                                         }

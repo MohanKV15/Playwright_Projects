@@ -48,10 +48,6 @@ class InspectionPage(BasePage):
             page.locator("button:has-text('Submit'), input[type='submit'][value='Submit']")
         ).first
 
-    def select_all_kendo_dropdowns(self) -> None:
-        """Selects 1st valid option for all Kendo dropdowns by delegating to KendoControls."""
-        super().select_all_kendo_dropdowns()
-
     # ── Page Actions ──────────────────────────────────────────────────────────
 
     def navigate_to_inspection(self) -> None:
