@@ -53,7 +53,7 @@ class PaymentListingPage(BasePage):
         self.add_new_payment_button = page.get_by_role("button", name=" Add New Payment").or_(
             page.get_by_role("button", name=" Add New Payment")
         ).or_(
-            page.locator("button:has-text('Add New Payment')")
+            page.locator("button:has-text('Add New Payment'), a:has-text('Add New Payment'), .k-button:has-text('Add New Payment'), [role='button']:has-text('Add New Payment')")
         ).first
 
         # 3. Payment Details Form Locators (#frmPaymentDetails)
