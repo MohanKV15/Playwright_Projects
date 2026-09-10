@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, Optional, Union
 from faker import Faker
 from playwright.sync_api import Locator, Page, expect
@@ -48,13 +49,11 @@ class StatusLogPage(BasePage):
             page.get_by_text("Status Log")
         ).filter(visible=True).first
         self.grid_content = page.locator(".k-grid-content").first
-        self.add_status_button = page.get_by_role("button", name=" Add Status").or_(
-            page.get_by_role("button", name=" Add Status")
-        ).or_(
-            page.get_by_role("button", name="Add Status")
+        self.add_status_button = page.get_by_role("button", name=re.compile(r"Add\s+Status", re.I)).or_(
+            page.get_by_text(re.compile(r"Add\s+Status", re.I))
         ).or_(
             page.locator("button:has-text('Add Status'), a:has-text('Add Status'), [role='button']:has-text('Add Status'), .k-button:has-text('Add Status')")
-        ).first
+        ).filter(visible=True).first
 
         # 3. Status Form Locators (#frmStatus)
         self.status_form_container = page.locator("#partial-form, #frmStatus").first
@@ -76,11 +75,7 @@ class StatusLogPage(BasePage):
         self.comments_input = page.get_by_role("textbox", name="Comments").or_(
             page.locator("#Comments, [name='Comments'], textarea[name*='Comment' i]")
         ).first
-        self.save_button = page.get_by_role("button", name=" Save").or_(
-            page.get_by_role("button", name=" Save")
-        ).or_(
-            page.get_by_role("button", name="Save")
-        ).or_(
+        self.save_button = page.get_by_role("button", name="Save").or_(
             page.locator("button:has-text('Save')")
         ).first
         self.operation_completed_text = page.get_by_text("Operation completed").or_(

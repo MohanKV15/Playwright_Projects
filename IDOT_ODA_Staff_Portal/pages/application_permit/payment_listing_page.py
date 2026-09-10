@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Dict, Optional, Union
 from faker import Faker
 from playwright.sync_api import Locator, Page, expect
@@ -50,11 +51,11 @@ class PaymentListingPage(BasePage):
         self.form_wrapper_grid = page.locator(
             ".col-md-12 > #partial-form > .form-wrapper > .row > .col-md-12, #partial-form, .form-wrapper"
         ).first
-        self.add_new_payment_button = page.get_by_role("button", name=" Add New Payment").or_(
-            page.get_by_role("button", name=" Add New Payment")
+        self.add_new_payment_button = page.get_by_role("button", name=re.compile(r"Add\s+New\s+Payment", re.I)).or_(
+            page.get_by_text(re.compile(r"Add\s+New\s+Payment", re.I))
         ).or_(
             page.locator("button:has-text('Add New Payment'), a:has-text('Add New Payment'), .k-button:has-text('Add New Payment'), [role='button']:has-text('Add New Payment')")
-        ).first
+        ).filter(visible=True).first
 
         # 3. Payment Details Form Locators (#frmPaymentDetails)
         self.payment_form_container = page.locator("#partial-form, #frmPaymentDetails").first
@@ -68,9 +69,7 @@ class PaymentListingPage(BasePage):
             page.locator("#frmPaymentDetails span.k-input").nth(1)
         ).first
         self.comments_input = page.locator("#Pay_Comments, [name='Pay_Comments'], textarea[name*='Comment' i]").first
-        self.save_button = page.get_by_role("button", name=" Save").or_(
-            page.get_by_role("button", name=" Save")
-        ).or_(
+        self.save_button = page.get_by_role("button", name="Save").or_(
             page.locator("button:has-text('Save')")
         ).first
         self.record_updated_text = page.get_by_text("Record updated successfully.").or_(
