@@ -22,12 +22,41 @@ from IDOT_ODA_Staff_Portal.pages.application_permit import (
     CustomerActionItemsPage,
     ReviewPage,
     AmendmentPage,
+    PermitCompletionPage,
+    OriginalPermitPage,
+    PaymentListingPage,
+    GenerateFormsPage,
+    StatusLogPage,
 )
 
 
 # ---------------------------------------------------------------------------
 # Page Object Model Fixtures
 # ---------------------------------------------------------------------------
+@pytest.fixture(scope="function")
+def status_log_page(page: Page) -> StatusLogPage:
+    """Returns an initialized StatusLogPage instance."""
+    return StatusLogPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_status_log(authenticated_dashboard: DashboardPage) -> StatusLogPage:
+    """Provides an authenticated StatusLogPage positioned on the staff portal."""
+    return StatusLogPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def generate_forms_page(page: Page) -> GenerateFormsPage:
+    """Returns an initialized GenerateFormsPage instance."""
+    return GenerateFormsPage(page)
+
+
+
+@pytest.fixture(scope="function")
+def authenticated_generate_forms(authenticated_dashboard: DashboardPage) -> GenerateFormsPage:
+    """Provides an authenticated GenerateFormsPage positioned on the staff portal."""
+    return GenerateFormsPage(authenticated_dashboard.page)
+
 @pytest.fixture(scope="function")
 def login_page(page: Page) -> LoginPage:
     """Returns an initialized LoginPage instance."""
@@ -195,5 +224,41 @@ def amendment_page(page: Page) -> AmendmentPage:
 def authenticated_amendment(authenticated_dashboard: DashboardPage) -> AmendmentPage:
     """Provides an authenticated AmendmentPage positioned on the staff portal."""
     return AmendmentPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def permit_completion_page(page: Page) -> PermitCompletionPage:
+    """Returns an initialized PermitCompletionPage instance."""
+    return PermitCompletionPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_permit_completion(authenticated_dashboard: DashboardPage) -> PermitCompletionPage:
+    """Provides an authenticated PermitCompletionPage positioned on the staff portal."""
+    return PermitCompletionPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def original_permit_page(page: Page) -> OriginalPermitPage:
+    """Returns an initialized OriginalPermitPage instance."""
+    return OriginalPermitPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_original_permit(authenticated_dashboard: DashboardPage) -> OriginalPermitPage:
+    """Provides an authenticated OriginalPermitPage positioned on the staff portal."""
+    return OriginalPermitPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def payment_listing_page(page: Page) -> PaymentListingPage:
+    """Returns an initialized PaymentListingPage instance."""
+    return PaymentListingPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_payment_listing(authenticated_dashboard: DashboardPage) -> PaymentListingPage:
+    """Provides an authenticated PaymentListingPage positioned on the staff portal."""
+    return PaymentListingPage(authenticated_dashboard.page)
 
 

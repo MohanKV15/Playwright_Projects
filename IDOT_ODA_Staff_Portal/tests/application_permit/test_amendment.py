@@ -28,7 +28,10 @@ def test_amendment_full_workflow(
     with allure.step("2. Verify listing view elements loaded"):
         amendment_pg.verify_amendment_page_loaded()
 
-    with allure.step("3. Execute Add New Amendment alert and confirmation workflow"):
-        amendment_pg.handle_add_amendment_workflow()
+    with allure.step("3. Execute Add New Amendment alert or dynamic Faker form submission workflow"):
+        result = amendment_pg.handle_add_amendment_workflow()
+        assert result is not None, "Amendment workflow failed to return execution result"
+        if result.get("description"):
+            amendment_pg.logger.info("Successfully created amendment with Faker description: %s", result["description"])
 
 

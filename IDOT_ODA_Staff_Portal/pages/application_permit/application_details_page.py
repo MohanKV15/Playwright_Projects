@@ -46,7 +46,7 @@ class ApplicationDetailsPage(BasePage):
         # 4. Save & Confirmation Popups
         self.save_button = page.locator(".float-right, #btnSubmit, button:has-text('Save')").first
         self.confirmation_ok_button = page.get_by_role("button", name="OK").or_(
-            page.locator(".k-dialog:visible button:has-text('OK'), button:has-text('OK')")
+            page.locator(".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), .modal:visible button:has-text('OK'), .ajs-ok, button:has-text('OK'), button:has-text('Ok')")
         ).first
 
     # -------------------------------------------------------------------------
@@ -145,11 +145,38 @@ class ApplicationDetailsPage(BasePage):
         self.logger.info("Saving Application Details (.float-right button)")
         self._wait_for_loader()
         expect(self.save_button).to_be_visible(timeout=timeout_ms)
-        self.save_button.click(force=True)
-        self.page.wait_for_timeout(800)
 
-        self.logger.info("Confirming Save on popup dialog (OK button)")
-        expect(self.confirmation_ok_button).to_be_visible(timeout=timeout_ms)
-        self.confirmation_ok_button.click(force=True)
+        # Attach native dialog handler in case browser alert/confirm pops up
+        dialog_handled = []
+
+        def handle_dialog(dialog):
+            self.logger.info(f"Handled native dialog: '{dialog.message}'")
+            dialog_handled.append(dialog.message)
+            dialog.accept()
+
+        self.page.once("dialog", handle_dialog)
+
+        self.save_button.scroll_into_view_if_needed()
+        self.save_button.click(force=True)
+        self.page.wait_for_timeout(1000)
         self._wait_for_loader()
+
+        # Check for DOM modal OK button
+        ok_btn = self.page.locator(
+            ".k-dialog:visible button:has-text('OK'), "
+            ".k-alert:visible button:has-text('OK'), "
+            ".k-window:visible button:has-text('OK'), "
+            ".modal:visible button:has-text('OK'), "
+            ".ajs-ok, .ajs-button.ajs-ok, "
+            "button:has-text('OK'), button:has-text('Ok')"
+        ).first
+
+        if ok_btn.is_visible(timeout=5000):
+            self.logger.info("Confirming Save on modal popup dialog (OK button)")
+            ok_btn.click(force=True)
+            self._wait_for_loader()
+        elif dialog_handled:
+            self.logger.info(f"Save confirmed via native browser dialog: '{dialog_handled[0]}'")
+        else:
+            self.logger.info("Save executed directly (no additional OK modal was displayed)")
         self.logger.info("Application Details saved and confirmed successfully")

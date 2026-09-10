@@ -201,7 +201,9 @@ class KendoDropdown:
         loc.click()
         self.page.wait_for_timeout(200)
 
-        items = self.page.locator(".k-animation-container:visible .k-list-container li.k-item")
+        items = self.page.locator(
+            ".k-animation-container:visible li, .k-list-container:visible li, ul.k-list:visible li, [role='option']:visible, .k-item:visible"
+        )
         expect(items.first).to_be_visible(timeout=timeout_ms)
         count = items.count()
 

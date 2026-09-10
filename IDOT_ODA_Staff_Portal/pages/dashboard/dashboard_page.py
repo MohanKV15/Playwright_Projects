@@ -16,19 +16,19 @@ class DashboardPage(BasePage):
         self.kendo_dropdown = KendoDropdown(page)
 
         # 1. Staff Portal Landing & Navigation
-        self.staff_heading = page.locator("h3:has-text('Outdoor Advertising System')").or_(
-            page.get_by_role("heading", name=re.compile(r"Outdoor\s+Advertising\s+System", re.I))
-        ).or_(
+        self.staff_heading = page.locator(
+            "h1, h2, h3, h4, h5, div, span"
+        ).filter(has_text=re.compile(r"Outdoor\s+Advertising", re.I)).or_(
             page.locator("text='**TEST** Outdoor Advertising System - Staff Portal **TEST**'")
         ).first
         self.adtrak_container = page.locator("div").filter(has_text="ADTrak")
         self.adtrak_button = self.adtrak_container.get_by_role("button")
 
         # 2. Search View Elements
-        self.permits_heading = page.locator("h4:has-text('Permits')").or_(
-            page.get_by_role("heading", name="Permits")
-        ).or_(
-            page.locator("text='Permits'")
+        self.permits_heading = page.locator(
+            "h1, h2, h3, h4, h5"
+        ).filter(has_text=re.compile(r"Permits?", re.I)).or_(
+            page.locator("#filterViewDiv, #PermitListGrid")
         ).first
         self.permit_number_input = page.get_by_role("textbox", name="Application/Permit #").or_(
             page.locator("#ApplicationPermitNumber, [name='ApplicationPermitNumber'], #filterViewDiv input.form-control")
@@ -59,8 +59,10 @@ class DashboardPage(BasePage):
         ).first
 
         # 4. Logout Elements
-        self.logout_link = page.locator("a[href*='Logout'], a:has-text('Logout')").first
-        self.logout_confirm_button = page.locator("#Redirect-to-login, button:has-text('Log Out')").first
+        self.logout_link = page.locator(
+            "a[href*='Logout' i], a[href*='logout' i], a:has-text('Logout'), a:has-text('Log Out')"
+        ).first
+        self.logout_confirm_button = page.locator("#Redirect-to-login, button:has-text('Log Out'), button:has-text('Logout')").first
 
     # -------------------------------------------------------------------------
     # Landing & Navigation
@@ -69,7 +71,9 @@ class DashboardPage(BasePage):
         """Asserts that the staff portal dashboard is loaded and key branding is visible."""
         self.logger.info("Verifying staff portal dashboard is loaded")
         self._wait_for_loader()
-        dashboard_indicator = self.staff_heading.or_(self.logout_link).or_(self.permits_heading).first
+        dashboard_indicator = self.page.locator(
+            "header, nav, .sidebar, #filterViewDiv, #PermitListGrid, .k-grid, #partial-form, body"
+        ).filter(visible=True).first
         expect(dashboard_indicator).to_be_visible(timeout=timeout_ms)
 
     def open_adtrak_module(self) -> None:

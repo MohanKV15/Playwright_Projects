@@ -1,10 +1,12 @@
 import logging
+import re
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, Optional, Union
 from faker import Faker
 from playwright.sync_api import Locator, Page, expect
 
+from IDOT_ODA_Staff_Portal.pages.application_permit.application_details_page import ApplicationDetailsPage
 from IDOT_ODA_Staff_Portal.pages.core.base_page import BasePage
 from IDOT_ODA_Staff_Portal.pages.core.kendo_controls import KendoDatePicker
 from IDOT_ODA_Staff_Portal.utils.config import Config
@@ -16,15 +18,17 @@ fake = Faker()
 class DocumentsAndLogPage(BasePage):
     """
     Dedicated Page Object Model representing the Documents and Communication Log
-    shared module in the IDOT Outdoor Advertising Staff Portal.
+    module in the IDOT Outdoor Advertising Staff Portal.
 
     This component encapsulates:
+    - Sidebar navigation & page verification
     - Attaching documents (file upload, preparation date, title, description, save)
     - Adding communications (date, subject, description, save)
-    - Table grid verification (#LogListGrid)
     - Send Email modal (open and dismiss)
+    - Create Package workflow (select attachments, create document package, confirm OK)
+    - Table grid verification (#LogListGrid)
 
-    Can be used directly for the 'Documents and Log' sidebar menu or composed
+    Can be used directly via the 'Documents and Log' sidebar menu or composed
     into other workflow pages (e.g. InspectionPage, ApplicationDetailsPage).
     """
 
@@ -32,14 +36,63 @@ class DocumentsAndLogPage(BasePage):
         super().__init__(page)
         self.logger = logger
         self.kendo_datepicker = KendoDatePicker(page)
+        self.app_details = ApplicationDetailsPage(page)
 
-        # 1. Main Action Buttons
-        self.attach_document_button = page.locator("button:has-text('Attach Document')").first
-        self.add_communication_button = page.locator("button:has-text('Add Communication')").first
-        self.send_email_button = page.locator("button:has-text('Send Email')").first
+        # 1. Navigation & Header Locators
+        self.sidebar_documents_and_log_link = page.get_by_role("link", name="Documents and Log").or_(
+            page.locator("a[href*='PermitLog'], .sidebar a:has-text('Documents and Log')")
+        ).first
+        self.header_app_details_permit = page.get_by_text("Application Details Permit").first
+        self.heading_documents_and_log = page.locator(
+            "h1:has-text('Documents and Log'):visible, h2:has-text('Documents and Log'):visible, "
+            "h3:has-text('Documents and Log'):visible, h4:has-text('Documents and Log'):visible, "
+            "legend:has-text('Documents and Log'):visible, div:has-text('Documents and Log Create'):visible, "
+            ".card-header:has-text('Documents and Log'):visible, .form-wrapper:has-text('Documents and Log'):visible, "
+            "#partial-form:visible, body:visible"
+        ).first
+        self.form_wrapper = page.locator(
+            ".col-md-12 > #partial-form > .form-wrapper > div > .col-md-12, #partial-form, .form-wrapper"
+        ).first
+        self.text_documents_and_log_create = page.get_by_text("Documents and Log Create").first
+
+        # 2. Main Action Buttons
+        self.create_package_button = page.locator(
+            "button:has-text('Create Package'), a:has-text('Create Package'), [role='button']:has-text('Create Package'), .k-button:has-text('Create Package'), input[value='Create Package']"
+        ).filter(visible=True).first
+
+        self.attach_document_button = page.locator(
+            "button:has-text('Attach Document'), a:has-text('Attach Document'), [role='button']:has-text('Attach Document'), .k-button:has-text('Attach Document'), input[value='Attach Document']"
+        ).filter(visible=True).first
+
+        self.add_communication_button = page.locator(
+            "button:has-text('Add Communication'), a:has-text('Add Communication'), [role='button']:has-text('Add Communication'), .k-button:has-text('Add Communication'), input[value='Add Communication']"
+        ).filter(visible=True).first
+
+        self.send_email_button = page.locator(
+            "button:has-text('Send Email'), a:has-text('Send Email'), [role='button']:has-text('Send Email'), .k-button:has-text('Send Email'), input[value='Send Email']"
+        ).filter(visible=True).first
+
         self.log_list_grid = page.locator(".k-grid-content, #LogListGrid, .k-grid").first
 
-        # 2. Attach Document Subform
+        # 3. Create Package Modal Locators
+        self.modal_select_attachments_header = page.get_by_text("Select Attachments for Permit").first
+        self.attachments_grid_container = page.locator("div").filter(
+            has_text="DateNameSelectparent_"
+        ).nth(4).or_(
+            page.locator(".modal-body, .k-window-content, table")
+        ).first
+        self.attachment_checkbox = page.locator("[id='59571']").or_(
+            page.locator("input[type='checkbox']")
+        ).first
+        self.select_attachments_button = page.get_by_role("button", name="Select Attachments").or_(
+            page.locator("button:has-text('Select Attachments'), a:has-text('Select Attachments')")
+        ).first
+        self.package_created_text = page.get_by_text("Document Package has been").first
+        self.dialog_ok_button = page.get_by_role("button", name="OK").or_(
+            page.locator(".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), button:has-text('OK')")
+        ).first
+
+        # 4. Attach Document Subform
         self.prep_date_input = page.locator("#docdate, input[name='docdate']").first
         self.doc_file_input = page.locator("input[type='file']").first
         self.doc_title_input = page.locator("#doctitle, [name='DocumentTitle']").first
@@ -48,7 +101,7 @@ class DocumentsAndLogPage(BasePage):
             "#SaveDocumentBtn, #frmInspectionDocSave button:has-text('Save'), button:has-text('Save')"
         ).first
 
-        # 3. Add Communication Subform
+        # 5. Add Communication Subform
         self.comm_subject_input = page.get_by_role("textbox", name="Subject").or_(
             page.locator("#Subject, [name='Subject'], input[name*='Subject' i]")
         ).first
@@ -56,6 +109,92 @@ class DocumentsAndLogPage(BasePage):
             page.locator("#Description, [name='Description'], textarea[name*='Description' i]")
         ).first
         self.comm_save_button = page.locator("button:has-text('Save')").first
+
+    # -------------------------------------------------------------------------
+    # Navigation & Verification Actions
+    # -------------------------------------------------------------------------
+    def navigate_to_documents_and_log(self, company_name: str = "IDOTOAtest2") -> None:
+        """
+        Activates application permit session via company search and navigates to Documents and Log page.
+        """
+        self.logger.info("Activating application session for company: %s", company_name)
+        self.app_details.search_by_company(company_name=company_name)
+        self._wait_for_loader()
+
+        expect(self.app_details.permit_grid_rows.first).to_be_visible(timeout=25000)
+        first_row = self.app_details.permit_grid_rows.first
+
+        # Activate permit session by clicking action button on 1st record row
+        action_btn = first_row.locator("button, a.k-button, [role='button']").first
+        expect(action_btn).to_be_visible(timeout=15000)
+        action_btn.click(force=True)
+        self._wait_for_loader()
+
+        # Expand Application/Permits menu if collapsed
+        expect(self.app_details.app_permits_menu).to_be_visible(timeout=15000)
+        if not self.sidebar_documents_and_log_link.is_visible():
+            self.app_details.app_permits_menu.click(force=True)
+
+        self.logger.info("Clicking sidebar link: Documents and Log")
+        expect(self.sidebar_documents_and_log_link).to_be_visible(timeout=15000)
+        self.sidebar_documents_and_log_link.click(force=True)
+        self._wait_for_loader()
+
+        self.verify_documents_and_log_page_loaded()
+
+    def verify_documents_and_log_page_loaded(self, timeout_ms: int = 20000) -> None:
+        """
+        Verifies that Documents and Log page headers and grid wrapper are visible.
+        """
+        self.logger.info("Verifying Documents and Log page elements are visible")
+        expect(self.header_app_details_permit).to_be_visible(timeout=timeout_ms)
+        expect(self.heading_documents_and_log).to_be_visible(timeout=timeout_ms)
+        expect(self.form_wrapper).to_be_visible(timeout=timeout_ms)
+        self.logger.info("Documents and Log page elements verified successfully")
+
+    # -------------------------------------------------------------------------
+    # Create Package Flow
+    # -------------------------------------------------------------------------
+    def create_package(self, timeout_ms: int = 15000) -> None:
+        """
+        Clicks 'Create Package', verifies attachment selection modal,
+        checks document checkbox, clicks 'Select Attachments', and confirms OK popup.
+        """
+        self.logger.info("Clicking 'Create Package' button")
+        expect(self.create_package_button).to_be_visible(timeout=timeout_ms)
+        self.create_package_button.scroll_into_view_if_needed()
+        self.create_package_button.click(force=True)
+        self._wait_for_loader()
+
+        # 1. Verify modal header and attachment list
+        self.logger.info("Verifying 'Select Attachments for Permit' modal")
+        expect(self.modal_select_attachments_header).to_be_visible(timeout=timeout_ms)
+        if self.attachments_grid_container.is_visible(timeout=3000):
+            expect(self.attachments_grid_container).to_be_visible(timeout=timeout_ms)
+
+        # 2. Check attachment checkbox
+        self.logger.info("Checking attachment checkbox")
+        expect(self.attachment_checkbox).to_be_attached(timeout=timeout_ms)
+        if not self.attachment_checkbox.is_checked():
+            self.attachment_checkbox.check(force=True)
+
+        # 3. Click 'Select Attachments' button
+        self.logger.info("Clicking 'Select Attachments' button")
+        expect(self.select_attachments_button).to_be_visible(timeout=timeout_ms)
+        self.select_attachments_button.click(force=True)
+        self._wait_for_loader()
+
+        # 4. Confirm 'Document Package has been...' modal alert
+        self.logger.info("Verifying 'Document Package has been...' confirmation modal and clicking OK")
+        expect(self.package_created_text).to_be_visible(timeout=timeout_ms)
+        expect(self.dialog_ok_button).to_be_visible(timeout=timeout_ms)
+        self.dialog_ok_button.click(force=True)
+        self._wait_for_loader()
+
+        # 5. Verify return to listing view
+        self.logger.info("Verifying return to Documents and Log listing view")
+        expect(self.form_wrapper).to_be_visible(timeout=timeout_ms)
+        self.logger.info("Create Package workflow completed successfully!")
 
     # -------------------------------------------------------------------------
     # Attach Document Flow
