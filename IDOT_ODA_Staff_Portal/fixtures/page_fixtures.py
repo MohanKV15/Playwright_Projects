@@ -28,7 +28,14 @@ from IDOT_ODA_Staff_Portal.pages.application_permit import (
     GenerateFormsPage,
     StatusLogPage,
 )
-from IDOT_ODA_Staff_Portal.pages.junkyards.junkyard_add_new_applications_page import JunkyardAddNewApplicationsPage
+from IDOT_ODA_Staff_Portal.pages.junkyards import (
+    JunkyardAddNewApplicationsPage,
+    JunkyardDetailsPage,
+    JunkyardInspectionPage,
+    JunkyardCustomerActionItemsPage,
+    JunkyardReviewPage,
+    JunkyardPermitCompletionPage,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -273,6 +280,71 @@ def junkyard_add_new_applications_page(page: Page) -> JunkyardAddNewApplications
 def authenticated_junkyard_add_new_applications(authenticated_dashboard: DashboardPage) -> JunkyardAddNewApplicationsPage:
     """Provides an authenticated JunkyardAddNewApplicationsPage positioned on the staff portal."""
     return JunkyardAddNewApplicationsPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_details_page(page: Page) -> JunkyardDetailsPage:
+    """Returns an initialized JunkyardDetailsPage instance."""
+    return JunkyardDetailsPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_details(authenticated_dashboard: DashboardPage) -> JunkyardDetailsPage:
+    """Provides an authenticated JunkyardDetailsPage positioned on the staff portal."""
+    return JunkyardDetailsPage(authenticated_dashboard.page)
+
+
+
+@pytest.fixture(scope="function")
+def junkyard_inspection_page(page: Page) -> JunkyardInspectionPage:
+    """Returns an initialized JunkyardInspectionPage instance."""
+    return JunkyardInspectionPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_inspection(authenticated_dashboard: DashboardPage) -> JunkyardInspectionPage:
+    """Provides an authenticated JunkyardInspectionPage positioned on the staff portal."""
+    return JunkyardInspectionPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_customer_action_items_page(page: Page) -> JunkyardCustomerActionItemsPage:
+    """Returns an initialized JunkyardCustomerActionItemsPage instance."""
+    return JunkyardCustomerActionItemsPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_customer_action_items(authenticated_dashboard: DashboardPage) -> JunkyardCustomerActionItemsPage:
+    """Provides an authenticated JunkyardCustomerActionItemsPage positioned on the staff portal."""
+    return JunkyardCustomerActionItemsPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_review_page(page: Page) -> JunkyardReviewPage:
+    """Returns an initialized JunkyardReviewPage instance."""
+    return JunkyardReviewPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_review(authenticated_dashboard: DashboardPage) -> JunkyardReviewPage:
+    """Provides an authenticated JunkyardReviewPage positioned on the staff portal."""
+    return JunkyardReviewPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_permit_completion_page(page: Page) -> JunkyardPermitCompletionPage:
+    """Returns an initialized JunkyardPermitCompletionPage instance."""
+    return JunkyardPermitCompletionPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_permit_completion(authenticated_dashboard: DashboardPage) -> JunkyardPermitCompletionPage:
+    """Provides an authenticated JunkyardPermitCompletionPage positioned on the staff portal."""
+    return JunkyardPermitCompletionPage(authenticated_dashboard.page)
+
+
+
+
 
 
 

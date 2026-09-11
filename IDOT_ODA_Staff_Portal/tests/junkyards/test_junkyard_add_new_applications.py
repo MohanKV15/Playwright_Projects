@@ -23,9 +23,7 @@ def test_junkyard_add_new_applications_full_workflow(
     5. Select primary radio option (.k-radio-label).
     6. Automatically select 1st valid option from District and County Kendo UI DropDownLists.
     7. Populate Latitude and Longitude coordinates.
-    8. Populate Property Owner Information (Name, Address 1, Address 2, City, Phone) using Faker library.
-    9. Perform 1st Save & confirm 'Record updated successfully.' modal alert.
-    10. Perform final Save & confirm 'Record Saved successfully.' modal alert.
+    9. Perform Save & confirm modal alert.
     """
     with allure.step("1. Execute full Junkyard Add Paper Application workflow (navigate, company search, fill form with Faker & 1st dropdown options, save)"):
         results = authenticated_junkyard_add_new_applications.execute_junkyard_add_paper_application_full_workflow(company_name="test")

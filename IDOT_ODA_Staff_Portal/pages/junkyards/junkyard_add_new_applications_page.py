@@ -1,6 +1,6 @@
 import logging
 import re
-from typing import Dict, Optional, Union
+from typing import Dict, Optional
 from faker import Faker
 from playwright.sync_api import Locator, Page, expect
 
@@ -23,11 +23,10 @@ class JunkyardAddNewApplicationsPage(BasePage):
     - Verify form section headers (Applicant Permit Number, Yard Information, Location Information, Property Owner Information)
     - Click 'Select Company', search company name ('test' / 'IDOTOAtest2'), select row, click 'OK'
     - Click primary radio option (.k-radio-label)
-    - Select 1st valid option from District and County Kendo UI DropDownLists
+    - Select District ("District 1") and County ("Cook") dropdown options
     - Fill Latitude and Longitude coordinates
     - Fill Property Owner Information (Name, Address 1, Address 2, City, Phone) using Faker
-    - Click 1st 'Save', verify 'Record updated successfully.' confirmation modal, click 'OK'
-    - Click final 'Save', verify 'Record Saved successfully.' confirmation modal, click 'OK'
+    - Click 'Save', verify confirmation modal, click 'OK'
     """
 
     def __init__(self, page: Page):
@@ -53,7 +52,9 @@ class JunkyardAddNewApplicationsPage(BasePage):
         ).filter(visible=True).first
 
         # 2. Form Section Header Locators
-        self.text_applicant_permit_no = page.get_by_text("Applicant Permit Number").first
+        self.text_applicant_permit_no = page.get_by_text("Applicant Permit Number").or_(
+            page.locator("label:has-text('Applicant Permit Number'), legend:has-text('Applicant Permit Number'), div:has-text('Applicant Permit Number')")
+        ).first
         self.text_yard_info = page.get_by_text("Yard Information").or_(page.get_by_text("Yard Type")).first
         self.text_location_info = page.get_by_text("Location Information").first
         self.text_industrial_activity = page.get_by_text("industrial activity").or_(page.get_by_text("1,000 feet")).first
@@ -75,12 +76,6 @@ class JunkyardAddNewApplicationsPage(BasePage):
 
         # 4. Form Controls Locators
         self.radio_label_first = page.locator(".k-radio-label, input[type='radio'] + label, label.k-radio-label").first
-        self.district_dropdown_trigger = page.locator("#partial-form span.k-input").first.or_(
-            page.get_by_text("-- Select --").first
-        )
-        self.county_dropdown_trigger = page.locator("#partial-form span.k-input").nth(1).or_(
-            page.get_by_text("-- Select --").nth(2)
-        )
 
         self.latitude_input = page.get_by_label("Latitude *").or_(
             page.locator("#Yard_Latitude, [name='Yard_Latitude'], input[name*='Latitude' i]")
@@ -104,15 +99,8 @@ class JunkyardAddNewApplicationsPage(BasePage):
         self.phone_input = page.locator("#PropOwnerPhone, [name='PropOwnerPhone'], [name='Prop_Owner_Phone'], input[name*='Phone' i]").first
 
         # 5. Save Buttons & Notification Dialog Locators
-        self.save_button = page.locator("#btnSubmit, button:has-text('Save'), input[value='Save']").first
-        self.save_exact_button = page.get_by_text("Save", exact=True).or_(
-            page.locator("button:has-text('Save')")
-        ).first
-        self.record_updated_text = page.get_by_text("Record updated successfully.").or_(
-            page.get_by_text("Record updated")
-        ).first
-        self.record_saved_text = page.get_by_text("Record Saved successfully.").or_(
-            page.get_by_text("Record Saved")
+        self.save_button = page.get_by_text("Save", exact=True).or_(
+            page.locator("#btnSubmit, button:has-text('Save'), input[value='Save']")
         ).first
         self.dialog_ok_button = page.get_by_role("button", name="OK").or_(
             page.locator(".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), button:has-text('OK')")
@@ -157,7 +145,8 @@ class JunkyardAddNewApplicationsPage(BasePage):
         """
         self.logger.info("Clicking 'Add Paper Application' button")
         expect(self.add_paper_app_button).to_be_visible(timeout=timeout_ms)
-        self.add_paper_app_button.click(force=True)
+        self.add_paper_app_button.click()
+        self.page.wait_for_timeout(500)
         self._wait_for_loader()
 
         self.logger.info("Verifying Junkyard application form section headers")
@@ -211,26 +200,6 @@ class JunkyardAddNewApplicationsPage(BasePage):
         self._wait_for_loader()
         return company_name
 
-    def select_first_dropdown_option(self, trigger_locator: Locator, preferred_option: Optional[str] = None) -> str:
-        """
-        Selects option from a Kendo DropDownList:
-        If preferred_option is provided, attempts selection; otherwise automatically selects the 1st valid option in the list.
-        """
-        self.logger.info("Selecting option from Kendo dropdown (preferred: '%s')", preferred_option)
-        selected = ""
-        if preferred_option:
-            try:
-                if self.kendo_dropdown.select_by_locator(trigger_locator, preferred_option):
-                    self._wait_for_loader()
-                    return preferred_option
-            except Exception as e:
-                self.logger.warning("Preferred option selection note: %s", e)
-
-        # Automatically choose 1st valid option in the dropdown list
-        selected = self.kendo_dropdown.select_first_valid_option(trigger_locator)
-        self._wait_for_loader()
-        return selected or (preferred_option or "")
-
     def fill_and_submit_junkyard_application(
         self,
         company_name: str = "test",
@@ -249,11 +218,10 @@ class JunkyardAddNewApplicationsPage(BasePage):
         Fills out the Junkyard Add Paper Application form:
         - Searches & selects company via modal
         - Selects 1st radio button option (.k-radio-label)
-        - Selects 1st valid option from District and County dropdowns (or specified district/county)
+        - Selects District and County dropdown options
         - Fills Latitude and Longitude
         - Fills Property Owner Information using Faker library
-        - Performs 1st Save & confirms 'Record updated successfully.'
-        - Performs final Save & confirms 'Record Saved successfully.'
+        - Performs Save & confirms confirmation modal OK button
         Returns dictionary of all submitted values.
         """
         # Generate dynamic test data via Faker library for owner info if not specified
@@ -274,36 +242,27 @@ class JunkyardAddNewApplicationsPage(BasePage):
             self.radio_label_first.click(force=True)
             self.page.wait_for_timeout(300)
 
-        # 3. Select 1st Dropdown Options for District and County
+        # 3. Select Dropdown Options for District and County
         self.logger.info("Selecting District dropdown option")
-        dist_trigger = self.page.get_by_text("-- Select --").nth(2).or_(
-            self.page.locator(".k-dropdown span.k-input").nth(2)
-        )
         sel_district = district or "District 1"
-        if dist_trigger.is_visible(timeout=5000):
-            dist_trigger.click(force=True)
+        if self.page.get_by_text("-- Select --").nth(2).is_visible(timeout=5000):
+            self.page.get_by_text("-- Select --").nth(2).click(force=True)
             self.page.wait_for_timeout(300)
-            dist_opt = self.page.get_by_role("option", name=sel_district).or_(
-                self.page.locator("[role='option']:visible, .k-animation-container:visible li").first
-            )
-            if dist_opt.is_visible(timeout=3000):
-                dist_opt.click(force=True)
-            self._wait_for_loader()
+            district_opt = self.page.get_by_role("option", name=sel_district).first
+            if district_opt.is_visible(timeout=3000):
+                district_opt.click(force=True)
+                self.page.wait_for_timeout(300)
 
         self.logger.info("Selecting County dropdown option")
-        county_trigger = self.page.get_by_text("-- Select --").nth(2).or_(
-            self.page.locator(".k-dropdown span.k-input").nth(2)
-        )
         sel_county = county or "Cook"
-        if county_trigger.is_visible(timeout=5000):
-            county_trigger.click(force=True)
+        if self.page.get_by_text("-- Select --").nth(2).is_visible(timeout=3000):
+            self.page.get_by_text("-- Select --").nth(2).click(force=True)
             self.page.wait_for_timeout(300)
-            county_opt = self.page.get_by_role("option", name=sel_county).or_(
-                self.page.locator("[role='option']:visible, .k-animation-container:visible li").first
-            )
+            county_opt = self.page.get_by_role("option", name=sel_county).first
             if county_opt.is_visible(timeout=3000):
                 county_opt.click(force=True)
-            self._wait_for_loader()
+                self.page.wait_for_timeout(300)
+
 
         # 4. Fill Latitude & Longitude
         self.logger.info(f"Filling coordinates: Latitude='{f_lat}', Longitude='{f_lon}'")
@@ -344,32 +303,19 @@ class JunkyardAddNewApplicationsPage(BasePage):
         self.phone_input.clear()
         self.phone_input.fill(f_phone)
 
-        # 6. Verify no blocking mandatory validation errors before clicking Save
+        # 6. Check for any validation error text before saving
         validation_errors = self.page.locator(".field-validation-error:visible, span.text-danger:visible").all_inner_texts()
         if validation_errors:
             self.logger.warning("Detected form validation messages before save: %s", validation_errors)
 
-        # 6. First Save - Record updated successfully / confirmation modal
-        self.logger.info("Executing 1st Save action")
-        expect(self.save_exact_button).to_be_visible(timeout=timeout_ms)
-        self.save_exact_button.click(force=True)
-        self._wait_for_loader()
-        self.page.wait_for_timeout(600)
-
-        self.logger.info("Verifying 1st Save confirmation popup and clicking OK")
-        if self.dialog_ok_button.is_visible(timeout=5000):
-            self.dialog_ok_button.click(force=True)
-            self._wait_for_loader()
-
-        # 7. Final Save - Record Saved successfully / confirmation modal
-        self.logger.info("Executing final Save action")
-        expect(self.text_applicant_permit_no).to_be_visible(timeout=timeout_ms)
+        # 7. Save Form Action
+        self.logger.info("Executing Save action")
         expect(self.save_button).to_be_visible(timeout=timeout_ms)
         self.save_button.click(force=True)
         self._wait_for_loader()
         self.page.wait_for_timeout(600)
 
-        self.logger.info("Verifying final Save confirmation popup and clicking OK")
+        self.logger.info("Verifying Save confirmation popup and clicking OK")
         if self.dialog_ok_button.is_visible(timeout=5000):
             self.dialog_ok_button.click(force=True)
             self._wait_for_loader()
@@ -393,7 +339,7 @@ class JunkyardAddNewApplicationsPage(BasePage):
         1. Navigates to Junkyard/Permit Search page
         2. Clicks 'Add Paper Application'
         3. Fills company, dropdowns, coordinates, and Faker owner information
-        4. Saves form, confirms OK dialogs, and completes Junkyard application creation
+        4. Saves form and confirms OK dialog
         """
         self.navigate_to_junkyard_search()
         self.click_add_paper_application()
