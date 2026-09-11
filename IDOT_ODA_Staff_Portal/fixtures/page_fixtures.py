@@ -28,6 +28,7 @@ from IDOT_ODA_Staff_Portal.pages.application_permit import (
     GenerateFormsPage,
     StatusLogPage,
 )
+from IDOT_ODA_Staff_Portal.pages.junkyards.junkyard_add_new_applications_page import JunkyardAddNewApplicationsPage
 
 
 # ---------------------------------------------------------------------------
@@ -260,5 +261,18 @@ def payment_listing_page(page: Page) -> PaymentListingPage:
 def authenticated_payment_listing(authenticated_dashboard: DashboardPage) -> PaymentListingPage:
     """Provides an authenticated PaymentListingPage positioned on the staff portal."""
     return PaymentListingPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_add_new_applications_page(page: Page) -> JunkyardAddNewApplicationsPage:
+    """Returns an initialized JunkyardAddNewApplicationsPage instance."""
+    return JunkyardAddNewApplicationsPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_add_new_applications(authenticated_dashboard: DashboardPage) -> JunkyardAddNewApplicationsPage:
+    """Provides an authenticated JunkyardAddNewApplicationsPage positioned on the staff portal."""
+    return JunkyardAddNewApplicationsPage(authenticated_dashboard.page)
+
 
 

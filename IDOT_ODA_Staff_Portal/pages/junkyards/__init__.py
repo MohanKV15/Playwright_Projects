@@ -1,0 +1,3 @@
+from IDOT_ODA_Staff_Portal.pages.junkyards.junkyard_add_new_applications_page import JunkyardAddNewApplicationsPage
+
+__all__ = ["JunkyardAddNewApplicationsPage"]

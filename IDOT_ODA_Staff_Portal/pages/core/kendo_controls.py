@@ -202,7 +202,7 @@ class KendoDropdown:
         self.page.wait_for_timeout(200)
 
         items = self.page.locator(
-            ".k-animation-container:visible li, .k-list-container:visible li, ul.k-list:visible li, [role='option']:visible, .k-item:visible"
+            ".k-animation-container:visible li, .k-list-container:visible li, ul.k-list:visible li, [role='option']:visible"
         )
         expect(items.first).to_be_visible(timeout=timeout_ms)
         count = items.count()
@@ -214,7 +214,7 @@ class KendoDropdown:
             # Skip placeholder options (e.g. '--Select--', '-- Select Option--')
             if text and not text.startswith("--") and not text.lower().startswith("select"):
                 self.logger.info(f"Selected 1st valid option: '{text}'")
-                item.click()
+                item.click(force=True)
                 selected_text = text
                 break
 
@@ -222,7 +222,7 @@ class KendoDropdown:
         if not selected_text and count > 0:
             fallback_item = items.nth(1 if count > 1 else 0)
             selected_text = fallback_item.inner_text().strip()
-            fallback_item.click()
+            fallback_item.click(force=True)
 
         # Wait for popup to dismiss naturally; if still open, send Escape
         try:
