@@ -339,70 +339,29 @@ class AddCompanyPage(BasePage):
 
         # Select Applicant
         self.logger.info("Selecting Applicant from dropdown (Target: %s)", applicant_name)
-        applicant_input_span = self.page.locator("#divDealerDetailsAddNewName span.k-input").first
-        applicant_ddl = self.page.locator("#divDealerDetailsAddNewName .k-dropdown, #divDealerDetailsAddNewName .k-dropdown-wrap").first
+        select_text_loc = self.page.locator("#divDealerDetailsAddNewName").get_by_text("-- Select Applicant --").or_(
+            self.page.locator("#divDealerDetailsAddNewName .k-dropdown, #divDealerDetailsAddNewName .k-dropdown-wrap")
+        ).first
 
-        current_val = applicant_input_span.inner_text().strip() if applicant_input_span.is_visible() else ""
-        if not current_val or current_val.startswith("-- Select"):
-            # Step 1: Open dropdown using exact codegen text click or wrapper click
-            self.logger.info("Opening Applicant dropdown")
-            select_text_loc = self.page.locator("#divDealerDetailsAddNewName").get_by_text("-- Select Applicant --").first
-            if select_text_loc.is_visible(timeout=1500):
-                select_text_loc.click()
-            elif applicant_ddl.is_visible(timeout=1500):
-                applicant_ddl.click()
-            else:
-                self.page.locator("#divDealerDetailsAddNewName .k-select").first.click()
+        if select_text_loc.is_visible(timeout=2000):
+            select_text_loc.click()
+            self.page.wait_for_timeout(300)
 
-            self.page.wait_for_timeout(400)
+        first_name = applicant_name.split()[0] if applicant_name else ""
+        opt = self.page.get_by_role("option", name=re.compile(first_name, re.I)).or_(
+            self.page.get_by_role("option").filter(has_not_text="-- Select")
+        ).first
 
-            # Step 2: Select option matching applicant name or any non-placeholder option
-            option_selected = False
-            if applicant_name:
-                first_name = applicant_name.split()[0]
-                opt = self.page.get_by_role("option", name=re.compile(first_name, re.I)).first
-                if opt.is_visible(timeout=1500):
-                    opt.click()
-                    option_selected = True
-                    self.logger.info("Selected applicant option by name: %s", first_name)
-
-            if not option_selected:
-                non_placeholder_opts = self.page.get_by_role("option").filter(has_not_text="-- Select")
-                if non_placeholder_opts.count() > 0:
-                    non_placeholder_opts.first.click()
-                    option_selected = True
-                    self.logger.info("Selected first available option from dropdown list")
-
-            if not option_selected:
-                # Keyboard interaction fallback
-                self.logger.info("Using ArrowDown + Enter keyboard fallback")
-                applicant_ddl.focus()
-                self.page.keyboard.press("ArrowDown")
-                self.page.keyboard.press("Enter")
-                self.page.wait_for_timeout(300)
-
-            # Step 3: Kendo UI JavaScript API Fallback
-            check_val = applicant_input_span.inner_text().strip() if applicant_input_span.is_visible() else ""
-            if not check_val or check_val.startswith("-- Select"):
-                self.logger.info("Executing Kendo DropDownList jQuery API fallback")
-                self.page.evaluate("""
-                    () => {
-                        const ddlElem = $("#divDealerDetailsAddNewName").find("[data-role='dropdownlist'], select").first();
-                        if (ddlElem.length) {
-                            const ddl = ddlElem.data("kendoDropDownList");
-                            if (ddl) {
-                                ddl.select(1);
-                                ddl.trigger("change");
-                                return ddl.text();
-                            }
-                        }
-                        return false;
-                    }
-                """)
-                self.page.wait_for_timeout(300)
-
-        final_text = applicant_input_span.inner_text().strip() if applicant_input_span.is_visible() else ""
-        self.logger.info("Final Applicant dropdown text: '%s'", final_text)
+        if opt.is_visible(timeout=1500):
+            opt.click()
+        else:
+            self.page.evaluate("""
+                () => {
+                    const ddl = $("#divDealerDetailsAddNewName").find("[data-role='dropdownlist'], select").first().data("kendoDropDownList");
+                    if (ddl) { ddl.select(1); ddl.trigger("change"); }
+                }
+            """)
+        self.page.wait_for_timeout(300)
 
         # Click Add Dealer Name button (#btnAddDealerName)
         expect(self.add_dealer_name_button).to_be_attached(timeout=timeout_ms)

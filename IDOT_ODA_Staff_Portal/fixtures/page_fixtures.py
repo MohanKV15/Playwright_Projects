@@ -39,12 +39,24 @@ from IDOT_ODA_Staff_Portal.pages.junkyards import (
     JunkyardStatusLogPage,
     JunkyardDocumentsAndLogPage,
 )
-from IDOT_ODA_Staff_Portal.pages.Company import AddCompanyPage
+from IDOT_ODA_Staff_Portal.pages.Company import AddCompanyPage, CompanyListingPage
 
 
 # ---------------------------------------------------------------------------
 # Page Object Model Fixtures
 # ---------------------------------------------------------------------------
+@pytest.fixture(scope="function")
+def company_listing_page(page: Page) -> CompanyListingPage:
+    """Returns an initialized CompanyListingPage instance."""
+    return CompanyListingPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_company_listing(authenticated_page: Page) -> CompanyListingPage:
+    """Provides an authenticated CompanyListingPage positioned on the staff portal."""
+    return CompanyListingPage(authenticated_page)
+
+
 @pytest.fixture(scope="function")
 def add_company_page(page: Page) -> AddCompanyPage:
     """Returns an initialized AddCompanyPage instance."""
