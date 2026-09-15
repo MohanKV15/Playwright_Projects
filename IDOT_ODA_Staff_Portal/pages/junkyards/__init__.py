@@ -4,6 +4,9 @@ from IDOT_ODA_Staff_Portal.pages.junkyards.inspection_page import JunkyardInspec
 from IDOT_ODA_Staff_Portal.pages.junkyards.customer_action_items_page import JunkyardCustomerActionItemsPage
 from IDOT_ODA_Staff_Portal.pages.junkyards.review_page import JunkyardReviewPage
 from IDOT_ODA_Staff_Portal.pages.junkyards.permit_completion_page import JunkyardPermitCompletionPage
+from IDOT_ODA_Staff_Portal.pages.junkyards.generate_forms_page import JunkyardGenerateFormsPage
+from IDOT_ODA_Staff_Portal.pages.junkyards.status_log_page import JunkyardStatusLogPage
+from IDOT_ODA_Staff_Portal.pages.junkyards.documents_and_log_page import JunkyardDocumentsAndLogPage
 
 __all__ = [
     "JunkyardAddNewApplicationsPage",
@@ -12,4 +15,10 @@ __all__ = [
     "JunkyardCustomerActionItemsPage",
     "JunkyardReviewPage",
     "JunkyardPermitCompletionPage",
+    "JunkyardGenerateFormsPage",
+    "JunkyardStatusLogPage",
+    "JunkyardDocumentsAndLogPage",
 ]
+
+
+

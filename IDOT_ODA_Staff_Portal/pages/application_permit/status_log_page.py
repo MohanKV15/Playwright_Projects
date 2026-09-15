@@ -84,8 +84,10 @@ class StatusLogPage(BasePage):
         self.dialog_ok_button = page.get_by_role("button", name="OK").or_(
             page.locator(".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), button:has-text('OK')")
         ).first
-        self.status_log_listing_text = page.get_by_text("Status Log Add Status Action").or_(
-            page.get_by_role("heading", name="Status Log")
+        self.status_log_listing_text = page.get_by_text("Status Log Add Status Action").filter(visible=True).or_(
+            page.get_by_role("heading", name="Status Log").filter(visible=True)
+        ).or_(
+            page.locator("#StatusLogGrid").filter(visible=True)
         ).first
 
     # -------------------------------------------------------------------------
@@ -170,13 +172,16 @@ class StatusLogPage(BasePage):
             self.page.wait_for_timeout(300)
 
             if preferred_text:
-                opt = self.page.get_by_role("option", name=preferred_text).or_(
-                    self.page.locator(".k-animation-container:visible li, .k-list-container:visible li, [role='option']").filter(has_text=preferred_text)
-                ).first
-                if opt.is_visible(timeout=3000):
-                    opt.click(force=True)
-                    self._wait_for_loader()
-                    return preferred_text
+                try:
+                    opt = self.page.get_by_role("option", name=preferred_text).or_(
+                        self.page.locator(".k-animation-container:visible li, .k-list-container:visible li, [role='option']").filter(has_text=preferred_text)
+                    ).first
+                    if opt.is_visible(timeout=2000):
+                        opt.click(force=True)
+                        self._wait_for_loader()
+                        return preferred_text
+                except Exception:
+                    pass
         except Exception as e:
             self.logger.warning("UI dropdown click note: %s", e)
 

@@ -35,6 +35,9 @@ from IDOT_ODA_Staff_Portal.pages.junkyards import (
     JunkyardCustomerActionItemsPage,
     JunkyardReviewPage,
     JunkyardPermitCompletionPage,
+    JunkyardGenerateFormsPage,
+    JunkyardStatusLogPage,
+    JunkyardDocumentsAndLogPage,
 )
 
 
@@ -343,8 +346,40 @@ def authenticated_junkyard_permit_completion(authenticated_dashboard: DashboardP
     return JunkyardPermitCompletionPage(authenticated_dashboard.page)
 
 
+@pytest.fixture(scope="function")
+def junkyard_generate_forms_page(page: Page) -> JunkyardGenerateFormsPage:
+    """Returns an initialized JunkyardGenerateFormsPage instance."""
+    return JunkyardGenerateFormsPage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_generate_forms(authenticated_dashboard: DashboardPage) -> JunkyardGenerateFormsPage:
+    """Provides an authenticated JunkyardGenerateFormsPage positioned on the staff portal."""
+    return JunkyardGenerateFormsPage(authenticated_dashboard.page)
 
 
 
+@pytest.fixture(scope="function")
+def junkyard_status_log_page(page: Page) -> JunkyardStatusLogPage:
+    """Returns an initialized JunkyardStatusLogPage instance."""
+    return JunkyardStatusLogPage(page)
 
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_status_log(authenticated_dashboard: DashboardPage) -> JunkyardStatusLogPage:
+    """Provides an authenticated JunkyardStatusLogPage positioned on the staff portal."""
+    return JunkyardStatusLogPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_documents_and_log_page(page: Page) -> JunkyardDocumentsAndLogPage:
+    """Returns an initialized JunkyardDocumentsAndLogPage instance."""
+    return JunkyardDocumentsAndLogPage(page)
+
+
+
+@pytest.fixture(scope="function")
+def authenticated_junkyard_documents_and_log(authenticated_dashboard: DashboardPage) -> JunkyardDocumentsAndLogPage:
+    """Provides an authenticated JunkyardDocumentsAndLogPage positioned on the staff portal."""
+    return JunkyardDocumentsAndLogPage(authenticated_dashboard.page)
 
