@@ -40,6 +40,7 @@ from IDOT_ODA_Staff_Portal.pages.junkyards import (
     JunkyardDocumentsAndLogPage,
 )
 from IDOT_ODA_Staff_Portal.pages.Company import AddCompanyPage, CompanyListingPage
+from IDOT_ODA_Staff_Portal.pages.fee_schedule import FeeSchedulePage
 
 
 # ---------------------------------------------------------------------------
@@ -406,4 +407,16 @@ def junkyard_documents_and_log_page(page: Page) -> JunkyardDocumentsAndLogPage:
 def authenticated_junkyard_documents_and_log(authenticated_dashboard: DashboardPage) -> JunkyardDocumentsAndLogPage:
     """Provides an authenticated JunkyardDocumentsAndLogPage positioned on the staff portal."""
     return JunkyardDocumentsAndLogPage(authenticated_dashboard.page)
+
+
+@pytest.fixture(scope="function")
+def fee_schedule_page(page: Page) -> FeeSchedulePage:
+    """Returns an initialized FeeSchedulePage instance."""
+    return FeeSchedulePage(page)
+
+
+@pytest.fixture(scope="function")
+def authenticated_fee_schedule(authenticated_dashboard: DashboardPage) -> FeeSchedulePage:
+    """Provides an authenticated FeeSchedulePage positioned on the staff portal."""
+    return FeeSchedulePage(authenticated_dashboard.page)
 

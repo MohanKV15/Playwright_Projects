@@ -405,3 +405,26 @@ class KendoControls:
             pass
         return False
 
+    @staticmethod
+    def dismiss_ok_dialogs(page: Page, timeout_ms: int = 2000, max_clicks: int = 3) -> int:
+        """Dismisses visible OK popups safely using KendoControls helper."""
+        dismissed = 0
+        for _ in range(max_clicks):
+            try:
+                if KendoControls.handle_kendo_alert(page, timeout_ms=timeout_ms):
+                    page.wait_for_timeout(400)
+                    dismissed += 1
+                else:
+                    ok_btn = page.locator(
+                        ".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), button:visible:has-text('OK')"
+                    ).first
+                    if ok_btn.is_visible(timeout=timeout_ms):
+                        ok_btn.click(force=True)
+                        page.wait_for_timeout(400)
+                        dismissed += 1
+                    else:
+                        break
+            except Exception:
+                break
+        return dismissed
+
