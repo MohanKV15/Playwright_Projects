@@ -39,21 +39,23 @@ class StatusLogPage(BasePage):
 
         # 1. Navigation & Context Locators
         self.app_details = ApplicationDetailsPage(page)
-        self.sidebar_status_log_link = page.get_by_role("link", name="Status Log").or_(
-            page.locator("a[href*='StatusLog'], a[href*='Status'], .sidebar a:has-text('Status Log')")
+        self.sidebar_status_log_link = page.locator(".sidebar a[href*='StatusLog'], .sidebar a:has-text('Status Log')").or_(
+            page.get_by_role("link", name="Status Log", exact=True)
         ).first
 
         # 2. Listing View Elements
         self.header_app_details_permit = page.get_by_text("Application Details Permit").first
-        self.heading_status_log = page.get_by_role("heading", name="Status Log").or_(
-            page.get_by_text("Status Log")
-        ).filter(visible=True).first
-        self.grid_content = page.locator(".k-grid-content").first
-        self.add_status_button = page.get_by_role("button", name=re.compile(r"Add\s+Status", re.I)).or_(
-            page.get_by_text(re.compile(r"Add\s+Status", re.I))
+        self.heading_status_log = page.locator(
+            "#partial-form h1, #partial-form h2, #partial-form h3, .page-header, #partial-form legend, #StatusLogGrid"
+        ).filter(has_text=re.compile(r"Status\s+Log", re.I)).or_(
+            page.locator("#StatusLogGrid")
+        ).first
+        self.grid_content = page.locator("#StatusLogGrid, #gridStatusLog, .k-grid-content").first
+        self.add_status_button = page.locator(
+            "#btnAddStatus, button:has-text('Add Status'), a:has-text('Add Status'), .k-button:has-text('Add Status')"
         ).or_(
-            page.locator("button:has-text('Add Status'), a:has-text('Add Status'), [role='button']:has-text('Add Status'), .k-button:has-text('Add Status')")
-        ).filter(visible=True).first
+            page.get_by_role("button", name=re.compile(r"Add\s+Status", re.I))
+        ).first
 
         # 3. Status Form Locators (#frmStatus)
         self.status_form_container = page.locator("#partial-form, #frmStatus").first
@@ -113,8 +115,14 @@ class StatusLogPage(BasePage):
             self.app_details.app_permits_menu.click(force=True)
 
         self.logger.info("Clicking sidebar link: Status Log")
+        try:
+            self.sidebar_status_log_link.scroll_into_view_if_needed(timeout=3000)
+        except Exception:
+            pass
+
         expect(self.sidebar_status_log_link).to_be_visible(timeout=15000)
-        self.sidebar_status_log_link.click(force=True)
+        self.sidebar_status_log_link.click()
+        self.page.wait_for_timeout(500)
         self._wait_for_loader()
 
         self.verify_status_log_page_loaded()

@@ -71,10 +71,8 @@ class DashboardPage(BasePage):
         """Asserts that the staff portal dashboard is loaded and key branding is visible."""
         self.logger.info("Verifying staff portal dashboard is loaded")
         self._wait_for_loader()
-        dashboard_indicator = self.page.locator(
-            "header, nav, .sidebar, #filterViewDiv, #PermitListGrid, .k-grid, #partial-form, body"
-        ).filter(visible=True).first
-        expect(dashboard_indicator).to_be_visible(timeout=timeout_ms)
+        indicator = self.page.locator(".sidebar, header, nav, #navigationMenu2, body").first
+        expect(indicator).to_be_visible(timeout=timeout_ms)
 
     def open_adtrak_module(self) -> None:
         """Opens ADTrak navigation module by clicking the menu button."""
