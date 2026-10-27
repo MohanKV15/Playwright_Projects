@@ -117,43 +117,6 @@ class PrimaryHighwayPage(BasePage):
             "button:has-text('OK'), a.k-button:has-text('OK'), .k-dialog-actions button, .k-window button, [role='dialog'] button, button.k-primary"
         ).filter(has_text=re.compile(r"^OK$", re.I)).first
 
-        # -------------------------------------------------------------
-        # 9. 2nd Page (Payment Gateway / Global Payments) Locators
-        # -------------------------------------------------------------
-        self.payment_gateway_heading = (
-            page.get_by_text("Make A Payment", exact=False)
-            .or_(page.get_by_text("Payment Notice", exact=False))
-            .or_(page.get_by_text("Payment Information", exact=False))
-            .first
-        )
-        self.payment_notice_text = page.get_by_text("Payment Notice", exact=False).first
-        self.payment_info_tab = page.get_by_text("Payment Information", exact=False).first
-        self.cart_info_tab = page.get_by_text("Cart Information", exact=False).first
-
-        # Credit Card Form fields (supports both standard #CC and portal #maskedCardNumber element IDs)
-        self.cc_card_number_input = page.locator(
-            "#CCCardNumber, #maskedCardNumber, #CardNumber, input[name='maskedCardNumber']"
-        ).first
-        self.cc_cvv_input = page.locator("#CCCardCVV, #CVV2, #CVV, input[name='CVV2']").first
-        self.cc_name_input = page.locator("#CCNameOnCard, #NameOnCard, input[name='NameOnCard']").first
-        self.cc_exp_month_select = page.locator(
-            "#CCExpirationMonth, #ExpirationMonth, select[name='ExpirationMonth']"
-        ).first
-        self.cc_exp_year_select = page.locator(
-            "#CCExpirationYear, #ExpirationYear, select[name='ExpirationYear']"
-        ).first
-        self.cc_zip_input = page.locator(
-            "#CardBillingPostalCode, #CCCardZip, #CCZipCode, #CCZip, input[name='CardBillingPostalCode']"
-        ).first
-        self.next_step_review_btn = page.locator(
-            "#bntNextPaymentInfo, button:has-text('Next Step: Review Payment'), button:has-text('Review Payment'), input[value*='Review Payment']"
-        ).first
-        self.submit_payment_btn = page.locator(
-            "#submitPayment, button:has-text('Submit Payment'), button:has-text('Pay'), button:has-text('Confirm'), button:has-text('Make Payment'), input[value*='Submit']"
-        ).first
-        self.return_home_btn = page.locator(
-            "button:has-text('Return Home'), a:has-text('Return Home'), text='Return Home'"
-        ).first
 
     # -----------------------------------------------------------------
     # Helper Methods
@@ -220,22 +183,7 @@ class PrimaryHighwayPage(BasePage):
         # Step 2: Erection Date (always present day via KendoDatePicker)
         erect_date = form_data.get("erection_date", "")
         if erect_date:
-            try:
-                if self.erection_date_input.is_visible(timeout=500):
-                    self.erection_date_input.fill(erect_date)
-            except Exception:
-                pass
-            self.page.evaluate(
-                f"""
-                (() => {{
-                    if (window.$) {{
-                        const dp = $('.k-datepicker input').first().data('kendoDatePicker');
-                        if (dp) dp.value('{erect_date}');
-                        $('.k-datepicker input').first().val('{erect_date}').trigger('change');
-                    }}
-                }})();
-                """
-            )
+            self.kendo_datepicker.set_first_datepicker(erect_date)
 
         # Step 3: Message Type (Static)
         self.static_message_radio.click()
@@ -325,24 +273,7 @@ class PrimaryHighwayPage(BasePage):
         self.owner_city_input.fill(form_data.get("owner_city", "Chicago"))
         self.owner_zip_input.fill(form_data.get("owner_zip", "60601"))
         phone = form_data.get("owner_phone", "999-999-9999")
-        try:
-            self.owner_phone_input.fill(phone)
-        except Exception:
-            pass
-        self.page.evaluate(
-            f"""
-            (() => {{
-                if (window.$) {{
-                    const mtb = $('#cmgenpoc_com_phone').data('kendoMaskedTextBox');
-                    if (mtb) {{
-                        mtb.value('{phone}');
-                        mtb.trigger('change');
-                    }}
-                    $('#cmgenpoc_com_phone').val('{phone}').trigger('change');
-                }}
-            }})();
-            """
-        )
+        self.kendo_masked.set_value_by_id("cmgenpoc_com_phone", phone)
         if self.owner_email_input.is_visible(timeout=500):
             self.owner_email_input.fill(form_data.get("owner_email", "owner@example.com"))
 
@@ -392,19 +323,7 @@ class PrimaryHighwayPage(BasePage):
         # Step 4: Ensure date is set to present day via KendoDatePicker
         present_day = form_data.get("signature_date", "")
         if present_day:
-            self.page.evaluate(
-                f"""
-                (() => {{
-                    if (window.$) {{
-                        $('input[name*="Date"], input[id*="Date"]').last().each(function() {{
-                            const dp = $(this).data('kendoDatePicker');
-                            if (dp) dp.value('{present_day}');
-                            $(this).val('{present_day}').trigger('change');
-                        }});
-                    }}
-                }})();
-                """
-            )
+            self.kendo_datepicker.set_last_datepicker(present_day)
         return self
 
     def submit_application(self) -> "PrimaryHighwayPage":
@@ -437,41 +356,6 @@ class PrimaryHighwayPage(BasePage):
         self.modal_confirm_button.click()
         return PaymentPage(self.page)
 
-    def wait_for_second_page_payment_gateway(self, timeout_ms: int = 40000) -> PaymentPage:
-        """Waits for and delegates to PaymentPage on the 2nd page (Payment Gateway)."""
-        payment = PaymentPage(self.page)
-        payment.wait_for_payment_gateway(timeout_ms=timeout_ms)
-        return payment
-
-    def fill_payment_card_details(
-        self,
-        card_number: str = "4111111111111111",
-        cvv: str = "111",
-        name: str = "QA Tester",
-        exp_month: str = "03",
-        exp_year: str = "2029",
-        zip_code: str = "60601",
-    ) -> PaymentPage:
-        """Delegates filling card details and clicking Next Step to PaymentPage."""
-        payment = PaymentPage(self.page)
-        payment.fill_card_details(
-            card_number=card_number,
-            cvv=cvv,
-            name=name,
-            exp_month=exp_month,
-            exp_year=exp_year,
-            zip_code=zip_code,
-        )
-        payment.click_next_step()
-        return payment
-
-    def submit_payment_and_verify_success(self, timeout_ms: int = 120000) -> PaymentPage:
-        """Delegates final payment submission, survey dismissal, and return home to PaymentPage."""
-        payment = PaymentPage(self.page)
-        payment.submit_payment(timeout_ms=timeout_ms)
-        payment.handle_survey_modal(respond=False)
-        payment.click_return_home()
-        return payment
 
     def submit_and_confirm_application(self, timeout_ms: int = 40000) -> PaymentPage:
         """

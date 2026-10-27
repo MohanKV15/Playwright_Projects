@@ -5,7 +5,13 @@ from pathlib import Path
 from typing import Optional, Union
 from playwright.sync_api import Page, Locator, expect
 from IDOT_ODA_Customer_Portal.utils.config import Config
-from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox
+from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import (
+    KendoControls,
+    KendoDropdown,
+    KendoDatePicker,
+    KendoNumericTextBox,
+    KendoMaskedTextBox,
+)
 
 DEBUG_ARTIFACTS_DIR = Config.PROJECT_ROOT / "reports" / "debug_artifacts"
 ZOOM_PERCENT = Config.ZOOM_PERCENT
@@ -24,9 +30,11 @@ class BasePage:
     def __init__(self, page: Page):
         self.page = page
         self.logger = logging.getLogger(self.__class__.__name__)
-        self.kendo_dropdown = KendoDropdown(page)
-        self.kendo_datepicker = KendoDatePicker(page)
-        self.kendo_numeric = KendoNumericTextBox(page)
+        self.kendo_controls = KendoControls(page)
+        self.kendo_dropdown = self.kendo_controls.dropdown
+        self.kendo_datepicker = self.kendo_controls.datepicker
+        self.kendo_numeric = self.kendo_controls.numeric
+        self.kendo_masked = self.kendo_controls.masked
         self._apply_zoom_script()
 
     def _apply_zoom_script(self) -> None:
@@ -147,17 +155,10 @@ class BasePage:
 
     def handle_kendo_alert(self, timeout_ms: int = 5000) -> bool:
         """Detects and clicks OK on Kendo alert/confirm dialogs if displayed."""
-        try:
-            active_dialog = self.page.locator(".k-window:visible, .k-dialog:visible, [role='dialog']:visible").first
-            if active_dialog.is_visible(timeout=timeout_ms):
-                ok_btn = active_dialog.locator("button:has-text('OK'), .k-button:has-text('OK'), button:has-text('Yes')").first
-                if ok_btn.is_visible(timeout=2000):
-                    ok_btn.click()
-                    self._wait_for_loader()
-                    return True
-        except Exception:
-            pass
-        return False
+        res = KendoControls.handle_kendo_alert(self.page, timeout_ms=timeout_ms)
+        if res:
+            self._wait_for_loader()
+        return res
 
     def capture_screenshot(self, scenario_name: str) -> None:
         """Saves a screenshot into debug_artifacts directory."""

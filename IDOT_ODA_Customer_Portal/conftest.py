@@ -27,13 +27,11 @@ except Exception:
 
 from IDOT_ODA_Customer_Portal.utils.config import Config
 from IDOT_ODA_Customer_Portal.pages.core.base_page import BasePage
-from IDOT_ODA_Customer_Portal.pages.login.create_an_account_page import CreateAnAccountPage
-from IDOT_ODA_Customer_Portal.pages.login.login_page import LoginPage
-from IDOT_ODA_Customer_Portal.pages.dashboard.dashboard_page import DashboardPage
-from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.primary_highway_page import PrimaryHighwayPage
-from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
 logger = logging.getLogger(__name__)
+
+# Register dedicated Page Object and Workflow Fixtures plugin
+pytest_plugins = ["IDOT_ODA_Customer_Portal.fixtures.page_fixtures"]
 
 
 def _get_valid_env(key: str) -> str | None:
@@ -373,35 +371,6 @@ def authenticated_page(browser: Browser, browser_context_args, auth_storage, req
     page.close()
     context.close()
 
-
-@pytest.fixture(scope="function")
-def login_page(page: Page) -> LoginPage:
-    """Fixture providing an initialized LoginPage object instance."""
-    return LoginPage(page)
-
-
-@pytest.fixture(scope="function")
-def create_account_page(page: Page) -> CreateAnAccountPage:
-    """Fixture providing an initialized CreateAnAccountPage object instance."""
-    return CreateAnAccountPage(page)
-
-
-@pytest.fixture(scope="function")
-def dashboard_page(page: Page) -> DashboardPage:
-    """Fixture providing an initialized DashboardPage object instance."""
-    return DashboardPage(page)
-
-
-@pytest.fixture(scope="function")
-def primary_highway_page(page: Page) -> PrimaryHighwayPage:
-    """Fixture providing an initialized PrimaryHighwayPage object instance."""
-    return PrimaryHighwayPage(page)
-
-
-@pytest.fixture(scope="function")
-def payment_page(page: Page) -> PaymentPage:
-    """Fixture providing an initialized PaymentPage object instance."""
-    return PaymentPage(page)
 
 
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
