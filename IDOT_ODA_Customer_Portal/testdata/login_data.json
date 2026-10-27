@@ -3,14 +3,14 @@
   "valid_credentials": {
     "test_case_id": "TC_LOG_001",
     "description": "Valid Email and Valid Password",
-    "email": "sprabhu@bemsys.com",
-    "password": "Security@#",
+    "email": "kent.sherrill@outlook.com",
+    "password": "UCW#7991ucw^",
     "pin": "11"
   },
   "valid_email_invalid_password": {
     "test_case_id": "TC_LOG_002",
     "description": "Valid Email and Invalid Password",
-    "email": "sprabhu@bemsys.com",
+    "email": "kent.sherrill@outlook.com",
     "password": "WrongPassword#123",
     "expected_error": "You have entered an invalid"
   },

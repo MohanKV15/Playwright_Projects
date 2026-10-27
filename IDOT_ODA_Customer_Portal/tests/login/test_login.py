@@ -33,6 +33,9 @@ def test_valid_login(login_page: LoginPage):
     with allure.step("4. Fill PIN if prompted"):
         login_page.fill_pin_if_prompted(pin=valid_data.get("pin", "11"))
 
+    with allure.step("5. Verify customer dashboard and section is displayed"):
+        login_page.verify_successful_login()
+
 
 @allure.epic("Customer Portal")
 @allure.feature("Authentication")

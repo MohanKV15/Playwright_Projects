@@ -29,6 +29,9 @@ from IDOT_ODA_Customer_Portal.utils.config import Config
 from IDOT_ODA_Customer_Portal.pages.core.base_page import BasePage
 from IDOT_ODA_Customer_Portal.pages.login.create_an_account_page import CreateAnAccountPage
 from IDOT_ODA_Customer_Portal.pages.login.login_page import LoginPage
+from IDOT_ODA_Customer_Portal.pages.dashboard.dashboard_page import DashboardPage
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.primary_highway_page import PrimaryHighwayPage
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
 logger = logging.getLogger(__name__)
 
@@ -383,6 +386,24 @@ def create_account_page(page: Page) -> CreateAnAccountPage:
     return CreateAnAccountPage(page)
 
 
+@pytest.fixture(scope="function")
+def dashboard_page(page: Page) -> DashboardPage:
+    """Fixture providing an initialized DashboardPage object instance."""
+    return DashboardPage(page)
+
+
+@pytest.fixture(scope="function")
+def primary_highway_page(page: Page) -> PrimaryHighwayPage:
+    """Fixture providing an initialized PrimaryHighwayPage object instance."""
+    return PrimaryHighwayPage(page)
+
+
+@pytest.fixture(scope="function")
+def payment_page(page: Page) -> PaymentPage:
+    """Fixture providing an initialized PaymentPage object instance."""
+    return PaymentPage(page)
+
+
 @pytest.hookimpl(tryfirst=True, hookwrapper=True)
 def pytest_runtest_makereport(item, call):
     """
@@ -473,7 +494,7 @@ def pytest_sessionfinish(session, exitstatus):
             if res.returncode == 0:
                 print("\n[ALLURE AUTO-GENERATE] Generated HTML report at: reports/allure-report/index.html")
                 is_ci = os.getenv("CI") or os.getenv("TF_BUILD") or os.getenv("AZURE_HTTP_USER_AGENT")
-                auto_open = os.getenv("AUTO_OPEN_ALLURE", "true").strip().lower() in {"1", "true", "yes"}
+                auto_open = os.getenv("AUTO_OPEN_ALLURE", "false").strip().lower() in {"1", "true", "yes"}
                 if not is_ci and auto_open:
                     subprocess.Popen("allure open reports/allure-report", shell=True, env=env)
                     print("[ALLURE AUTO-OPEN] Opened interactive Allure report in browser.")

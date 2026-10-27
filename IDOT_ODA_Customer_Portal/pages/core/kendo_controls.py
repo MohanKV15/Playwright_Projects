@@ -113,6 +113,43 @@ class KendoDropdown:
         except Exception:
             return ""
 
+    def select_first_option(self, field_id: str, timeout_ms: int = 2500) -> bool:
+        """
+        Selects the first available option in a Kendo DropDownList.
+        Waits for cascading remote data if needed, then selects index 1 and triggers change event.
+        """
+        clean_id = field_id.lstrip("#")
+        if "County" in clean_id or "Route" in clean_id:
+            try:
+                self.page.wait_for_function(
+                    f"() => window.$ && $('#{clean_id}').data('kendoDropDownList')?.dataSource?.data()?.length > 0",
+                    timeout=timeout_ms,
+                )
+            except Exception:
+                pass
+
+        try:
+            return bool(
+                self.page.evaluate(
+                    f"""(() => {{
+                        if (!window.$) return false;
+                        const ddl = $('#{clean_id}').data('kendoDropDownList');
+                        if (ddl) {{
+                            const count = ddl.dataSource ? ddl.dataSource.data().length : 0;
+                            if (count > 0) {{
+                                ddl.select(1);
+                                ddl.trigger('change');
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }})();"""
+                )
+            )
+        except Exception as e:
+            self.logger.warning(f"KendoDropdown select_first_option failed for #{clean_id}: {e}")
+            return False
+
 
 class KendoDatePicker:
     """

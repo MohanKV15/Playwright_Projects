@@ -62,14 +62,29 @@ class BasePage:
         except Exception:
             pass
 
-    def navigate(self, url: str, timeout_ms: int = 30000) -> None:
+    def navigate(self, url: str, timeout_ms: int = 45000) -> None:
         """Navigates to URL with resilient fallback handling slow staging responses."""
         self.logger.info(f"Navigating to URL: {url}")
+        response = None
         try:
-            self.page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
+            response = self.page.goto(url, wait_until="domcontentloaded", timeout=timeout_ms)
         except Exception as e:
             self.logger.warning(f"Navigation to {url} timed out waiting for domcontentloaded: {e}. Retrying with commit status...")
-            self.page.goto(url, wait_until="commit", timeout=timeout_ms)
+            response = self.page.goto(url, wait_until="commit", timeout=timeout_ms)
+
+        # Detect server outage / bad gateway immediately to avoid 30s locator timeouts
+        status = response.status if response else None
+        if status and status >= 500:
+            error_msg = f"Target Environment Unavailable: '{url}' returned HTTP {status} ({response.status_text}). Backend server is down or unreachable."
+            self.logger.critical(error_msg)
+            raise RuntimeError(error_msg)
+
+        page_title = (self.page.title() or "").lower()
+        if "502 bad gateway" in page_title or "service unavailable" in page_title:
+            error_msg = f"Target Environment Error: '{url}' displayed '{self.page.title()}'. Check if backend server is down or VPN is disconnected."
+            self.logger.critical(error_msg)
+            raise RuntimeError(error_msg)
+
         self._apply_zoom_script()
         self._wait_for_loader()
 
