@@ -1,7 +1,7 @@
 import allure
 import pytest
 from IDOT_ODA_Customer_Portal.pages.login.login_page import LoginPage
-from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.primary_highway_page import (
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.primary_highway_page import (
     PrimaryHighwayPage,
 )
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import (

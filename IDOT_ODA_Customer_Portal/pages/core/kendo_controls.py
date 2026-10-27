@@ -102,31 +102,27 @@ class KendoDropdown:
                     return True
         return self.select_by_locator(target, option_text=option_text or "", timeout_ms=timeout_ms)
 
-    def select_first_option(self, field_id: str, timeout_ms: int = 2500) -> bool:
+    def select_first_option(self, field_id: str, timeout_ms: int = 5000) -> bool:
         """
-        Selects the first available option in a Kendo DropDownList.
-        Waits for cascading remote data if needed, then selects index 1 and triggers change event.
+        Selects the first available valid option in a Kendo DropDownList.
+        Waits up to timeout_ms for the widget and its dataSource to initialize,
+        selects the 1st non-placeholder item, and triggers change/input events.
         """
         clean_id = field_id.lstrip("#")
-        if any(term in clean_id for term in ["County", "Route", "District"]):
-            try:
-                self.page.wait_for_function(
-                    f"() => window.$ && $('#{clean_id}').data('kendoDropDownList')?.dataSource?.data()?.length > 0",
-                    timeout=timeout_ms,
-                )
-            except Exception:
-                pass
+        start_time = time.time()
+        timeout_sec = timeout_ms / 1000.0
 
-        try:
-            return bool(
-                self.page.evaluate(
+        while time.time() - start_time < timeout_sec:
+            try:
+                res = self.page.evaluate(
                     f"""(() => {{
                         if (!window.$) return false;
                         const ddl = $('#{clean_id}').data('kendoDropDownList');
-                        if (ddl) {{
-                            const count = ddl.dataSource ? ddl.dataSource.data().length : 0;
+                        if (ddl && ddl.dataSource) {{
+                            const count = ddl.dataSource.data().length;
                             if (count > 0) {{
-                                ddl.select(1);
+                                const targetIndex = ddl.options.optionLabel ? 1 : 0;
+                                ddl.select(targetIndex);
                                 ddl.trigger('change');
                                 if (ddl.element && ddl.element.length) {{
                                     ddl.element.trigger('change').trigger('input');
@@ -138,10 +134,14 @@ class KendoDropdown:
                         return false;
                     }})();"""
                 )
-            )
-        except Exception as e:
-            self.logger.warning(f"KendoDropdown select_first_option failed for #{clean_id}: {e}")
-            return False
+                if res:
+                    return True
+            except Exception:
+                pass
+            self.page.wait_for_timeout(150)
+
+        self.logger.warning(f"KendoDropdown select_first_option timed out for #{clean_id}")
+        return False
 
     def select_first_valid_option(self, dropdown_locator: Union[Locator, str], timeout_ms: int = 5000) -> str:
         """

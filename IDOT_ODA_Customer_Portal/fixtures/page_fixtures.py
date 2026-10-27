@@ -9,8 +9,11 @@ from playwright.sync_api import Page
 from IDOT_ODA_Customer_Portal.pages.login.login_page import LoginPage
 from IDOT_ODA_Customer_Portal.pages.login.create_an_account_page import CreateAnAccountPage
 from IDOT_ODA_Customer_Portal.pages.dashboard.dashboard_page import DashboardPage
-from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.primary_highway_page import (
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.primary_highway_page import (
     PrimaryHighwayPage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.interstate_highway_page import (
+    InterstateHighwayPage,
 )
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
@@ -43,3 +46,9 @@ def primary_highway_page(page: Page) -> PrimaryHighwayPage:
 def payment_page(page: Page) -> PaymentPage:
     """Fixture providing an initialized PaymentPage instance."""
     return PaymentPage(page)
+
+
+@pytest.fixture(scope="function")
+def interstate_highway_page(page: Page) -> InterstateHighwayPage:
+    """Fixture providing an initialized InterstateHighwayPage instance."""
+    return InterstateHighwayPage(page)

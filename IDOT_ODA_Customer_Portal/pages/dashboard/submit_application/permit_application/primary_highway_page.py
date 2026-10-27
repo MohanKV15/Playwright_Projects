@@ -3,12 +3,14 @@ import os
 import re
 from typing import Dict, Any, Optional
 from playwright.sync_api import Page, Locator, expect
+from faker import Faker
 from IDOT_ODA_Customer_Portal.utils.config import Config
 from IDOT_ODA_Customer_Portal.pages.core.base_page import BasePage
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 from IDOT_ODA_Customer_Portal.testdata.primary_highway_data import generate_primary_highway_test_data
 
 logger = logging.getLogger(__name__)
+fake = Faker()
 
 
 class PrimaryHighwayPage(BasePage):
@@ -75,7 +77,9 @@ class PrimaryHighwayPage(BasePage):
         )
         self.sign_distance2_input = page.locator("#signlocated2")
         self.distance2_unit_radio = page.locator("label[for='Feet2_Feet']").first
-        self.sign_distance_range_radio = page.locator("label[for='hund_two_100']").first
+        self.sign_distance_range_radio = page.locator(
+            "label[for='hund_two_100'], label[for='three_four_30'], label[for='six_ten_600']"
+        ).first
 
         # -------------------------------------------------------------
         # 5. Property Owner Information Locators
@@ -196,10 +200,30 @@ class PrimaryHighwayPage(BasePage):
         self.kendo_dropdown.select_first_option("SignLighting")
 
         # Step 5: Dimensions via KendoNumericTextBox component
-        w = float(form_data.get("face_width", 2.0))
-        h = float(form_data.get("face_height", 1.0))
-        m = float(form_data.get("height_to_molding", 1.0))
-        t = float(form_data.get("height_to_top", 10.0))
+        w = float(
+            form_data.get(
+                "face_width",
+                round(fake.pyfloat(left_digits=1, right_digits=1, positive=True, min_value=2.0, max_value=5.0), 1),
+            )
+        )
+        h = float(
+            form_data.get(
+                "face_height",
+                round(fake.pyfloat(left_digits=1, right_digits=1, positive=True, min_value=1.0, max_value=3.0), 1),
+            )
+        )
+        m = float(
+            form_data.get(
+                "height_to_molding",
+                round(fake.pyfloat(left_digits=1, right_digits=1, positive=True, min_value=1.0, max_value=3.0), 1),
+            )
+        )
+        t = float(
+            form_data.get(
+                "height_to_top",
+                round(fake.pyfloat(left_digits=2, right_digits=1, positive=True, min_value=10.0, max_value=15.0), 1),
+            )
+        )
 
         self.kendo_numeric.set_value_by_id("ODA_Outdoor_Face_Detail_Face_Width1", w)
         self.kendo_numeric.set_value_by_id("ODA_Outdoor_Face_Detail_Face_Height1", h)
@@ -209,7 +233,8 @@ class PrimaryHighwayPage(BasePage):
         # Step 6: Airport Restrictions (No) & Airport Name
         self.airport_no_radio.click()
         if self.airport_name_input.is_visible(timeout=300):
-            self.airport_name_input.fill(form_data.get("airport_name", "Municipal Airport"))
+            airport = form_data.get("airport_name") or f"{fake.city()[:12]} Municipal Airport"
+            self.airport_name_input.fill(airport)
 
         return self
 
@@ -229,24 +254,41 @@ class PrimaryHighwayPage(BasePage):
 
         # Step 3: Incorporated limits -> Yes, Municipality & Zoning
         self.incorp_limits_yes_radio.click()
-        self.municipality_input.fill(form_data.get("municipality", "Chicago"))
-        self.zoning_input.fill(form_data.get("zoning", "Commercial C-1"))
+        municipality = form_data.get("municipality") or f"{fake.city()[:15]}"
+        self.municipality_input.fill(municipality)
+        if self.zoning_input.is_visible(timeout=1000):
+            zoning = form_data.get("zoning") or f"Commercial C-{fake.random_int(1, 5)}"
+            self.zoning_input.fill(zoning)
 
         # Step 4: Condition Radios (Yes)
-        self.unzoned_yes_radio.click()
-        self.com600_yes_radio.click()
-        self.com_visible_yes_radio.click()
+        if self.unzoned_yes_radio.is_visible(timeout=1000):
+            self.unzoned_yes_radio.click()
+        if self.com600_yes_radio.is_visible(timeout=500):
+            self.com600_yes_radio.click()
+        if self.com_visible_yes_radio.is_visible(timeout=500):
+            self.com_visible_yes_radio.click()
 
         # Step 5: Distance 1, Unit (Feet), Direction 1
-        dist1 = float(form_data.get("sign_distance1", 2.002))
+        dist1 = float(
+            form_data.get(
+                "sign_distance1",
+                round(fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=1.5, max_value=8.5), 2),
+            )
+        )
         self.distance1_unit_radio.click()
         self.kendo_dropdown.select_first_option("Direction")
 
         # Step 6: Landmarks
-        self.landmarks_input.fill(form_data.get("landmarks", "Milepost 50 at Exit 10"))
+        landmarks = form_data.get("landmarks") or f"Milepost {fake.random_int(10, 80)} at Exit {fake.random_int(1, 30)}"
+        self.landmarks_input.fill(landmarks)
 
         # Step 7: Distance 2, Unit (Feet), Direction 2
-        dist2 = float(form_data.get("sign_distance2", 2.002))
+        dist2 = float(
+            form_data.get(
+                "sign_distance2",
+                round(fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=1.5, max_value=8.5), 2),
+            )
+        )
         self.distance2_unit_radio.click()
         self.kendo_dropdown.select_first_option("Direction2")
 
@@ -254,8 +296,9 @@ class PrimaryHighwayPage(BasePage):
         self.kendo_numeric.set_value_by_id("signlocated", dist1)
         self.kendo_numeric.set_value_by_id("signlocated2", dist2)
 
-        # Step 9: Distance range radio (100-199 ft)
-        self.sign_distance_range_radio.click()
+        # Step 9: Distance range radio (100-199 ft / 500-599 ft)
+        if self.sign_distance_range_radio.is_visible(timeout=1000):
+            self.sign_distance_range_radio.click()
         return self
 
     def fill_property_owner_information(self, data: Optional[Dict[str, Any]] = None) -> "PrimaryHighwayPage":
@@ -267,15 +310,24 @@ class PrimaryHighwayPage(BasePage):
         # Step 1: Smoothly bring Property Owner section into view
         self.scroll_to_section(self.sec_property_owner)
 
-        # Step 2: Fill text fields in order
-        self.owner_name_input.fill(form_data.get("owner_name", "Sherrill Property LLC"))
-        self.owner_address1_input.fill(form_data.get("owner_address", "100 Michigan Ave"))
-        self.owner_city_input.fill(form_data.get("owner_city", "Chicago"))
-        self.owner_zip_input.fill(form_data.get("owner_zip", "60601"))
-        phone = form_data.get("owner_phone", "999-999-9999")
+        # Step 2: Fill text fields in order using Faker
+        owner_name = form_data.get("owner_name") or f"{fake.company()}"
+        owner_address = form_data.get("owner_address") or fake.street_address()
+        owner_city = form_data.get("owner_city") or fake.city()
+        owner_zip = form_data.get("owner_zip") or f"60{fake.random_int(100, 999)}"
+        phone = (
+            form_data.get("owner_phone")
+            or f"{fake.random_int(200, 999)}-{fake.random_int(200, 999)}-{fake.random_int(1000, 9999)}"
+        )
+        owner_email = form_data.get("owner_email") or fake.email()
+
+        self.owner_name_input.fill(owner_name)
+        self.owner_address1_input.fill(owner_address)
+        self.owner_city_input.fill(owner_city)
+        self.owner_zip_input.fill(owner_zip)
         self.kendo_masked.set_value_by_id("cmgenpoc_com_phone", phone)
         if self.owner_email_input.is_visible(timeout=500):
-            self.owner_email_input.fill(form_data.get("owner_email", "owner@example.com"))
+            self.owner_email_input.fill(owner_email)
 
         # Step 3: Ownership Category (Lease)
         self.ownership_lease_radio.click()
@@ -316,9 +368,12 @@ class PrimaryHighwayPage(BasePage):
         self.acknowledgment_checkbox.click()
         self.signature_checkbox.click()
 
-        # Step 3: Signer Name and Title
-        self.signer_name_input.fill(form_data.get("signer_name", "Kent Sherrill"))
-        self.signer_title_input.fill(form_data.get("signer_title", "Authorized Representative"))
+        # Step 3: Signer Name and Title via Faker
+        signer_name = form_data.get("signer_name") or f"{fake.first_name()} {fake.last_name()}"
+        signer_title = form_data.get("signer_title") or f"{fake.job()[:25]}"
+
+        self.signer_name_input.fill(signer_name)
+        self.signer_title_input.fill(signer_title)
 
         # Step 4: Ensure date is set to present day via KendoDatePicker
         present_day = form_data.get("signature_date", "")
