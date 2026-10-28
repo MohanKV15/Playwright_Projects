@@ -56,7 +56,7 @@ class InterstateHighwayPage(PrimaryHighwayPage):
     def navigate_to_interstate_highway_application(self) -> "InterstateHighwayPage":
         """
         Navigates from Customer Portal Dashboard to the Interstate Highway permit application form:
-        1. Calls inherited self.navigate_to_permit_application_menu() to open permit options.
+        1. Calls inherited navigate_to_permit_application_menu() to open permit options.
         2. Asserts 'Business Area Sign - Interstate Highway' is visible.
         3. Clicks '#btnInterState' (Interstate Highway).
         4. Asserts 'Permit Application - Business' heading is visible.
@@ -80,22 +80,20 @@ class InterstateHighwayPage(PrimaryHighwayPage):
     def fill_location_information(self, data: Optional[Dict[str, Any]] = None) -> "InterstateHighwayPage":
         """
         Fills Location Information:
-        Calls parent PrimaryHighwayPage to fill common fields (District, County, Route,
-        Municipality, Distances, Landmarks) and handles Interstate-specific fields
-        ('Was the site within incorporated limits on September 21, 1959?' and
-        'Zoning classification on' field).
+        Calls parent PrimaryHighwayPage to fill common fields and handles Interstate-specific fields
+        (1959 incorporated limits radio, 1959 zoning classification with Faker, and Interstate distance range).
         """
         super().fill_location_information(data)
         form_data = data or generate_primary_highway_test_data()
 
-        # Step 3b: Interstate-specific 1959 limits radio -> Select Yes
+        # Interstate-specific 1959 limits radio -> Select Yes
         if self.limits_1959_yes_radio.is_visible(timeout=1000):
-            self.logger.info("Selecting 'Yes' for 'Was the site within incorporated limits on September 21, 1959?'")
+            self.logger.info("Selecting 'Yes' for 1959 incorporated limits")
             self.limits_1959_yes_radio.click()
         elif self.limits_1959_no_radio.is_visible(timeout=1000):
             self.limits_1959_no_radio.click()
 
-        # Step 3c: Interstate-specific Zoning classification on September 21, 1959 -> Fill fake details via Faker
+        # Interstate-specific Zoning classification on September 21, 1959 -> Fill via Faker
         zoning_text = (
             form_data.get("zoning_1959")
             or form_data.get("zoning_on_date")
@@ -103,11 +101,11 @@ class InterstateHighwayPage(PrimaryHighwayPage):
             or f"Commercial C-{fake.random_int(1, 5)}"
         )
         if self.zoning_on_date_input.is_visible(timeout=2000):
-            self.logger.info(f"Filling Interstate 'Zoning classification on' field with fake data: '{zoning_text}'")
+            self.logger.info(f"Filling Interstate 'Zoning classification on' field: '{zoning_text}'")
             self.zoning_on_date_input.click()
             self.zoning_on_date_input.fill(zoning_text)
 
-        # Step 9b: Ensure Interstate distance range radio is selected
+        # Ensure Interstate distance range radio is selected
         if self.interstate_distance_range_radio.is_visible(timeout=1000):
             self.interstate_distance_range_radio.click()
 
@@ -116,17 +114,7 @@ class InterstateHighwayPage(PrimaryHighwayPage):
     def submit_complete_interstate_highway_application(
         self, data: Optional[Dict[str, Any]] = None, file_path: Optional[str] = None
     ) -> PaymentPage:
-        """
-        Executes complete end-to-end submission for Business Area Sign - Interstate Highway:
-        1. Navigates to Interstate Highway form.
-        2. Fills Sign Information (via parent).
-        3. Fills Location Information (via parent + Interstate-specific zoning).
-        4. Fills Property Owner Information (via parent).
-        5. Uploads Proof of Property (via parent).
-        6. Fills Acknowledgment and Signature (via parent).
-        7. Submits application and confirms 1st page modal (via parent).
-        8. Completes Payment Gateway and post-payment flow (via PaymentPage).
-        """
+        """Executes complete end-to-end submission for Business Area Sign - Interstate Highway."""
         test_data = data or generate_primary_highway_test_data()
         self.navigate_to_interstate_highway_application()
         self.fill_sign_information(test_data)

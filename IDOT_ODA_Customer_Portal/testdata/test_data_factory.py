@@ -7,7 +7,7 @@ fake = Faker()
 
 class TestDataFactory:
     """
-    Centralized Test Data Factory for the Customer Portal.
+    Centralized Test Data Factory for the IDOT ODA Customer Portal.
     Provides realistic, dynamically generated test data using Faker with zero hardcoding.
     """
 
@@ -34,7 +34,7 @@ class TestDataFactory:
 
     @classmethod
     def create_account(cls) -> Dict[str, Any]:
-        """Generates dynamic Company Registration test data."""
+        """Generates dynamic Company Registration test data using Faker."""
         email = f"test_{fake.hexify(text='^^^^^^')}@gmail.com"
         phone = cls.us_phone()
         return {
@@ -93,6 +93,16 @@ class TestDataFactory:
         }
 
     @classmethod
+    def directional_sign(cls) -> Dict[str, Any]:
+        """
+        Generates dynamic test data for Directional Sign permit applications.
+        Inherits structure from primary_highway and customizes directional properties.
+        """
+        data = cls.primary_highway()
+        data["landmarks"] = f"Scenic Route Marker {fake.random_int(100, 999)} near Milepost {fake.random_int(10, 80)}"
+        return data
+
+    @classmethod
     def junkyard(cls) -> Dict[str, Any]:
         """
         Generates dynamic test data for Junkyard permit applications.
@@ -102,7 +112,6 @@ class TestDataFactory:
         phone = cls.us_phone()
         lat, lon = cls.illinois_coordinates()
         dist = round(fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=0.5, max_value=8.5), 2)
-        direction = fake.random_element(elements=("East", "West", "North", "South"))
         established_date = fake.date_between(start_date="-5y", end_date="today").strftime("%m/%d/%Y")
 
         return {
@@ -111,7 +120,6 @@ class TestDataFactory:
             "latitude": lat,
             "longitude": lon,
             "location_distance": dist,
-            "location_direction": direction,
             "route_landmarks": f"Milepost {fake.random_int(10, 80)} at Exit {fake.random_int(1, 30)}",
             "municipality": f"{fake.city()[:15]}",
             "zoning_class": f"Commercial C-{fake.random_int(1, 5)}",
@@ -126,6 +134,21 @@ class TestDataFactory:
             "signature_date": present_day,
         }
 
+    @classmethod
+    def payment_card(cls) -> Dict[str, str]:
+        """
+        Generates dynamic cardholder and billing details for the test payment gateway.
+        Uses standard sandbox test card token with realistic Faker customer information.
+        """
+        return {
+            "card_number": "4111111111111111",
+            "cvv": "111",
+            "name": f"{fake.first_name()} {fake.last_name()}",
+            "exp_month": "03",
+            "exp_year": "2029",
+            "zip_code": fake.zipcode()[:5],
+        }
+
 
 # ---------------------------------------------------------------------
 # Top-level functional aliases for direct invocation and backward compatibility
@@ -138,5 +161,13 @@ def generate_primary_highway_test_data() -> Dict[str, Any]:
     return TestDataFactory.primary_highway()
 
 
+def generate_directional_sign_test_data() -> Dict[str, Any]:
+    return TestDataFactory.directional_sign()
+
+
 def generate_junkyard_test_data() -> Dict[str, Any]:
     return TestDataFactory.junkyard()
+
+
+def generate_payment_card_data() -> Dict[str, str]:
+    return TestDataFactory.payment_card()

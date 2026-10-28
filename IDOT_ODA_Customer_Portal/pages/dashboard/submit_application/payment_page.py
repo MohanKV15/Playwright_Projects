@@ -1,8 +1,9 @@
 import logging
 import re
 from typing import Optional
-from playwright.sync_api import Page, Locator, expect
+from playwright.sync_api import Page, expect
 from IDOT_ODA_Customer_Portal.pages.core.base_page import BasePage
+from IDOT_ODA_Customer_Portal.testdata import TestDataFactory
 
 logger = logging.getLogger(__name__)
 
@@ -117,26 +118,33 @@ class PaymentPage(BasePage):
 
     def fill_card_details(
         self,
-        card_number: str = "4111111111111111",
-        cvv: str = "111",
-        name: str = "QA Tester",
-        exp_month: str = "03",
-        exp_year: str = "2029",
-        zip_code: str = "60601",
+        card_number: Optional[str] = None,
+        cvv: Optional[str] = None,
+        name: Optional[str] = None,
+        exp_month: Optional[str] = None,
+        exp_year: Optional[str] = None,
+        zip_code: Optional[str] = None,
     ) -> "PaymentPage":
-        """Fills payment card details on Payment Gateway form."""
+        """Fills payment card details on Payment Gateway using dynamic Faker customer data."""
         self.logger.info("Filling credit card details on Payment Gateway...")
+        defaults = TestDataFactory.payment_card()
+        card_num = card_number or defaults["card_number"]
+        card_cvv = cvv or defaults["cvv"]
+        card_name = name or defaults["name"]
+        month = exp_month or defaults["exp_month"]
+        year = exp_year or defaults["exp_year"]
+        zip_cod = zip_code or defaults["zip_code"]
 
         expect(self.name_on_card_input).to_be_visible(timeout=20000)
-        self.name_on_card_input.fill(name)
-        self.card_number_input.fill(card_number)
-        self.exp_month_select.select_option(exp_month)
-        self.exp_year_select.select_option(exp_year)
-        self.cvv_input.fill(cvv)
+        self.name_on_card_input.fill(card_name)
+        self.card_number_input.fill(card_num)
+        self.exp_month_select.select_option(month)
+        self.exp_year_select.select_option(year)
+        self.cvv_input.fill(card_cvv)
 
         try:
             if self.card_zip_input.is_visible(timeout=500):
-                self.card_zip_input.fill(zip_code)
+                self.card_zip_input.fill(zip_cod)
         except Exception:
             pass
 
@@ -221,12 +229,12 @@ class PaymentPage(BasePage):
 
     def complete_payment_flow(
         self,
-        card_number: str = "4111111111111111",
-        cvv: str = "111",
-        name: str = "QA Tester",
-        exp_month: str = "03",
-        exp_year: str = "2029",
-        zip_code: str = "60601",
+        card_number: Optional[str] = None,
+        cvv: Optional[str] = None,
+        name: Optional[str] = None,
+        exp_month: Optional[str] = None,
+        exp_year: Optional[str] = None,
+        zip_code: Optional[str] = None,
     ) -> None:
         """
         Executes end-to-end payment gateway and post-payment workflow:

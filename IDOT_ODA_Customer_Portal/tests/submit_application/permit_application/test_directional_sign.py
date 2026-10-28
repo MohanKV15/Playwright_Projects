@@ -8,7 +8,7 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page im
     PaymentPage,
 )
 from IDOT_ODA_Customer_Portal.testdata import (
-    generate_primary_highway_test_data,
+    generate_directional_sign_test_data,
 )
 from IDOT_ODA_Customer_Portal.utils.data_reader import DataReader
 from IDOT_ODA_Customer_Portal.utils.config import Config
@@ -34,7 +34,7 @@ def test_submit_directional_sign_permit_application(
     1. Authenticates user with valid credentials and PIN.
     2. Navigates from Dashboard -> Submit Application -> Permit Application -> Directional Sign, Official.
     3. Fills Sign Information (selects Directional sign type, 1st option in dropdowns, dimensions).
-    4. Fills Location Information (District, County, Route, travel direction 'East', distances, landmarks).
+    4. Fills Location Information (District, County, Route, 1st option travel direction, distances, landmarks).
     5. Fills Property Owner Information using dynamic Faker data.
     6. Attaches dummy PDF proof of property.
     7. Signs acknowledgment and disclosure.
@@ -43,7 +43,7 @@ def test_submit_directional_sign_permit_application(
     10. Submits payment, clicks No on survey popup modal, and clicks Return Home to Dashboard.
     """
     valid_data = LOGIN_DATA["valid_credentials"]
-    test_data = generate_primary_highway_test_data()
+    test_data = generate_directional_sign_test_data()
 
     with allure.step("1. Login to Customer Portal"):
         login_page.navigate_to_login()
@@ -56,7 +56,7 @@ def test_submit_directional_sign_permit_application(
     with allure.step("3. Fill Sign Information (Directional sign type, first dropdown options, dimensions)"):
         directional_sign_page.fill_sign_information(test_data)
 
-    with allure.step("4. Fill Location Information (District, County, Route, travel direction 'East', landmarks)"):
+    with allure.step("4. Fill Location Information (District, County, Route, 1st option travel direction, landmarks)"):
         directional_sign_page.fill_location_information(test_data)
 
     with allure.step("5. Fill Property Owner Information with Faker data"):

@@ -102,46 +102,82 @@ class KendoDropdown:
                     return True
         return self.select_by_locator(target, option_text=option_text or "", timeout_ms=timeout_ms)
 
-    def select_first_option(self, field_id: str, timeout_ms: int = 5000) -> bool:
+    def select_first_option(self, target: Union[Locator, str], timeout_ms: int = 5000) -> bool:
         """
-        Selects the first available valid option in a Kendo DropDownList.
+        Selects the first available valid option in a Kendo DropDownList or dropdown widget.
+        Polymorphic: accepts either a field ID string (e.g. 'District', '#District')
+        or a Playwright Locator instance.
         Waits up to timeout_ms for the widget and its dataSource to initialize,
-        selects the 1st non-placeholder item, and triggers change/input events.
+        selects the 1st non-placeholder item, and triggers change/input/validation events.
         """
-        clean_id = field_id.lstrip("#")
         start_time = time.time()
         timeout_sec = timeout_ms / 1000.0
 
-        while time.time() - start_time < timeout_sec:
-            try:
-                res = self.page.evaluate(
-                    f"""(() => {{
-                        if (!window.$) return false;
-                        const ddl = $('#{clean_id}').data('kendoDropDownList');
-                        if (ddl && ddl.dataSource) {{
-                            const count = ddl.dataSource.data().length;
-                            if (count > 0) {{
-                                const targetIndex = ddl.options.optionLabel ? 1 : 0;
-                                ddl.select(targetIndex);
-                                ddl.trigger('change');
-                                if (ddl.element && ddl.element.length) {{
-                                    ddl.element.trigger('change').trigger('input');
-                                    try {{ if (window.jQuery && window.jQuery.validator) ddl.element.valid(); }} catch(e) {{}}
+        if isinstance(target, str) and (" " not in target) and ("#" in target or target.isidentifier() or "_" in target or "-" in target):
+            clean_id = target.lstrip("#")
+            while time.time() - start_time < timeout_sec:
+                try:
+                    res = self.page.evaluate(
+                        f"""(() => {{
+                            if (!window.$) return false;
+                            const ddl = $('#{clean_id}').data('kendoDropDownList');
+                            if (ddl && ddl.dataSource) {{
+                                const count = ddl.dataSource.data().length;
+                                if (count > 0) {{
+                                    const targetIndex = ddl.options.optionLabel ? 1 : 0;
+                                    ddl.select(targetIndex);
+                                    ddl.trigger('change');
+                                    if (ddl.element && ddl.element.length) {{
+                                        ddl.element.trigger('change').trigger('input');
+                                        try {{ if (window.jQuery && window.jQuery.validator) ddl.element.valid(); }} catch(e) {{}}
+                                    }}
+                                    return true;
                                 }}
-                                return true;
                             }}
-                        }}
-                        return false;
-                    }})();"""
-                )
-                if res:
-                    return True
-            except Exception:
-                pass
-            self.page.wait_for_timeout(150)
+                            return false;
+                        }})();"""
+                    )
+                    if res:
+                        return True
+                except Exception:
+                    pass
+                self.page.wait_for_timeout(150)
 
-        self.logger.warning(f"KendoDropdown select_first_option timed out for #{clean_id}")
-        return False
+        elif isinstance(target, Locator):
+            while time.time() - start_time < timeout_sec:
+                try:
+                    res = target.evaluate(
+                        """el => {
+                            if (!window.$) return false;
+                            let ddl = $(el).data('kendoDropDownList');
+                            if (!ddl && el.id) ddl = $('#' + el.id).data('kendoDropDownList');
+                            if (!ddl) ddl = $(el).find('select, input').data('kendoDropDownList');
+                            if (!ddl) ddl = $(el).closest('.k-widget').find('select, input').data('kendoDropDownList');
+                            if (ddl && ddl.dataSource) {
+                                const count = ddl.dataSource.data().length;
+                                if (count > 0) {
+                                    const targetIndex = ddl.options.optionLabel ? 1 : 0;
+                                    ddl.select(targetIndex);
+                                    ddl.trigger('change');
+                                    if (ddl.element && ddl.element.length) {
+                                        ddl.element.trigger('change').trigger('input');
+                                        try { if (window.jQuery && window.jQuery.validator) ddl.element.valid(); } catch(e) {}
+                                    }
+                                    return true;
+                                }
+                            }
+                            return false;
+                        }"""
+                    )
+                    if res:
+                        return True
+                except Exception:
+                    pass
+                self.page.wait_for_timeout(150)
+
+        # UI Fallback: click and select the 1st valid option visually
+        selected = self.select_first_valid_option(target, timeout_ms=int((timeout_sec - (time.time() - start_time)) * 1000) or 2000)
+        return bool(selected)
 
     def select_first_valid_option(self, dropdown_locator: Union[Locator, str], timeout_ms: int = 5000) -> str:
         """
@@ -173,6 +209,27 @@ class KendoDropdown:
                 pass
 
         loc = dropdown_locator if isinstance(dropdown_locator, Locator) else self.page.locator(dropdown_locator)
+        try:
+            if loc.is_visible(timeout=timeout_ms):
+                tag_name = loc.evaluate("el => el.tagName ? el.tagName.toLowerCase() : ''")
+                if tag_name == "select":
+                    opts = loc.locator("option")
+                    opt_count = opts.count()
+                    for i in range(opt_count):
+                        val = (opts.nth(i).get_attribute("value") or "").strip()
+                        txt = opts.nth(i).inner_text().strip()
+                        if val and not txt.startswith("--") and not txt.lower().startswith("select"):
+                            loc.select_option(index=i)
+                            return txt
+                    if opt_count > 1:
+                        loc.select_option(index=1)
+                        return opts.nth(1).inner_text().strip()
+                    elif opt_count == 1:
+                        loc.select_option(index=0)
+                        return opts.nth(0).inner_text().strip()
+        except Exception:
+            pass
+
         if loc.is_visible(timeout=timeout_ms):
             loc.click(force=True)
             self.page.wait_for_timeout(200)

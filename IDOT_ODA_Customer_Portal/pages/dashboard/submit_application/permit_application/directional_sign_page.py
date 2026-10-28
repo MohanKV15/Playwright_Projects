@@ -2,15 +2,15 @@ import logging
 import re
 from typing import Dict, Any, Optional
 from playwright.sync_api import Page, expect
-from faker import Faker
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.primary_highway_page import (
     PrimaryHighwayPage,
 )
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
-from IDOT_ODA_Customer_Portal.testdata import generate_primary_highway_test_data
+from IDOT_ODA_Customer_Portal.testdata import (
+    generate_directional_sign_test_data,
+)
 
 logger = logging.getLogger(__name__)
-fake = Faker()
 
 
 class DirectionalSignPage(PrimaryHighwayPage):
@@ -18,10 +18,9 @@ class DirectionalSignPage(PrimaryHighwayPage):
     Page Object Model representing the Customer Portal:
     Permit Application - Directional Sign, Official Sign or Official Notice workflow.
 
-    Inherits all core form filling, attachment upload, signature, submission,
-    and payment gateway integration from PrimaryHighwayPage, customizing the
-    Directional Sign navigation, Applicant Information verification, and Location Information
-    travel direction ('Direction_sn').
+    Inherits core form filling, attachment upload, signature, submission, and payment
+    from PrimaryHighwayPage, customizing Directional Sign navigation, Sign Type selection,
+    and travel direction ('Direction_sn' dropdown selecting 1st option).
     """
 
     def __init__(self, page: Page):
@@ -54,14 +53,7 @@ class DirectionalSignPage(PrimaryHighwayPage):
         self.direction_travel_dropdown = page.locator("#Direction_sn")
 
     def navigate_to_directional_sign_application(self) -> "DirectionalSignPage":
-        """
-        Navigates from Customer Portal Dashboard to the Directional Sign permit application form:
-        1. Calls inherited self.navigate_to_permit_application_menu() to open permit options.
-        2. Asserts 'Directional Sign, Official' is visible.
-        3. Clicks '#btnDirectionalSign' (Directional Sign).
-        4. Asserts 'Permit Application -' heading is visible.
-        5. Asserts Applicant Information section is displayed.
-        """
+        """Navigates from Dashboard to the Directional Sign permit application form."""
         self.logger.info("Navigating to Directional Sign Application Form")
         self._wait_for_loader(timeout=30000)
 
@@ -87,8 +79,8 @@ class DirectionalSignPage(PrimaryHighwayPage):
     def fill_sign_information(self, data: Optional[Dict[str, Any]] = None) -> "DirectionalSignPage":
         """
         Fills Sign Information for Directional Sign:
-        Ensures Directional Sign Type is selected, then delegates to parent implementation
-        for Erection Date, Message Type, Dropdowns, and Dimensions.
+        Selects Directional Sign Type, then delegates to parent implementation
+        for Erection Date, Message Type, 1st option dropdowns, and dimensions.
         """
         self.logger.info("Filling Sign Information for Directional Sign")
         if self.sign_type_directional_radio.is_visible(timeout=1500):
@@ -103,74 +95,37 @@ class DirectionalSignPage(PrimaryHighwayPage):
     def fill_location_information(self, data: Optional[Dict[str, Any]] = None) -> "DirectionalSignPage":
         """
         Fills Location Information for Directional Sign:
-        Populates District, County, Route, travel direction ('Direction_sn' -> East),
+        Populates District, County, Route (1st options), travel direction (1st option),
         distances, units (Feet), and landmarks.
         """
         self.logger.info("Filling Location Information for Directional Sign")
-        form_data = data or generate_primary_highway_test_data()
+        form_data = data or generate_directional_sign_test_data()
         self._wait_for_loader()
 
         self.scroll_to_section(self.sec_location_info)
 
-        # Step 1: District -> County -> Route (cascading 1st options)
-        self.kendo_dropdown.select_first_option("EP_Permit_Application_District")
-        self.kendo_dropdown.select_first_option("EP_Permit_Application_County")
-        self.kendo_dropdown.select_first_option("EP_Permit_Application_Route")
+        # Step 1: Cascading District -> County -> Route (always 1st option)
+        self.fill_district_county_route(
+            district_id="EP_Permit_Application_District",
+            county_id="EP_Permit_Application_County",
+            route_id="EP_Permit_Application_Route",
+        )
 
-        # Step 2: Direction of travel (Direction_sn) -> Select 'East'
+        # Step 2: Direction of travel (Direction_sn) -> Always select 1st option in the list
         if self.direction_travel_dropdown.is_visible(timeout=1500):
-            self.logger.info("Selecting travel direction 'East' in Direction_sn dropdown")
-            try:
-                if not self.kendo_dropdown.select("Direction_sn", option_text="East", timeout_ms=3000):
-                    self.kendo_dropdown.select_first_option("Direction_sn")
-            except Exception:
-                self.kendo_dropdown.select_first_option("Direction_sn")
+            self.logger.info("Selecting 1st dropdown option for Direction_sn")
+            self.kendo_dropdown.select_first_option("Direction_sn")
 
-        # Step 3: Distance 1, Unit (Feet), Direction 1
-        dist1 = float(
-            form_data.get(
-                "sign_distance1",
-                round(fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=1.5, max_value=8.5), 2),
-            )
-        )
-        self.distance1_unit_radio.click()
-        self.kendo_dropdown.select_first_option("Direction")
-
-        # Step 4: Landmarks
-        landmarks = form_data.get("landmarks") or f"Milepost {fake.random_int(10, 80)} at Exit {fake.random_int(1, 30)}"
-        self.landmarks_input.fill(landmarks)
-
-        # Step 5: Distance 2, Unit (Feet), Direction 2
-        dist2 = float(
-            form_data.get(
-                "sign_distance2",
-                round(fake.pyfloat(left_digits=1, right_digits=2, positive=True, min_value=1.5, max_value=8.5), 2),
-            )
-        )
-        self.distance2_unit_radio.click()
-        self.kendo_dropdown.select_first_option("Direction2")
-
-        # Step 6: Populate numeric inputs for sign location
-        self.kendo_numeric.set_value_by_id("signlocated", dist1)
-        self.kendo_numeric.set_value_by_id("signlocated2", dist2)
+        # Step 3: Reusable distances, directions (1st dropdown), and landmarks
+        self.fill_sign_distances_and_landmarks(form_data)
 
         return self
 
     def submit_complete_directional_sign_application(
         self, data: Optional[Dict[str, Any]] = None, file_path: Optional[str] = None
     ) -> PaymentPage:
-        """
-        Executes complete end-to-end submission for Directional Sign:
-        1. Navigates to Directional Sign form.
-        2. Fills Sign Information.
-        3. Fills Location Information (including Direction_sn).
-        4. Fills Property Owner Information.
-        5. Uploads Proof of Property.
-        6. Fills Acknowledgment and Signature.
-        7. Submits application and confirms 1st page modal.
-        8. Completes Payment Gateway and post-payment flow.
-        """
-        test_data = data or generate_primary_highway_test_data()
+        """Executes complete end-to-end submission for Directional Sign."""
+        test_data = data or generate_directional_sign_test_data()
         self.navigate_to_directional_sign_application()
         self.fill_sign_information(test_data)
         self.fill_location_information(test_data)

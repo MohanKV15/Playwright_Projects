@@ -33,8 +33,8 @@ def test_submit_junkyard_permit_application(
     Verifies end-to-end permit application submission for Junkyard:
     1. Authenticates user with valid credentials and PIN.
     2. Navigates from Dashboard -> Submit Application -> Permit Application -> Junkyard.
-    3. Fills Yard Information (Yard Type Junkyard, Secretary of State UDL, Date Yard Established, Screening).
-    4. Fills Location Information (District, County, Route, GPS Coordinates, Distance, Direction 'East', Landmarks, Limits, Zoning).
+    3. Fills Yard Information (Yard Type Junkyard, Secretary of State UDL, Date Yard Established, 1st Screening option).
+    4. Fills Location Information (District, County, Route, GPS Coordinates, Distance, 1st option Direction, Landmarks, Limits, Zoning).
     5. Fills Property Owner Information with dynamic Faker data.
     6. Attaches dummy PDF proof of property.
     7. Signs acknowledgment and disclosure.
@@ -56,7 +56,7 @@ def test_submit_junkyard_permit_application(
     with allure.step("3. Fill Yard Information (Yard Type, Sec of State UDL, Date Yard Established, Screening)"):
         junkyard_page.fill_yard_information(test_data)
 
-    with allure.step("4. Fill Location Information (District, County, Route, GPS, Distance, Direction, Landmarks, Zoning)"):
+    with allure.step("4. Fill Location Information (District, County, Route, GPS, Distance, 1st option Direction, Landmarks, Zoning)"):
         junkyard_page.fill_location_information(test_data)
 
     with allure.step("5. Fill Property Owner Information with Faker data"):

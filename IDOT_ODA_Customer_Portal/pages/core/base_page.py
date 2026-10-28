@@ -141,6 +141,13 @@ class BasePage:
         self._wait_for_loader()
         return res
 
+    def select_first_dropdown(self, dropdown_locator_or_selector: Union[Locator, str], timeout_ms: int = 5000) -> bool:
+        """Selects the first valid option from a Kendo or native dropdown widget."""
+        self._wait_for_loader()
+        res = self.kendo_dropdown.select_first_option(dropdown_locator_or_selector, timeout_ms=timeout_ms)
+        self._wait_for_loader()
+        return res
+
     def set_kendo_datepicker(self, picker_locator_or_selector: Union[Locator, str], date_str: str) -> bool:
         """Sets date string in a Kendo datepicker input and triggers change event."""
         try:

@@ -1,8 +1,11 @@
 """
 Permit Application Page Object Models.
-Includes Primary Highway, Interstate Highway, and related permit workflows.
+Includes BasePermitApplicationPage, Primary Highway, Interstate Highway, Directional Sign, and Junkyard workflows.
 """
 
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.base_permit_page import (
+    BasePermitApplicationPage,
+)
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.primary_highway_page import (
     PrimaryHighwayPage,
 )
@@ -16,4 +19,10 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
     JunkyardPage,
 )
 
-__all__ = ["PrimaryHighwayPage", "InterstateHighwayPage", "DirectionalSignPage", "JunkyardPage"]
+__all__ = [
+    "BasePermitApplicationPage",
+    "PrimaryHighwayPage",
+    "InterstateHighwayPage",
+    "DirectionalSignPage",
+    "JunkyardPage",
+]
