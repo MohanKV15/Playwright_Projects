@@ -56,11 +56,10 @@ class InterstateHighwayPage(PrimaryHighwayPage):
     def navigate_to_interstate_highway_application(self) -> "InterstateHighwayPage":
         """
         Navigates from Customer Portal Dashboard to the Interstate Highway permit application form:
-        1. Clicks '#btnSubmitApp' (Submit an Application)
-        2. Clicks '#btnPermitApp' (Permit Application)
-        3. Asserts 'Business Area Sign - Interstate Highway' is visible
-        4. Clicks '#btnInterState' (Interstate Highway)
-        5. Asserts 'Permit Application - Business' heading is visible
+        1. Calls inherited self.navigate_to_permit_application_menu() to open permit options.
+        2. Asserts 'Business Area Sign - Interstate Highway' is visible.
+        3. Clicks '#btnInterState' (Interstate Highway).
+        4. Asserts 'Permit Application - Business' heading is visible.
         """
         self.logger.info("Navigating to Interstate Highway Application Form")
         self._wait_for_loader(timeout=30000)
@@ -68,25 +67,7 @@ class InterstateHighwayPage(PrimaryHighwayPage):
         if self.interstate_highway_heading.is_visible(timeout=1500):
             return self
 
-        submit_btn = self.page.locator(
-            "#btnSubmitApp, a:has-text('Submit an Application'), button:has-text('Submit an Application')"
-        ).first
-        expect(submit_btn).to_be_visible(timeout=35000)
-        self.page.wait_for_timeout(300)
-        submit_btn.click()
-        self._wait_for_loader(timeout=30000)
-
-        if not self.permit_app_btn.is_visible(timeout=3000):
-            try:
-                submit_btn.click(force=True)
-                self._wait_for_loader(timeout=30000)
-            except Exception:
-                pass
-
-        expect(self.permit_app_btn).to_be_visible(timeout=30000)
-        self.permit_app_btn.click()
-        self._wait_for_loader(timeout=30000)
-
+        self.navigate_to_permit_application_menu()
         expect(self.interstate_highway_card).to_be_visible(timeout=30000)
         expect(self.interstate_highway_btn).to_be_visible(timeout=30000)
         self.interstate_highway_btn.click()

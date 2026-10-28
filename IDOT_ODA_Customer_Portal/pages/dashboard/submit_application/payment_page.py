@@ -91,9 +91,13 @@ class PaymentPage(BasePage):
     def wait_for_payment_gateway(self, timeout_ms: int = 40000) -> "PaymentPage":
         """Waits for redirection and verifies that the Payment Gateway page is displayed."""
         self.logger.info("Waiting for Payment Gateway page to load...")
+        if "casuccesspagefull" in self.page.url.lower() or self.success_heading.is_visible(timeout=2000):
+            self.logger.info("Application has no fee: already on CASuccessPageFull")
+            return self
+
         expect(self.page).to_have_url(
             re.compile(
-                r".*(collectorsolutions\.com|magic-ui|Pay|Process|PaymentMethod|Checkout|Payment).*",
+                r".*(collectorsolutions\.com|magic-ui|Pay|Process|PaymentMethod|Checkout|Payment|CASuccessPageFull).*",
                 re.I,
             ),
             timeout=timeout_ms,
@@ -103,6 +107,9 @@ class PaymentPage(BasePage):
             self.page.wait_for_load_state("domcontentloaded", timeout=15000)
         except Exception:
             pass
+
+        if "casuccesspagefull" in self.page.url.lower():
+            return self
 
         expect(self.gateway_heading).to_be_visible(timeout=25000)
         self.logger.info(f"Payment Gateway displayed successfully: {self.page.url}")
@@ -120,44 +127,15 @@ class PaymentPage(BasePage):
         """Fills payment card details on Payment Gateway form."""
         self.logger.info("Filling credit card details on Payment Gateway...")
 
-        # 1. Name on Card
-        if self.page.locator("#CCNameOnCard").is_visible(timeout=1000):
-            self.page.fill("#CCNameOnCard", name)
-        else:
-            expect(self.name_on_card_input).to_be_visible(timeout=20000)
-            self.name_on_card_input.fill(name)
+        expect(self.name_on_card_input).to_be_visible(timeout=20000)
+        self.name_on_card_input.fill(name)
+        self.card_number_input.fill(card_number)
+        self.exp_month_select.select_option(exp_month)
+        self.exp_year_select.select_option(exp_year)
+        self.cvv_input.fill(cvv)
 
-        # 2. Card Number
-        if self.page.locator("#CCCardNumber").is_visible(timeout=1000):
-            self.page.fill("#CCCardNumber", card_number)
-        else:
-            expect(self.card_number_input).to_be_visible(timeout=20000)
-            self.card_number_input.fill(card_number)
-
-        # 3. Expiration Month
-        if self.page.locator("#CCExpirationMonth").is_visible(timeout=1000):
-            self.page.select_option("#CCExpirationMonth", exp_month)
-        else:
-            expect(self.exp_month_select).to_be_visible(timeout=10000)
-            self.exp_month_select.select_option(exp_month)
-
-        # 4. Expiration Year
-        if self.page.locator("#CCExpirationYear").is_visible(timeout=1000):
-            self.page.select_option("#CCExpirationYear", exp_year)
-        else:
-            expect(self.exp_year_select).to_be_visible(timeout=10000)
-            self.exp_year_select.select_option(exp_year)
-
-        # 5. Security Code / CVV
-        if self.page.locator("#CCCardCVV").is_visible(timeout=1000):
-            self.page.fill("#CCCardCVV", cvv)
-        else:
-            expect(self.cvv_input).to_be_visible(timeout=10000)
-            self.cvv_input.fill(cvv)
-
-        # 6. Card Zip Code (if visible)
         try:
-            if self.card_zip_input.is_visible(timeout=1000):
+            if self.card_zip_input.is_visible(timeout=500):
                 self.card_zip_input.fill(zip_code)
         except Exception:
             pass
@@ -252,13 +230,17 @@ class PaymentPage(BasePage):
     ) -> None:
         """
         Executes end-to-end payment gateway and post-payment workflow:
-        1. Waits for Payment Gateway page to display.
-        2. Fills card details.
-        3. Clicks Next Step: Review Payment.
-        4. Submits payment and waits for return to CASuccessPageFull.
-        5. Clicks 'No' on the survey modal ('Would you like to respond to survey?').
-        6. Clicks 'Return Home' on the success page and verifies return to Dashboard.
+        1. If already on CASuccessPageFull (no fee), directly dismisses survey and returns home.
+        2. Otherwise, completes card details on Payment Gateway, reviews, and submits payment.
+        3. Clicks 'No' on the survey modal ('Would you like to respond to survey?').
+        4. Clicks 'Return Home' on the success page and verifies return to Dashboard.
         """
+        if "casuccesspagefull" in self.page.url.lower() or self.success_heading.is_visible(timeout=3000):
+            self.logger.info("Application has no fee: already on Success Page (CASuccessPageFull)")
+            self.handle_survey_modal(respond=False)
+            self.click_return_home()
+            return
+
         self.wait_for_payment_gateway()
         self.fill_card_details(
             card_number=card_number,

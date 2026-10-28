@@ -266,12 +266,14 @@ class KendoDatePicker:
                 }})();
                 """
             )
-            # Also fill via Playwright if visible to ensure browser-level event dispatch
+            # Also fill via Playwright only if element is editable (not readonly)
             try:
                 inp_loc = self.page.locator(f"#{clean_id}")
-                if inp_loc.is_visible(timeout=500):
-                    inp_loc.fill(date_str)
-                    inp_loc.press("Tab")
+                if inp_loc.is_visible(timeout=300):
+                    readonly = inp_loc.get_attribute("readonly", timeout=300)
+                    if not readonly:
+                        inp_loc.fill(date_str, timeout=1000)
+                        inp_loc.press("Tab", timeout=500)
             except Exception:
                 pass
             return bool(res)
@@ -300,9 +302,11 @@ class KendoDatePicker:
             )
             try:
                 loc = self.page.locator(".k-datepicker input").first
-                if loc.is_visible(timeout=500):
-                    loc.fill(date_str)
-                    loc.press("Tab")
+                if loc.is_visible(timeout=300):
+                    readonly = loc.get_attribute("readonly", timeout=300)
+                    if not readonly:
+                        loc.fill(date_str, timeout=1000)
+                        loc.press("Tab", timeout=500)
             except Exception:
                 pass
             return bool(res)
@@ -413,19 +417,35 @@ class KendoMaskedTextBox:
             return False
 
     def set_value(self, target: Union[Locator, str], value: str) -> bool:
-        """Polymorphic set_value for MaskedTextBox."""
-        if isinstance(target, str):
-            clean_id = target.lstrip("#")
-            if " " not in clean_id and (clean_id.isalnum() or "_" in clean_id or "-" in clean_id):
-                return self.set_value_by_id(clean_id, value)
+        """Polymorphic set_value for MaskedTextBox using Kendo widget API."""
+        raw_digits = "".join(c for c in str(value) if c.isdigit())
+        fill_val = raw_digits if len(raw_digits) in (7, 10) else str(value)
         loc = target if isinstance(target, Locator) else self.page.locator(target)
         try:
-            loc.fill(value)
-            loc.press("Tab")
+            loc.evaluate(
+                f"""el => {{
+                    if (window.$) {{
+                        const mtb = $(el).data('kendoMaskedTextBox');
+                        if (mtb && typeof mtb.value === 'function') {{
+                            mtb.value('{fill_val}');
+                            if (typeof mtb.trigger === 'function') mtb.trigger('change');
+                        }}
+                    }}
+                    el.value = '{fill_val}';
+                    el.dispatchEvent(new Event('input', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('change', {{ bubbles: true }}));
+                    el.dispatchEvent(new Event('blur', {{ bubbles: true }}));
+                }}"""
+            )
             return True
         except Exception as e:
             self.logger.warning(f"KendoMaskedTextBox set_value failed for {target}: {e}")
-            return False
+            try:
+                loc.fill(str(value))
+                loc.press("Tab")
+                return True
+            except Exception:
+                return False
 
 
 class KendoNumericTextBox:

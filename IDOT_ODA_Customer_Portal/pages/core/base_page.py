@@ -160,6 +160,17 @@ class BasePage:
             self._wait_for_loader()
         return res
 
+    def scroll_to_section(self, section_locator: Union[Locator, str]) -> None:
+        """
+        Scrolls smoothly to a major section heading or element to provide a steady,
+        natural visual progression down the page.
+        """
+        try:
+            locator = section_locator if isinstance(section_locator, Locator) else self.page.locator(section_locator)
+            locator.evaluate("el => el.scrollIntoView({ behavior: 'smooth', block: 'start' })")
+        except Exception:
+            pass
+
     def capture_screenshot(self, scenario_name: str) -> None:
         """Saves a screenshot into debug_artifacts directory."""
         try:
@@ -169,3 +180,4 @@ class BasePage:
             self.logger.info(f"Screenshot saved to: {path}")
         except Exception as e:
             self.logger.error(f"Screenshot capture failed: {e}")
+

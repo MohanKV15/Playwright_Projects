@@ -69,18 +69,11 @@ def test_submit_primary_highway_permit_application(
         primary_highway_page.fill_acknowledgment_and_signature(test_data)
 
     with allure.step("8. Submit application and confirm 1st page modal (click OK)"):
-        primary_highway_page.submit_application()
-        primary_highway_page.confirm_submission_modal()
+        primary_highway_page.submit_application().confirm_submission_modal()
 
     with allure.step("9. Fill Payment Gateway card details and click Next Step"):
         payment_page.wait_for_payment_gateway()
-        payment_page.fill_card_details(
-            card_number="4111111111111111",
-            cvv="111",
-            name="QA Tester",
-            exp_month="03",
-            exp_year="2029",
-        )
+        payment_page.fill_card_details()
         payment_page.click_next_step()
 
     with allure.step("10. Submit payment, click No on survey modal, and click Return Home"):

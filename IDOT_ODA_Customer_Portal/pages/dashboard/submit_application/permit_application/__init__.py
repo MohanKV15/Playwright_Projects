@@ -9,5 +9,11 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.interstate_highway_page import (
     InterstateHighwayPage,
 )
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.directional_sign_page import (
+    DirectionalSignPage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.junkyard_page import (
+    JunkyardPage,
+)
 
-__all__ = ["PrimaryHighwayPage", "InterstateHighwayPage"]
+__all__ = ["PrimaryHighwayPage", "InterstateHighwayPage", "DirectionalSignPage", "JunkyardPage"]

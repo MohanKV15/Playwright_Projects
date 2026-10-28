@@ -15,6 +15,12 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.interstate_highway_page import (
     InterstateHighwayPage,
 )
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.directional_sign_page import (
+    DirectionalSignPage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.junkyard_page import (
+    JunkyardPage,
+)
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
 
@@ -52,3 +58,16 @@ def payment_page(page: Page) -> PaymentPage:
 def interstate_highway_page(page: Page) -> InterstateHighwayPage:
     """Fixture providing an initialized InterstateHighwayPage instance."""
     return InterstateHighwayPage(page)
+
+
+@pytest.fixture(scope="function")
+def directional_sign_page(page: Page) -> DirectionalSignPage:
+    """Fixture providing an initialized DirectionalSignPage instance."""
+    return DirectionalSignPage(page)
+
+
+@pytest.fixture(scope="function")
+def junkyard_page(page: Page) -> JunkyardPage:
+    """Fixture providing an initialized JunkyardPage instance."""
+    return JunkyardPage(page)
+
