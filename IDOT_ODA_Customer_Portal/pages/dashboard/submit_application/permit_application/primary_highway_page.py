@@ -8,7 +8,7 @@ from faker import Faker
 from IDOT_ODA_Customer_Portal.utils.config import Config
 from IDOT_ODA_Customer_Portal.pages.core.base_page import BasePage
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
-from IDOT_ODA_Customer_Portal.testdata.primary_highway_data import generate_primary_highway_test_data
+from IDOT_ODA_Customer_Portal.testdata import generate_primary_highway_test_data
 
 logger = logging.getLogger(__name__)
 fake = Faker()
@@ -139,14 +139,37 @@ class PrimaryHighwayPage(BasePage):
         Shared across all permit application types (Primary Highway, Interstate, etc.).
         """
         self._wait_for_loader(timeout=30000)
+
+        # Handle post-login transitional pages (CALandingFull / AccountAccess)
+        if "CALanding" in self.page.url or "Account" in self.page.url:
+            try:
+                self.page.wait_for_url(
+                    re.compile(r"CADashboardFull|4321CustomerPortalDashboardFull"),
+                    timeout=20000,
+                )
+            except Exception:
+                self.logger.warning("Landing redirect delayed; navigating directly to CADashboardFull")
+                self.page.goto(f"{Config.BASE_HOST}/Portal/Page/Index/CADashboardFull", wait_until="domcontentloaded")
+
+        self._wait_for_loader(timeout=30000)
+
         submit_btn = self.page.locator(
             "#btnSubmitApp, a:has-text('Submit an Application'), button:has-text('Submit an Application')"
         ).first
+
+        # Ensure dashboard card has rendered; retry navigation if page was stuck
+        try:
+            submit_btn.wait_for(state="visible", timeout=15000)
+        except Exception:
+            self.logger.warning("Submit Application card not visible after 15s; refreshing Dashboard")
+            self.page.goto(f"{Config.BASE_HOST}/Portal/Page/Index/CADashboardFull", wait_until="domcontentloaded")
+            self._wait_for_loader(timeout=30000)
+
         expect(submit_btn).to_be_visible(timeout=35000)
         submit_btn.click()
         self._wait_for_loader(timeout=30000)
 
-        if not self.permit_app_btn.is_visible(timeout=3000):
+        if not self.permit_app_btn.is_visible():
             try:
                 submit_btn.click(force=True)
                 self._wait_for_loader(timeout=30000)

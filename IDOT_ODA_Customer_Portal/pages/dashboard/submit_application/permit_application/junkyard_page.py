@@ -7,7 +7,7 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
     PrimaryHighwayPage,
 )
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
-from IDOT_ODA_Customer_Portal.testdata.junkyard_data import generate_junkyard_test_data
+from IDOT_ODA_Customer_Portal.testdata import generate_junkyard_test_data
 
 logger = logging.getLogger(__name__)
 fake = Faker()

@@ -2,7 +2,7 @@ import allure
 import pytest
 from IDOT_ODA_Customer_Portal.pages.login.login_page import LoginPage
 from IDOT_ODA_Customer_Portal.pages.login.create_an_account_page import CreateAnAccountPage
-from IDOT_ODA_Customer_Portal.testdata.create_account_data import (
+from IDOT_ODA_Customer_Portal.testdata import (
     generate_company_registration_data,
 )
 

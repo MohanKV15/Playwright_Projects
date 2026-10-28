@@ -55,12 +55,13 @@ class BasePage:
     def _wait_for_loader(self, timeout: int = 15000) -> None:
         """Waits for any active Kendo loading masks or AJAX spinners to disappear."""
         loader_selectors = [
-            ".k-loading-mask:visible",
-            ".k-loading-image:visible",
-            ".k-loading-color:visible",
-            ".k-i-loading:visible",
-            "#loading:visible",
-            ".loading:visible",
+            "#loader.k-loading-image",
+            ".k-loading-mask",
+            ".k-loading-image",
+            ".k-loading-color",
+            ".k-i-loading",
+            "#loading",
+            ".loading",
         ]
         combined_selector = ", ".join(loader_selectors)
         try:
