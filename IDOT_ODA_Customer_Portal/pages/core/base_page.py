@@ -11,6 +11,7 @@ from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import (
     KendoDatePicker,
     KendoNumericTextBox,
     KendoMaskedTextBox,
+    KendoCheckbox,
 )
 
 DEBUG_ARTIFACTS_DIR = Config.PROJECT_ROOT / "reports" / "debug_artifacts"
@@ -35,6 +36,7 @@ class BasePage:
         self.kendo_datepicker = self.kendo_controls.datepicker
         self.kendo_numeric = self.kendo_controls.numeric
         self.kendo_masked = self.kendo_controls.masked
+        self.kendo_checkbox = self.kendo_controls.checkbox
         self._apply_zoom_script()
 
     def _apply_zoom_script(self) -> None:
@@ -160,6 +162,10 @@ class BasePage:
         except Exception as e:
             self.logger.error(f"Failed to set date '{date_str}': {e}")
             return False
+
+    def check_kendo_checkbox(self, checkbox_locator_or_selector: Union[Locator, str], input_index: Optional[int] = None) -> bool:
+        """Checks a Kendo UI checkbox widget safely."""
+        return self.kendo_checkbox.check(checkbox_locator_or_selector, input_index=input_index)
 
     def handle_kendo_alert(self, timeout_ms: int = 5000) -> bool:
         """Detects and clicks OK on Kendo alert/confirm dialogs if displayed."""

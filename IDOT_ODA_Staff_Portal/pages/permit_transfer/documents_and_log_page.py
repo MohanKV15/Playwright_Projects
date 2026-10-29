@@ -169,3 +169,4 @@ class DocumentsAndLogPage(AppDocumentsAndLogPage):
             "communication": comm_info,
         }
 
+

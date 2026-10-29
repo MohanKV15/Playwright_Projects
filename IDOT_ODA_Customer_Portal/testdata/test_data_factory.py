@@ -149,6 +149,21 @@ class TestDataFactory:
             "zip_code": fake.zipcode()[:5],
         }
 
+    @classmethod
+    def permit_transfer(cls) -> Dict[str, Any]:
+        """
+        Generates dynamic test data for Permit Transfer applications.
+        Permit number, company names, and signer details are dynamically created via Faker.
+        """
+        present_day = cls.today()
+        return {
+            "permit_number": str(fake.random_number(digits=6, fix_len=True)),
+            "from_company": f"{fake.company()} LLC",
+            "signer_name": f"{fake.first_name()} {fake.last_name()}",
+            "signer_title": f"{fake.job()[:25]}",
+            "signature_date": present_day,
+        }
+
 
 # ---------------------------------------------------------------------
 # Top-level functional aliases for direct invocation and backward compatibility
@@ -171,3 +186,7 @@ def generate_junkyard_test_data() -> Dict[str, Any]:
 
 def generate_payment_card_data() -> Dict[str, str]:
     return TestDataFactory.payment_card()
+
+
+def generate_permit_transfer_test_data() -> Dict[str, Any]:
+    return TestDataFactory.permit_transfer()

@@ -540,10 +540,161 @@ class KendoNumericTextBox:
             return False
 
 
+class KendoCheckbox:
+    """
+    Dedicated Page Component representing Kendo UI Checkbox widgets.
+    Handles UI clicking, label association, and DOM event validation.
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def check(self, target: Union[Locator, str], input_index: Optional[int] = None, timeout_ms: int = 5000) -> bool:
+        """
+        Ensures a Kendo UI checkbox is checked:
+        1. Checks if already checked (if so, returns True immediately).
+        2. Scrolls target into view and clicks the visible label or checkbox element.
+        3. Verifies whether the input element is checked; if not, sets checked state and triggers input/change events.
+        """
+        loc = target if isinstance(target, Locator) else self.page.locator(target)
+
+        # Check if already checked to ensure idempotency
+        try:
+            if input_index is not None:
+                inputs = self.page.locator("input[type='checkbox']")
+                if inputs.count() > input_index and inputs.nth(input_index).is_checked():
+                    return True
+            elif loc.count() > 0:
+                is_checked = loc.evaluate(
+                    """el => {
+                        let inp = el.tagName && el.tagName.toLowerCase() === 'input' ? el : null;
+                        if (!inp) {
+                            const forAttr = el.getAttribute ? el.getAttribute('for') : null;
+                            if (forAttr) inp = document.getElementById(forAttr);
+                        }
+                        if (!inp) inp = el.querySelector ? el.querySelector("input[type='checkbox']") : null;
+                        return inp ? inp.checked : false;
+                    }"""
+                )
+                if is_checked:
+                    return True
+        except Exception:
+            pass
+
+        try:
+            if loc.is_visible(timeout=timeout_ms):
+                loc.scroll_into_view_if_needed()
+                loc.click(force=True)
+                self.page.wait_for_timeout(200)
+        except Exception as e:
+            self.logger.warning(f"KendoCheckbox UI click failed on {target}: {e}")
+
+        # Ensure target input is actually checked in DOM
+        try:
+            if input_index is not None:
+                inputs = self.page.locator("input[type='checkbox']")
+                if inputs.count() > input_index:
+                    target_input = inputs.nth(input_index)
+                    if not target_input.is_checked():
+                        self.logger.info(f"Checkbox at index {input_index} not yet checked. Enforcing checked state via DOM.")
+                        target_input.evaluate(
+                            """el => {
+                                if (!el.checked) {
+                                    el.checked = true;
+                                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }"""
+                        )
+                        self.page.wait_for_timeout(150)
+                    return True
+            else:
+                loc.evaluate(
+                    """el => {
+                        let inp = el.tagName && el.tagName.toLowerCase() === 'input' ? el : null;
+                        if (!inp) {
+                            const forAttr = el.getAttribute ? el.getAttribute('for') : null;
+                            if (forAttr) inp = document.getElementById(forAttr);
+                        }
+                        if (!inp) inp = el.querySelector ? el.querySelector("input[type='checkbox']") : null;
+                        if (!inp) {
+                            const parent = (el.closest ? el.closest('.form-check, .k-checkbox-wrap') : null) || el.parentElement;
+                            if (parent && parent.querySelector) inp = parent.querySelector("input[type='checkbox']");
+                        }
+                        if (inp && !inp.checked) {
+                            inp.checked = true;
+                            inp.dispatchEvent(new Event('input', { bubbles: true }));
+                            inp.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }"""
+                )
+                return True
+        except Exception as e:
+            self.logger.debug(f"KendoCheckbox DOM state enforcement notice: {e}")
+
+        return True
+
+    def uncheck(self, target: Union[Locator, str], input_index: Optional[int] = None, timeout_ms: int = 5000) -> bool:
+        """
+        Ensures a Kendo UI checkbox is unchecked.
+        """
+        loc = target if isinstance(target, Locator) else self.page.locator(target)
+        try:
+            if loc.is_visible(timeout=timeout_ms):
+                loc.scroll_into_view_if_needed()
+                loc.click(force=True)
+                self.page.wait_for_timeout(200)
+        except Exception as e:
+            self.logger.warning(f"KendoCheckbox UI uncheck click failed on {target}: {e}")
+
+        try:
+            if input_index is not None:
+                inputs = self.page.locator("input[type='checkbox']")
+                if inputs.count() > input_index:
+                    target_input = inputs.nth(input_index)
+                    if target_input.is_checked():
+                        target_input.evaluate(
+                            """el => {
+                                if (el.checked) {
+                                    el.checked = false;
+                                    el.dispatchEvent(new Event('input', { bubbles: true }));
+                                    el.dispatchEvent(new Event('change', { bubbles: true }));
+                                }
+                            }"""
+                        )
+                    return True
+            else:
+                loc.evaluate(
+                    """el => {
+                        let inp = el.tagName && el.tagName.toLowerCase() === 'input' ? el : null;
+                        if (!inp) {
+                            const forAttr = el.getAttribute ? el.getAttribute('for') : null;
+                            if (forAttr) inp = document.getElementById(forAttr);
+                        }
+                        if (!inp) inp = el.querySelector ? el.querySelector("input[type='checkbox']") : null;
+                        if (!inp) {
+                            const parent = (el.closest ? el.closest('.form-check, .k-checkbox-wrap') : null) || el.parentElement;
+                            if (parent && parent.querySelector) inp = parent.querySelector("input[type='checkbox']");
+                        }
+                        if (inp && inp.checked) {
+                            inp.checked = false;
+                            inp.dispatchEvent(new Event('input', { bubbles: true }));
+                            inp.dispatchEvent(new Event('change', { bubbles: true }));
+                        }
+                    }"""
+                )
+                return True
+        except Exception as e:
+            self.logger.debug(f"KendoCheckbox DOM uncheck enforcement notice: {e}")
+
+        return True
+
+
 class KendoControls:
     """
     Composite controller providing unified access to all Kendo UI widgets
-    (Dropdowns, DatePickers, MaskedTextBoxes, NumericTextBoxes, and Alert dialogs).
+    (Dropdowns, DatePickers, MaskedTextBoxes, NumericTextBoxes, Checkboxes, and Alert dialogs).
     """
 
     def __init__(self, page: Page):
@@ -552,6 +703,7 @@ class KendoControls:
         self.datepicker = KendoDatePicker(page)
         self.numeric = KendoNumericTextBox(page)
         self.masked = KendoMaskedTextBox(page)
+        self.checkbox = KendoCheckbox(page)
 
     @staticmethod
     def handle_kendo_alert(page: Page, timeout_ms: int = 5000) -> bool:

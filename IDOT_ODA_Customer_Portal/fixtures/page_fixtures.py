@@ -21,6 +21,9 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_application.junkyard_page import (
     JunkyardPage,
 )
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_transfer.permit_transfer_page import (
+    PermitTransferPage,
+)
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
 
@@ -70,4 +73,11 @@ def directional_sign_page(page: Page) -> DirectionalSignPage:
 def junkyard_page(page: Page) -> JunkyardPage:
     """Fixture providing an initialized JunkyardPage instance."""
     return JunkyardPage(page)
+
+
+@pytest.fixture(scope="function")
+def permit_transfer_page(page: Page) -> PermitTransferPage:
+    """Fixture providing an initialized PermitTransferPage instance."""
+    return PermitTransferPage(page)
+
 
