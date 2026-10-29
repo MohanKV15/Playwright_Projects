@@ -15,9 +15,9 @@ class ActionItemsPage(BasePage):
     - Navigation from Dashboard to Action Items
     - Verification of Action Items heading and #ActionItemGrid
     - Selection and opening of the 1st record row in the table via KendoGrid
-    - Saving application for later submission ('Save for Later') via KendoButton
+    - Saving application for later submission ('Save for Later')
     - Confirmation dialog sequence ('The page information will be...' -> 'OK'
-      and 'Record saved successfully.' -> 'OK') via Kendo alert handling
+      and 'Record saved successfully.' -> 'OK')
     """
 
     def __init__(self, page: Page):
@@ -30,25 +30,23 @@ class ActionItemsPage(BasePage):
         self.action_items_btn = page.locator("#btnActionItems")
         self.action_items_heading = page.get_by_role(
             "heading", name=re.compile(r"Action Items", re.I)
-        ).or_(page.locator("text=Action Items")).first
+        )
 
         # 2. Grid Table Locator
         self.action_item_grid = page.locator("#ActionItemGrid")
 
         # 3. Application Form & Save for Later Locators
-        self.save_for_later_btn = (
-            page.get_by_role("button", name=re.compile(r"Save for Later", re.I))
-            .or_(page.locator("#btnSaveForLater, button:has-text('Save for Later')"))
-            .first
+        self.save_for_later_btn = page.get_by_role(
+            "button", name=re.compile(r"Save for Later", re.I)
         )
 
         # 4. Confirmation Dialog Locators
         self.dialog_info_prompt = page.get_by_text(
             "The page information will be", exact=False
-        ).first
+        )
         self.dialog_record_saved = page.get_by_text(
             "Record saved successfully.", exact=False
-        ).first
+        )
 
     # -----------------------------------------------------------------
     # Navigation & Verification Methods
@@ -56,30 +54,14 @@ class ActionItemsPage(BasePage):
     def navigate_to_action_items(self) -> "ActionItemsPage":
         """Navigates from Dashboard to the Action Items page."""
         self.logger.info("Navigating to Action Items page")
-        self._wait_for_loader(timeout=30000)
+        self._wait_for_loader()
 
-        if "CALanding" in self.page.url or "Account" in self.page.url:
-            try:
-                self.page.wait_for_url(
-                    re.compile(r"CADashboardFull|4321CustomerPortalDashboardFull"),
-                    timeout=20000,
-                )
-            except Exception:
-                self.page.goto(
-                    f"{Config.BASE_HOST}/Portal/Page/Index/CADashboardFull",
-                    wait_until="domcontentloaded",
-                )
-
-        self._wait_for_loader(timeout=30000)
-
-        # Return immediately if already on Action Items page
         if self.action_items_heading.is_visible() and self.action_item_grid.is_visible():
             return self
 
         expect(self.action_items_dashboard_card).to_be_visible(timeout=30000)
-        expect(self.action_items_btn).to_be_visible(timeout=30000)
         self.action_items_btn.click()
-        self._wait_for_loader(timeout=30000)
+        self._wait_for_loader()
 
         self.verify_action_items_page()
         self.logger.info("Successfully navigated to Action Items page")
@@ -101,21 +83,17 @@ class ActionItemsPage(BasePage):
         Always targets index 0 using the encapsulated KendoGrid component.
         """
         self.logger.info("Opening the 1st record in #ActionItemGrid via KendoGrid")
-        row_text = self.kendo_grid.get_row_text(self.action_item_grid, row_index=0)
-        self.logger.info(f"Targeting 1st record row: '{row_text}'")
-
         self.click_grid_row_button(self.action_item_grid, row_index=0, timeout_ms=timeout_ms)
-        self._wait_for_loader(timeout=25000)
+        self._wait_for_loader()
         return self
 
     # -----------------------------------------------------------------
     # Save for Later & Confirmation Dialog Methods
     # -----------------------------------------------------------------
     def click_save_for_later(self, timeout_ms: int = 15000) -> "ActionItemsPage":
-        """Clicks 'Save for Later' button on the opened application form using KendoButton."""
+        """Clicks 'Save for Later' button on the opened application form."""
         self.logger.info("Clicking 'Save for Later' button")
-        self._wait_for_loader()
-        self.click_kendo_button(self.save_for_later_btn, timeout_ms=timeout_ms)
+        self.save_for_later_btn.click()
         self._wait_for_loader()
         return self
 
@@ -146,7 +124,7 @@ class ActionItemsPage(BasePage):
         1. Navigates from Dashboard to Action Items
         2. Asserts heading and #ActionItemGrid
         3. Clicks button in 1st row of table via KendoGrid
-        4. Clicks 'Save for Later' via KendoButton
+        4. Clicks 'Save for Later'
         5. Confirms 'The page information will be...' -> 'OK'
         6. Confirms 'Record saved successfully.' -> 'OK'
         """

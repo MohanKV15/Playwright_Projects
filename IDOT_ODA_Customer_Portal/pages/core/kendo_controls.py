@@ -71,22 +71,21 @@ class KendoDropdown:
         """
         try:
             loc = dropdown_locator if isinstance(dropdown_locator, Locator) else self.page.locator(dropdown_locator)
-            if loc.is_visible(timeout=timeout_ms):
-                loc.scroll_into_view_if_needed()
-                loc.click(force=True)
-                self.page.wait_for_timeout(200)
-                option = (
-                    self.page.get_by_role("option", name=re.compile(f"^{re.escape(option_text)}$", re.I))
-                    .or_(
-                        self.page.locator(
-                            ".k-animation-container:visible li, .k-list-container:visible li, [role='listbox']:visible li, [role='option']:visible"
-                        ).filter(has_text=re.compile(re.escape(option_text), re.I))
-                    )
-                    .first
+            loc.scroll_into_view_if_needed()
+            loc.click(force=True)
+            self.page.wait_for_timeout(200)
+            option = (
+                self.page.get_by_role("option", name=re.compile(f"^{re.escape(option_text)}$", re.I))
+                .or_(
+                    self.page.locator(
+                        ".k-animation-container:visible li, .k-list-container:visible li, [role='listbox']:visible li, [role='option']:visible"
+                    ).filter(has_text=re.compile(re.escape(option_text), re.I))
                 )
-                if option.is_visible(timeout=timeout_ms):
-                    option.click(force=True)
-                    return True
+                .first
+            )
+            option.wait_for(state="visible", timeout=timeout_ms)
+            option.click(force=True)
+            return True
         except Exception as e:
             self.logger.warning(f"KendoDropdown select_by_locator failed for '{option_text}': {e}")
         return False

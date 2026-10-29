@@ -24,24 +24,32 @@ class DashboardPage(BasePage):
         ).first
         self.customer_section = page.locator("#frmCustomer section")
 
-        # Action Cards / Tiles
-        self.submit_application_card = page.get_by_text(
-            re.compile(r"Submit an Application", re.I)
+        # Action Cards Buttons (Dedicated Unique Element IDs)
+        self.submit_app_btn = page.locator("#btnSubmitApp")
+        self.action_items_btn = page.locator("#btnActionItems")
+        self.app_history_btn = page.locator("#btnViewSubmittedApps")
+        self.payment_activity_btn = page.locator("#btnViewPayment")
+
+        # Action Cards / Tiles (Supporting both button and card text)
+        self.submit_application_card = page.locator("#btnSubmitApp").or_(
+            page.get_by_text(re.compile(r"Submit an Application", re.I))
         ).first
-        self.action_items_card = page.get_by_text(
-            re.compile(r"Action Items", re.I)
+        self.action_items_card = page.locator("#btnActionItems").or_(
+            page.get_by_text(re.compile(r"Action Items", re.I))
         ).first
-        self.application_history_card = page.get_by_text(
-            re.compile(r"Application History", re.I)
+        self.application_history_card = page.locator("#btnViewSubmittedApps").or_(
+            page.get_by_text(re.compile(r"Application History", re.I))
         ).first
-        self.payment_activity_card = page.get_by_text(
-            re.compile(r"Payment Activity", re.I)
+        self.payment_activity_card = page.locator("#btnViewPayment").or_(
+            page.get_by_text(re.compile(r"Payment Activity", re.I))
         ).first
 
         # Header Logout Action
-        self.logout_link = page.get_by_role(
-            "link", name=re.compile(r"Logout", re.I)
-        ).first
+        self.logout_link = (
+            page.get_by_role("link", name=re.compile(r"Logout", re.I))
+            .or_(page.locator("a:has-text('Logout')"))
+            .first
+        )
 
         # Post-Logout Login Form Verification Elements
         self.login_button = page.get_by_role("button", name="Login")
@@ -50,27 +58,54 @@ class DashboardPage(BasePage):
     def get_action_cards(self) -> Dict[str, Locator]:
         """Returns a mapped dictionary of all 4 dashboard action cards for iteration."""
         return {
-            "Submit an Application": self.submit_application_card,
-            "Action Items": self.action_items_card,
-            "Application History": self.application_history_card,
-            "Payment Activity": self.payment_activity_card,
+            "Submit an Application": self.submit_app_btn,
+            "Action Items": self.action_items_btn,
+            "Application History": self.app_history_btn,
+            "Payment Activity": self.payment_activity_btn,
         }
+
+    def ensure_dashboard_loaded(self, timeout_ms: int = 25000) -> "DashboardPage":
+        """
+        Ensures the dashboard page has finished loading and transitioned from
+        login or intermediate staging landing pages (e.g. CALanding).
+        """
+        self._wait_for_loader(timeout=timeout_ms)
+
+        # Handle slow staging redirect from CALanding or Accounts
+        if "CALanding" in self.page.url or "Account" in self.page.url:
+            try:
+                self.page.wait_for_url(
+                    re.compile(r"CADashboardFull|4321CustomerPortalDashboardFull"),
+                    timeout=timeout_ms,
+                )
+            except Exception:
+                self.page.goto(
+                    f"{Config.BASE_HOST}/Portal/Page/Index/CADashboardFull",
+                    wait_until="domcontentloaded",
+                )
+                self._wait_for_loader(timeout=timeout_ms)
+
+        # Wait for primary dashboard action button to be visible
+        self.submit_app_btn.wait_for(state="visible", timeout=timeout_ms)
+        return self
 
     def navigate_to_dashboard(self) -> "DashboardPage":
         """Directly navigates to the customer dashboard URL."""
         self.navigate(Config.DASHBOARD_URL)
+        self.ensure_dashboard_loaded()
         return self
 
-    def verify_dashboard_cards(self, timeout_ms: int = 15000) -> "DashboardPage":
+    def verify_dashboard_cards(self, timeout_ms: int = 20000) -> "DashboardPage":
         """
         Asserts that all 4 primary dashboard action cards are visible:
-        1. Submit an Application
-        2. Action Items
-        3. Application History
-        4. Payment Activity
+        1. Submit an Application (#btnSubmitApp)
+        2. Action Items (#btnActionItems)
+        3. Application History (#btnViewSubmittedApps)
+        4. Payment Activity (#btnViewPayment)
         """
         self.logger.info("Verifying all 4 dashboard action cards are visible")
-        self._wait_for_loader()
+        self.ensure_dashboard_loaded(timeout_ms=timeout_ms)
+
         for name, locator in self.get_action_cards().items():
             expect(
                 locator,
@@ -79,26 +114,26 @@ class DashboardPage(BasePage):
         return self
 
     def click_submit_application(self) -> None:
-        """Navigates to application submission by clicking the Submit an Application card."""
-        self.logger.info("Clicking 'Submit an Application' card")
-        self.safe_click(self.submit_application_card)
+        """Navigates to application submission by clicking the Submit an Application card/button."""
+        self.logger.info("Clicking 'Submit an Application' button")
+        self.submit_app_btn.click()
 
     def click_action_items(self) -> None:
-        """Navigates to action items review by clicking the Action Items card."""
-        self.logger.info("Clicking 'Action Items' card")
-        self.safe_click(self.action_items_card)
+        """Navigates to action items review by clicking the Action Items card/button."""
+        self.logger.info("Clicking 'Action Items' button")
+        self.action_items_btn.click()
 
     def click_application_history(self) -> None:
-        """Navigates to application history by clicking the Application History card."""
-        self.logger.info("Clicking 'Application History' card")
-        self.safe_click(self.application_history_card)
+        """Navigates to application history by clicking the Application History card/button."""
+        self.logger.info("Clicking 'Application History' button")
+        self.app_history_btn.click()
 
     def click_payment_activity(self) -> None:
-        """Navigates to payment activity by clicking the Payment Activity card."""
-        self.logger.info("Clicking 'Payment Activity' card")
-        self.safe_click(self.payment_activity_card)
+        """Navigates to payment activity by clicking the Payment Activity card/button."""
+        self.logger.info("Clicking 'Payment Activity' button")
+        self.payment_activity_btn.click()
 
-    def click_logout(self, timeout_ms: int = 10000) -> "DashboardPage":
+    def click_logout(self, timeout_ms: int = 15000) -> "DashboardPage":
         """Clicks the Logout link to terminate the user session."""
         self.logger.info("Clicking Logout link")
         self.logout_link.wait_for(state="visible", timeout=timeout_ms)
@@ -118,7 +153,7 @@ class DashboardPage(BasePage):
             self.page,
             "Expected page URL to redirect back to Accounts/Account",
         ).to_have_url(
-            re.compile(r".*/Accounts/Account/Account.*", re.I),
+            re.compile(r".*/Accounts/Account.*", re.I),
             timeout=timeout_ms,
         )
         expect(

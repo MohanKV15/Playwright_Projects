@@ -234,11 +234,16 @@ class BasePage:
             timeout_ms=timeout_ms,
         )
 
-    def clean_downloads_folder(self) -> None:
-        """Removes previous files in downloads directory so only the latest download remains."""
+    def clean_downloads_folder(self, pattern: Optional[str] = None) -> None:
+        """
+        Removes previous export files matching the pattern in the downloads directory.
+        Allows multiple distinct reports (e.g., Application History and Payment Activity)
+        to coexist while keeping only the latest export for each report.
+        """
         downloads_dir = Config.DOWNLOADS_DIR
         downloads_dir.mkdir(parents=True, exist_ok=True)
-        for item in downloads_dir.iterdir():
+        files = downloads_dir.glob(pattern) if pattern else downloads_dir.iterdir()
+        for item in files:
             if item.is_file():
                 try:
                     item.unlink()
@@ -249,13 +254,19 @@ class BasePage:
         self,
         export_button: Union[Locator, str],
         default_filename: str = "Export.xlsx",
+        clean_pattern: Optional[str] = None,
         timeout_ms: int = 30000,
     ) -> Path:
         """
-        Cleans previous downloads, triggers export click on export_button,
+        Cleans previous downloads matching pattern, triggers export click on export_button,
         waits for download, saves into downloads directory, and verifies it exists and is non-empty.
         """
-        self.clean_downloads_folder()
+        pattern = clean_pattern
+        if not pattern and default_filename:
+            prefix = default_filename.split("_")[0].split(".")[0]
+            pattern = f"{prefix}*"
+
+        self.clean_downloads_folder(pattern=pattern)
         downloads_dir = Config.DOWNLOADS_DIR
 
         btn = export_button if isinstance(export_button, Locator) else self.page.locator(export_button)
