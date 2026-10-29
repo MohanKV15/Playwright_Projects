@@ -4,6 +4,7 @@ from pathlib import Path
 
 class Config:
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
+    DOWNLOADS_DIR = PROJECT_ROOT / "downloads"
     BASE_HOST = (os.getenv("BASE_URL") or os.getenv("IDOT_BASE_URL") or "https://u-idcp.bemcorp.net").rstrip("/")
     BASE_URL = BASE_HOST
     LOGIN_URL = f"{BASE_HOST}/Accounts/Account/Account"

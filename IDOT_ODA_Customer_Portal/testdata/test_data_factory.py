@@ -164,6 +164,20 @@ class TestDataFactory:
             "signature_date": present_day,
         }
 
+    @classmethod
+    def name_change(cls) -> Dict[str, Any]:
+        """
+        Generates dynamic test data for Name Change applications.
+        New company name, signer name, and signer title are dynamically created via Faker.
+        """
+        present_day = cls.today()
+        return {
+            "new_name": f"{fake.company()[:20]} LLC",
+            "signer_name": f"{fake.first_name()} {fake.last_name()}",
+            "signer_title": f"{fake.job()[:25]}",
+            "signature_date": present_day,
+        }
+
 
 # ---------------------------------------------------------------------
 # Top-level functional aliases for direct invocation and backward compatibility
@@ -190,3 +204,7 @@ def generate_payment_card_data() -> Dict[str, str]:
 
 def generate_permit_transfer_test_data() -> Dict[str, Any]:
     return TestDataFactory.permit_transfer()
+
+
+def generate_name_change_test_data() -> Dict[str, Any]:
+    return TestDataFactory.name_change()

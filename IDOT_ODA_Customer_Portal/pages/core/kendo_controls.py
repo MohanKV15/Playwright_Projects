@@ -1,4 +1,5 @@
 import logging
+import re
 import time
 from datetime import datetime
 from typing import Optional, Union, List
@@ -71,11 +72,18 @@ class KendoDropdown:
         try:
             loc = dropdown_locator if isinstance(dropdown_locator, Locator) else self.page.locator(dropdown_locator)
             if loc.is_visible(timeout=timeout_ms):
+                loc.scroll_into_view_if_needed()
                 loc.click(force=True)
-                self.page.wait_for_timeout(300)
-                option = self.page.locator(
-                    ".k-animation-container:visible li, .k-list-container:visible li, [role='listbox']:visible li, [role='option']:visible"
-                ).filter(has_text=option_text).first
+                self.page.wait_for_timeout(200)
+                option = (
+                    self.page.get_by_role("option", name=re.compile(f"^{re.escape(option_text)}$", re.I))
+                    .or_(
+                        self.page.locator(
+                            ".k-animation-container:visible li, .k-list-container:visible li, [role='listbox']:visible li, [role='option']:visible"
+                        ).filter(has_text=re.compile(re.escape(option_text), re.I))
+                    )
+                    .first
+                )
                 if option.is_visible(timeout=timeout_ms):
                     option.click(force=True)
                     return True
@@ -691,10 +699,191 @@ class KendoCheckbox:
         return True
 
 
+class KendoButton:
+    """
+    Dedicated Page Component representing Kendo UI Button widgets.
+    Handles unblocking aria-disabled states, enabling Kendo Button API,
+    and safe forced/JS clicking.
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def enable(self, target: Union[Locator, str]) -> None:
+        """Enables a Kendo button widget via JS and removes aria-disabled attributes."""
+        try:
+            if isinstance(target, str):
+                self.page.evaluate(
+                    f"""() => {{
+                        if (!window.$) return;
+                        const btn = $('{target}');
+                        if (btn.length) {{
+                            const kb = btn.data('kendoButton');
+                            if (kb && typeof kb.enable === 'function') kb.enable(true);
+                            btn.removeAttr('disabled').removeAttr('aria-disabled').removeClass('k-state-disabled');
+                        }}
+                    }}"""
+                )
+            elif isinstance(target, Locator):
+                target.evaluate(
+                    """el => {
+                        if (window.$) {
+                            const kb = $(el).data('kendoButton');
+                            if (kb && typeof kb.enable === 'function') kb.enable(true);
+                        }
+                        el.removeAttribute('disabled');
+                        el.removeAttribute('aria-disabled');
+                        el.classList.remove('k-state-disabled');
+                    }"""
+                )
+        except Exception:
+            pass
+
+    def click(self, target: Union[Locator, str], timeout_ms: int = 5000) -> bool:
+        """Enables the Kendo button if needed, scrolls into view, and performs click."""
+        self.enable(target)
+        loc = target if isinstance(target, Locator) else self.page.locator(target)
+        try:
+            loc.scroll_into_view_if_needed()
+            loc.click(force=True, timeout=timeout_ms)
+            return True
+        except Exception:
+            try:
+                loc.evaluate("el => el.click()")
+                return True
+            except Exception as e:
+                self.logger.warning(f"KendoButton click failed for {target}: {e}")
+                return False
+
+
+class KendoGrid:
+    """
+    Dedicated Page Component representing Kendo UI Grid widgets.
+    Encapsulates table row querying, record count, cell inspection,
+    and row action button interactions (e.g. targeting the 1st record).
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def wait_for_grid(self, target: Union[Locator, str], timeout_ms: int = 15000) -> Locator:
+        """Waits for the Kendo Grid container to be visible and any loading mask to clear."""
+        grid = target if isinstance(target, Locator) else self.page.locator(target)
+        grid.wait_for(state="visible", timeout=timeout_ms)
+        try:
+            loader = grid.locator(".k-loading-mask, .k-loading-image")
+            if loader.count() > 0:
+                loader.first.wait_for(state="hidden", timeout=timeout_ms)
+        except Exception:
+            pass
+        return grid
+
+    def get_rows(self, target: Union[Locator, str]) -> Locator:
+        """Returns locator representing data rows excluding headers, groups, and no-data rows."""
+        grid = target if isinstance(target, Locator) else self.page.locator(target)
+        return grid.locator("tbody tr:not(.k-no-data):not(.k-grouping-row)")
+
+    def get_row(self, target: Union[Locator, str], row_index: int = 0) -> Locator:
+        """Returns the locator for a specific row index (defaults to index 0 for 1st record)."""
+        rows = self.get_rows(target)
+        return rows.nth(row_index) if row_index > 0 else rows.first
+
+    def get_row_text(self, target: Union[Locator, str], row_index: int = 0, timeout_ms: int = 10000) -> str:
+        """Retrieves and cleans inner text for the specified row index."""
+        row = self.get_row(target, row_index=row_index)
+        row.wait_for(state="visible", timeout=timeout_ms)
+        return row.inner_text().strip().replace("\n", " ")
+
+    def click_row_button(
+        self,
+        target: Union[Locator, str],
+        row_index: int = 0,
+        button_name_regex: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> bool:
+        """
+        Locates the data row at row_index (defaulting to 0 for 1st record) and clicks its action button/link.
+        """
+        self.wait_for_grid(target, timeout_ms=timeout_ms)
+        row = self.get_row(target, row_index=row_index)
+        row.wait_for(state="visible", timeout=timeout_ms)
+        row.scroll_into_view_if_needed()
+
+        if button_name_regex:
+            btn = row.get_by_role("button", name=re.compile(button_name_regex, re.I)).or_(
+                row.locator(f"button:has-text('{button_name_regex}'), a:has-text('{button_name_regex}')")
+            ).first
+        else:
+            btn = row.get_by_role("button").or_(
+                row.locator("button, a.k-button, a, [role='button']")
+            ).first
+
+        btn.wait_for(state="visible", timeout=timeout_ms)
+        btn.scroll_into_view_if_needed()
+        try:
+            btn.click(force=True, timeout=5000)
+            return True
+        except Exception:
+            btn.evaluate("el => el.click()")
+            return True
+
+    def get_cell_text(
+        self,
+        target: Union[Locator, str],
+        row_index: int = 0,
+        col_index: int = 0,
+        timeout_ms: int = 10000,
+    ) -> str:
+        """Retrieves cleaned inner text of a specific cell (td) within the specified row."""
+        self.wait_for_grid(target, timeout_ms=timeout_ms)
+        row = self.get_row(target, row_index=row_index)
+        row.wait_for(state="visible", timeout=timeout_ms)
+        cell = row.locator("td").nth(col_index)
+        return cell.inner_text().strip()
+
+    def get_first_record_identifier(
+        self,
+        target: Union[Locator, str],
+        pattern: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> str:
+        """
+        Retrieves the primary identifier (e.g. Application Number) from the 1st record in the table.
+        If pattern is provided, searches the row text with regex; otherwise returns the first link or non-empty cell.
+        """
+        self.wait_for_grid(target, timeout_ms=timeout_ms)
+        row = self.get_row(target, row_index=0)
+        row.wait_for(state="visible", timeout=timeout_ms)
+        row_text = row.inner_text().strip().replace("\n", " ")
+
+        if pattern:
+            match = re.search(pattern, row_text)
+            if match:
+                return match.group(0).strip()
+
+        # Try to find link in the first few cells (often the application number link)
+        link = row.locator("td a").first
+        if link.count() > 0:
+            link_text = link.inner_text().strip()
+            if link_text:
+                return link_text
+
+        # Fallback to first non-empty cell
+        cells = row.locator("td")
+        for i in range(cells.count()):
+            txt = cells.nth(i).inner_text().strip()
+            if txt and not txt.startswith("--"):
+                return txt
+
+        return row_text.split()[0] if row_text else ""
+
+
 class KendoControls:
     """
     Composite controller providing unified access to all Kendo UI widgets
-    (Dropdowns, DatePickers, MaskedTextBoxes, NumericTextBoxes, Checkboxes, and Alert dialogs).
+    (Dropdowns, DatePickers, MaskedTextBoxes, NumericTextBoxes, Checkboxes, Buttons, Grids, and Alert dialogs).
     """
 
     def __init__(self, page: Page):
@@ -704,24 +893,48 @@ class KendoControls:
         self.numeric = KendoNumericTextBox(page)
         self.masked = KendoMaskedTextBox(page)
         self.checkbox = KendoCheckbox(page)
+        self.button = KendoButton(page)
+        self.grid = KendoGrid(page)
 
     @staticmethod
-    def handle_kendo_alert(page: Page, timeout_ms: int = 5000) -> bool:
+    def handle_kendo_alert(page: Page, timeout_ms: int = 15000) -> bool:
         """Detects and clicks OK on Kendo alert/confirm dialogs if displayed."""
         try:
-            active_dialog = page.locator(
-                ".k-window:visible, .k-dialog:visible, [role='dialog']:visible"
-            ).first
-            if active_dialog.is_visible(timeout=timeout_ms):
-                ok_btn = active_dialog.locator(
-                    "button:has-text('OK'), .k-button:has-text('OK'), button:has-text('Yes'), .k-dialog-buttongroup button, [role='button']:has-text('OK')"
-                ).first
-                if ok_btn.is_visible(timeout=2000):
-                    ok_btn.click()
-                    return True
+            ok_btn = (
+                page.get_by_role("button", name=re.compile(r"^(OK|Yes)$", re.I))
+                .or_(page.locator(".k-dialog:visible button:has-text('OK')"))
+                .or_(page.locator(".k-window:visible button:has-text('OK')"))
+                .or_(page.locator("[role='dialog']:visible button:has-text('OK')"))
+                .or_(page.locator(".k-dialog-buttongroup button:has-text('OK')"))
+                .or_(page.locator("button:visible:has-text('OK')"))
+                .first
+            )
+            ok_btn.wait_for(state="visible", timeout=timeout_ms)
+            ok_btn.click()
+            return True
         except Exception:
-            pass
-        return False
+            return False
+
+    @staticmethod
+    def dismiss_survey_modal(page: Page, timeout_ms: int = 8000) -> bool:
+        """Dismisses the optional post-submission survey modal by clicking 'No'."""
+        try:
+            survey_no_btn = (
+                page.locator(
+                    ".k-dialog:visible button:has-text('No'), "
+                    ".k-window:visible button:has-text('No'), "
+                    "[role='dialog']:visible button:has-text('No'), "
+                    ".k-dialog-buttongroup button:has-text('No'), "
+                    "button:visible:has-text('No')"
+                )
+                .or_(page.get_by_role("button", name=re.compile(r"^No$", re.I)))
+                .first
+            )
+            survey_no_btn.wait_for(state="visible", timeout=timeout_ms)
+            survey_no_btn.click()
+            return True
+        except Exception:
+            return False
 
     @staticmethod
     def dismiss_ok_dialogs(page: Page, timeout_ms: int = 2000, max_clicks: int = 3) -> int:

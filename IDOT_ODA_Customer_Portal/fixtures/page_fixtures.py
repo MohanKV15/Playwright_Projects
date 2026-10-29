@@ -24,6 +24,18 @@ from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_applicat
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.permit_transfer.permit_transfer_page import (
     PermitTransferPage,
 )
+from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.name_change.name_change_page import (
+    NameChangePage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.action_items.action_items_page import (
+    ActionItemsPage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.application_history.application_history_page import (
+    ApplicationHistoryPage,
+)
+from IDOT_ODA_Customer_Portal.pages.dashboard.payment_activity.payment_activity_page import (
+    PaymentActivityPage,
+)
 from IDOT_ODA_Customer_Portal.pages.dashboard.submit_application.payment_page import PaymentPage
 
 
@@ -79,5 +91,33 @@ def junkyard_page(page: Page) -> JunkyardPage:
 def permit_transfer_page(page: Page) -> PermitTransferPage:
     """Fixture providing an initialized PermitTransferPage instance."""
     return PermitTransferPage(page)
+
+
+@pytest.fixture(scope="function")
+def name_change_page(page: Page) -> NameChangePage:
+    """Fixture providing an initialized NameChangePage instance."""
+    return NameChangePage(page)
+
+
+@pytest.fixture(scope="function")
+def action_items_page(page: Page) -> ActionItemsPage:
+    """Fixture providing an initialized ActionItemsPage instance."""
+    return ActionItemsPage(page)
+
+
+@pytest.fixture(scope="function")
+def application_history_page(page: Page) -> ApplicationHistoryPage:
+    """Fixture providing an initialized ApplicationHistoryPage instance."""
+    return ApplicationHistoryPage(page)
+
+
+@pytest.fixture(scope="function")
+def payment_activity_page(page: Page) -> PaymentActivityPage:
+    """Fixture providing an initialized PaymentActivityPage instance."""
+    return PaymentActivityPage(page)
+
+
+
+
 
 

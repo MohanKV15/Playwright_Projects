@@ -6,6 +6,8 @@ from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import (
     KendoNumericTextBox,
     KendoMaskedTextBox,
     KendoCheckbox,
+    KendoButton,
+    KendoGrid,
 )
 
 __all__ = [
@@ -16,4 +18,6 @@ __all__ = [
     "KendoNumericTextBox",
     "KendoMaskedTextBox",
     "KendoCheckbox",
+    "KendoButton",
+    "KendoGrid",
 ]

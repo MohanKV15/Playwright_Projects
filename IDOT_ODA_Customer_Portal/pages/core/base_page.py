@@ -12,6 +12,8 @@ from IDOT_ODA_Customer_Portal.pages.core.kendo_controls import (
     KendoNumericTextBox,
     KendoMaskedTextBox,
     KendoCheckbox,
+    KendoButton,
+    KendoGrid,
 )
 
 DEBUG_ARTIFACTS_DIR = Config.PROJECT_ROOT / "reports" / "debug_artifacts"
@@ -37,6 +39,8 @@ class BasePage:
         self.kendo_numeric = self.kendo_controls.numeric
         self.kendo_masked = self.kendo_controls.masked
         self.kendo_checkbox = self.kendo_controls.checkbox
+        self.kendo_button = self.kendo_controls.button
+        self.kendo_grid = self.kendo_controls.grid
         self._apply_zoom_script()
 
     def _apply_zoom_script(self) -> None:
@@ -173,6 +177,104 @@ class BasePage:
         if res:
             self._wait_for_loader()
         return res
+
+    def click_dialog_ok(self, timeout_ms: int = 15000) -> bool:
+        """Clicks OK on active confirmation or alert modal dialog."""
+        ok_btn = (
+            self.page.get_by_role("button", name=re.compile(r"^OK$", re.I))
+            .or_(self.page.locator(".k-dialog:visible button:has-text('OK')"))
+            .or_(self.page.locator(".k-window:visible button:has-text('OK')"))
+            .or_(self.page.locator("button:visible:has-text('OK')"))
+            .first
+        )
+        ok_btn.wait_for(state="visible", timeout=timeout_ms)
+        ok_btn.click()
+        self._wait_for_loader()
+        return True
+
+    def dismiss_survey_modal(self, timeout_ms: int = 3000) -> bool:
+        """Dismisses the optional survey prompt modal by clicking 'No' if present."""
+        res = KendoControls.dismiss_survey_modal(self.page, timeout_ms=timeout_ms)
+        if res:
+            self._wait_for_loader()
+        return res
+
+    def click_kendo_button(self, button_locator_or_selector: Union[Locator, str], timeout_ms: int = 5000) -> bool:
+        """Enables and clicks a Kendo button widget safely."""
+        return self.kendo_button.click(button_locator_or_selector, timeout_ms=timeout_ms)
+
+    def click_grid_row_button(
+        self,
+        grid_locator_or_selector: Union[Locator, str],
+        row_index: int = 0,
+        button_name_regex: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> bool:
+        """Clicks the action button inside the specified Kendo grid row (defaults to 1st record)."""
+        res = self.kendo_grid.click_row_button(
+            grid_locator_or_selector,
+            row_index=row_index,
+            button_name_regex=button_name_regex,
+            timeout_ms=timeout_ms,
+        )
+        if res:
+            self._wait_for_loader()
+        return res
+
+    def get_grid_first_record_identifier(
+        self,
+        grid_locator_or_selector: Union[Locator, str],
+        pattern: Optional[str] = None,
+        timeout_ms: int = 15000,
+    ) -> str:
+        """Retrieves primary identifier from the 1st record row of a Kendo Grid."""
+        return self.kendo_grid.get_first_record_identifier(
+            grid_locator_or_selector,
+            pattern=pattern,
+            timeout_ms=timeout_ms,
+        )
+
+    def clean_downloads_folder(self) -> None:
+        """Removes previous files in downloads directory so only the latest download remains."""
+        downloads_dir = Config.DOWNLOADS_DIR
+        downloads_dir.mkdir(parents=True, exist_ok=True)
+        for item in downloads_dir.iterdir():
+            if item.is_file():
+                try:
+                    item.unlink()
+                except Exception as e:
+                    self.logger.warning(f"Could not delete old download {item}: {e}")
+
+    def download_export_file(
+        self,
+        export_button: Union[Locator, str],
+        default_filename: str = "Export.xlsx",
+        timeout_ms: int = 30000,
+    ) -> Path:
+        """
+        Cleans previous downloads, triggers export click on export_button,
+        waits for download, saves into downloads directory, and verifies it exists and is non-empty.
+        """
+        self.clean_downloads_folder()
+        downloads_dir = Config.DOWNLOADS_DIR
+
+        btn = export_button if isinstance(export_button, Locator) else self.page.locator(export_button)
+        btn.scroll_into_view_if_needed()
+
+        with self.page.expect_download(timeout=timeout_ms) as download_info:
+            self.click_kendo_button(btn)
+
+        download = download_info.value
+        filename = download.suggested_filename or default_filename
+        target_path = downloads_dir / filename
+        download.save_as(str(target_path))
+
+        self.logger.info(f"Latest export file saved to: {target_path}")
+        assert target_path.exists(), f"Downloaded file was not found at: {target_path}"
+        assert target_path.stat().st_size > 0, f"Downloaded export file at {target_path} is empty"
+
+        self._wait_for_loader()
+        return target_path
 
     def scroll_to_section(self, section_locator: Union[Locator, str]) -> None:
         """

@@ -11,6 +11,7 @@ from IDOT_ODA_Customer_Portal.testdata.test_data_factory import (
     generate_junkyard_test_data,
     generate_payment_card_data,
     generate_permit_transfer_test_data,
+    generate_name_change_test_data,
 )
 
 __all__ = [
@@ -21,4 +22,5 @@ __all__ = [
     "generate_junkyard_test_data",
     "generate_payment_card_data",
     "generate_permit_transfer_test_data",
+    "generate_name_change_test_data",
 ]
