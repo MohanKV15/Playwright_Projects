@@ -26,7 +26,6 @@ class TestFeeSchedule:
         # 2. Select search type: Permit -> Search
         fee_page.select_search_type_by_text(current_text="Select Type", next_type="Permit")
         fee_page.click_search()
-        fee_page.click_search()  # Double click search as recorded by user
 
         # 3. Select search type: License -> Search
         fee_page.select_search_type_by_text(current_text="Permit", next_type="License")

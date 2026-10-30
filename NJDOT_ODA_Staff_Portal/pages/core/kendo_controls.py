@@ -1,4 +1,5 @@
 import logging
+import re
 from typing import Optional, Union, List
 from playwright.sync_api import Page, Locator
 
@@ -21,14 +22,19 @@ class KendoDropdown:
         """
         try:
             loc = dropdown_locator if isinstance(dropdown_locator, Locator) else self.page.locator(dropdown_locator)
-            loc.wait_for(state="visible", timeout=timeout_ms)
-            loc.click(force=True)
+            loc.first.wait_for(state="visible", timeout=timeout_ms)
+            loc.first.click(force=True)
             self.page.wait_for_timeout(300)
 
             # Find option in visible popup listbox
             option = self.page.locator(
-                "li[role='option']:visible, .k-animation-container:visible li, .k-list-container:visible li, [role='listbox']:visible li"
-            ).filter(has_text=option_text).first
+                "li[role='option']:visible, .k-animation-container:visible li, .k-list-container:visible li"
+            ).filter(has_text=re.compile(rf"^\s*{re.escape(option_text)}\s*$", re.I)).first
+
+            if not option.is_visible(timeout=1000):
+                option = self.page.locator(
+                    "li[role='option']:visible, .k-animation-container:visible li, .k-list-container:visible li"
+                ).filter(has_text=option_text).first
 
             if option.is_visible(timeout=timeout_ms):
                 option.click(force=True)
@@ -41,28 +47,34 @@ class KendoDropdown:
     def select_by_id(self, field_id: str, option_text: Optional[str] = None, index: int = 1) -> bool:
         """
         Selects an option from a Kendo DropDownList by element ID using Kendo JS API.
+        Supports varied dataSource text fields (Text, Definition, poc_name, etc.).
         """
         clean_id = field_id.lstrip("#")
         try:
             res = self.page.evaluate(
                 f"""
                 (() => {{
-                    const ddl = $('#{clean_id}').data('kendoDropDownList');
+                    const jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    const ddl = jq('#{clean_id}').data('kendoDropDownList');
                     if (!ddl) return false;
-                    const target = '{option_text or ""}'.toLowerCase();
+                    const target = '{option_text or ""}'.toLowerCase().trim();
+                    const textField = ddl.options.dataTextField || 'Text';
+                    const data = ddl.dataSource.data();
                     if (target) {{
-                        const data = ddl.dataSource.data();
                         for (let i = 0; i < data.length; i++) {{
-                            const text = (ddl.text(data[i]) || '').toLowerCase();
-                            if (text.includes(target)) {{
+                            const item = data[i];
+                            const text = (item[textField] || item.Definition || item.poc_name || item.Text || item.text || '').toString().toLowerCase();
+                            if (text && (text.includes(target) || target.includes(text))) {{
                                 ddl.select(i + (ddl.options.optionLabel ? 1 : 0));
                                 ddl.trigger('change');
                                 return true;
                             }}
                         }}
                     }}
-                    if (ddl.dataSource.data().length > 0) {{
-                        ddl.select({index});
+                    if (data.length > 0) {{
+                        const idx = ddl.options.optionLabel ? 1 : 0;
+                        ddl.select(idx);
                         ddl.trigger('change');
                         return true;
                     }}
@@ -74,6 +86,42 @@ class KendoDropdown:
         except Exception as e:
             self.logger.warning(f"KendoDropdown select_by_id failed for #{clean_id}: {e}")
             return False
+
+    def select_first_option(self, target: Optional[Union[Locator, str]] = None) -> bool:
+        """
+        Selects the first valid data option in a Kendo dropdown, skipping optionLabel/placeholder.
+        """
+        try:
+            if target:
+                loc = target if isinstance(target, Locator) else self.page.locator(target)
+                if loc.first.is_visible():
+                    loc.first.click()
+                    self.page.wait_for_timeout(300)
+
+            self.page.wait_for_selector(
+                "ul.k-list[role='listbox']:visible, .k-list-container:visible, .k-animation-container:visible",
+                timeout=5000
+            )
+            options = self.page.locator(
+                ".k-animation-container:visible li[role='option'], .k-list-container:visible li[role='option'], ul[role='listbox']:visible li[role='option']"
+            )
+            count = options.count()
+            if count > 0:
+                for i in range(count):
+                    opt = options.nth(i)
+                    txt = opt.inner_text().strip()
+                    if txt and not txt.startswith("--") and not txt.lower().startswith("select") and "no data" not in txt.lower():
+                        self.logger.info(f"KendoDropdown selected option: '{txt}'")
+                        opt.click()
+                        self.page.wait_for_timeout(300)
+                        return True
+                idx = 1 if count > 1 else 0
+                options.nth(idx).click()
+                self.page.wait_for_timeout(300)
+                return True
+        except Exception as e:
+            self.logger.warning(f"KendoDropdown select_first_option failed: {e}")
+        return False
 
     def select(self, target: Union[Locator, str], option_text: str, timeout_ms: int = 5000) -> bool:
         """
@@ -91,9 +139,12 @@ class KendoDropdown:
             return self.page.evaluate(
                 f"""
                 (() => {{
-                    const ddl = $('#{clean_id}').data('kendoDropDownList');
+                    const jq = window.jQuery || window.$;
+                    if (!jq) return [];
+                    const ddl = jq('#{clean_id}').data('kendoDropDownList');
                     if (!ddl) return [];
-                    return ddl.dataSource.data().map(x => ddl.text(x) || '');
+                    const textField = ddl.options.dataTextField || 'Text';
+                    return ddl.dataSource.data().map(x => x[textField] || x.Definition || x.poc_name || x.Text || '');
                 }})();
                 """
             )
@@ -107,7 +158,9 @@ class KendoDropdown:
             return self.page.evaluate(
                 f"""
                 (() => {{
-                    const ddl = $('#{clean_id}').data('kendoDropDownList');
+                    const jq = window.jQuery || window.$;
+                    if (!jq) return '';
+                    const ddl = jq('#{clean_id}').data('kendoDropDownList');
                     return ddl ? ddl.text() : '';
                 }})();
                 """
@@ -132,13 +185,15 @@ class KendoDatePicker:
             res = self.page.evaluate(
                 f"""
                 (() => {{
-                    const dp = $('#{clean_id}').data('kendoDatePicker');
+                    const jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    const dp = jq('#{clean_id}').data('kendoDatePicker');
                     if (dp) {{
                         dp.value('{date_str}');
                         dp.trigger('change');
                         return true;
                     }}
-                    $('#{clean_id}').val('{date_str}').trigger('change');
+                    jq('#{clean_id}').val('{date_str}').trigger('change');
                     return true;
                 }})();
                 """
@@ -165,13 +220,14 @@ class KendoNumericTextBox:
             res = self.page.evaluate(
                 f"""
                 (() => {{
-                    const num = $('#{clean_id}').data('kendoNumericTextBox');
+                    const jq = window.jQuery || window.$;
+                    if (!jq) return false;
+                    const num = jq('#{clean_id}').data('kendoNumericTextBox');
                     if (num) {{
                         num.value({value});
                         num.trigger('change');
-                        return true;
                     }}
-                    $('#{clean_id}').val({value}).trigger('change');
+                    jq('#{clean_id}').val('{value}').trigger('change');
                     return true;
                 }})();
                 """
@@ -180,3 +236,42 @@ class KendoNumericTextBox:
         except Exception as e:
             self.logger.warning(f"KendoNumericTextBox set_value_by_id failed for #{clean_id}: {e}")
             return False
+
+    def set_value(self, target: Union[Locator, str], value: float) -> bool:
+        """Polymorphic setter for Kendo NumericTextBox."""
+        if isinstance(target, str) and (target.startswith("#") or target.isalnum()):
+            return self.set_value_by_id(target, value)
+        try:
+            loc = target if isinstance(target, Locator) else self.page.locator(target)
+            if loc.is_visible():
+                loc.fill(str(value))
+                loc.press("Enter")
+                return True
+        except Exception as e:
+            self.logger.warning(f"KendoNumericTextBox set_value failed: {e}")
+        return False
+
+
+class KendoDialog:
+    """
+    Dedicated Page Component representing Kendo UI Dialogs, Windows, and Alerts.
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def dismiss_alerts(self, timeout_ms: int = 3000) -> None:
+        """Dismisses any open Kendo alert, dialog, or modal window."""
+        try:
+            dialogs = self.page.locator(".k-dialog:visible, .k-window:visible, .k-alert:visible")
+            count = dialogs.count()
+            if count > 0:
+                for i in range(count):
+                    dlg = dialogs.nth(i)
+                    btn = dlg.locator("button:has-text('OK'), button:has-text('Cancel'), button:has-text('Close'), .k-i-close, .k-dialog-close").first
+                    if btn.is_visible():
+                        btn.click(force=True)
+                        self.page.wait_for_timeout(200)
+        except Exception as e:
+            self.logger.debug(f"KendoDialog dismiss_alerts note: {e}")

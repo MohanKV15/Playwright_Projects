@@ -20,7 +20,7 @@ class CustomerActionItemsPage(BasePage):
         self.partial_form_section_div = page.locator("#partial-form > section > div > div")
         
         # Action Buttons
-        self.add_new_button = page.get_by_role("button", name="Add New")
+        self.add_new_button = page.get_by_role("button", name="Add New").or_(page.locator("#BtnAddNew"))
         
         # Form Validations
         self.details_container_div = page.locator("div").filter(has_text="Application Details Permit")
@@ -41,10 +41,10 @@ class CustomerActionItemsPage(BasePage):
         
         # Action buttons
         self.select_attachments_btn = page.get_by_role("button", name="Select Attachments")
-        self.save_button = page.get_by_role("button", name=" Save")
+        self.save_button = page.get_by_role("button", name=" Save").or_(page.locator("#btnSubmit"))
         
         # Grid content
-        self.k_grid_content = page.locator(".k-grid-content")
+        self.k_grid_content = page.locator("#CommGrid, .k-grid:visible").first
         
         # Next flow tab
         self.permit_completion_link = page.get_by_role("link", name="Permit Completion")
@@ -65,17 +65,7 @@ class CustomerActionItemsPage(BasePage):
 
     def _select_first_dropdown_option(self) -> None:
         """Clicks the first valid option in the visible Kendo dropdown listbox."""
-        self.page.wait_for_selector("[role='listbox']:visible", timeout=5000)
-        options = self.page.locator("[role='listbox']:visible [role='option']")
-        self.page.wait_for_timeout(500)
-        
-        if options.count() > 1:
-            logger.info("Selecting first valid option (index 1) in Kendo dropdown")
-            options.nth(1).click()
-        else:
-            logger.info("Selecting option (index 0) in Kendo dropdown")
-            options.nth(0).click()
-        self.page.wait_for_timeout(500)
+        self.select_first_kendo_dropdown()
 
     def add_customer_action_item(self) -> None:
         """Fills out and saves a new customer communication record using Faker."""
@@ -85,26 +75,38 @@ class CustomerActionItemsPage(BasePage):
         expect(self.partial_form_section_div.first).to_be_visible(timeout=10000)
         
         self.add_new_button.click()
-        self.page.wait_for_timeout(1000)
+        self.page.wait_for_load_state("networkidle")
+        self._wait_for_loader()
         
         # Verify modal elements loaded
         expect(self.details_container_div.nth(4)).to_be_visible(timeout=10000)
         expect(self.communication_details_heading).to_be_visible(timeout=10000)
         
-        # 1. Option Dropdown
+        # 1. Option Dropdown: Select 'Additional Info Requested' (non-fee) or first option
         logger.info("Selecting Option dropdown")
         self.option_dropdown.click()
-        self._select_first_dropdown_option()
+        if not self.kendo_dropdown.select_by_locator(self.page.locator("[role='listbox']:visible"), "Additional Info Requested", timeout_ms=3000):
+            self._select_first_dropdown_option()
+
+        # If a fee option was chosen, ensure Pay_Amount has a valid amount so validation passes
+        try:
+            pay_amt = self.page.locator("#Pay_Amount")
+            if pay_amt.is_visible(timeout=1000):
+                self.set_kendo_numeric("#Pay_Amount", 50.00)
+        except Exception:
+            pass
         
         # 2. Status Dropdown
         logger.info("Selecting Status dropdown")
-        self.status_dropdown.click()
-        self._select_first_dropdown_option()
+        if self.status_dropdown.is_visible():
+            self.status_dropdown.click()
+            self._select_first_dropdown_option()
         
         # 3. Review Person Dropdown
         logger.info("Selecting Review Person dropdown")
-        self.review_person_dropdown.click()
-        self._select_first_dropdown_option()
+        if self.review_person_dropdown.is_visible():
+            self.review_person_dropdown.click()
+            self._select_first_dropdown_option()
         
         # 4. Fill Message
         logger.info("Filling message to customer using Faker")
@@ -134,12 +136,18 @@ class CustomerActionItemsPage(BasePage):
         
         # 6. Save
         logger.info("Saving customer action item")
+        try:
+            self.page.once("dialog", lambda dialog: dialog.accept())
+        except Exception:
+            pass
         self.save_button.click()
+        self.page.wait_for_load_state("networkidle")
+        self._wait_for_loader()
+        self.dismiss_kendo_dialogs()
         
         # Wait for grid to reload
         expect(self.k_grid_content).to_be_visible(timeout=15000)
-        self.page.wait_for_load_state("networkidle")
-        self.page.wait_for_timeout(2000)
+        self.page.wait_for_timeout(1000)
 
     def navigate_to_permit_completion(self) -> None:
         """Navigates to the next tab: Permit Completion."""

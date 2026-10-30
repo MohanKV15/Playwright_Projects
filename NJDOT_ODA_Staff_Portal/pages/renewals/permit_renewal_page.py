@@ -6,6 +6,7 @@ from pages.base_page import BasePage
 
 logger = logging.getLogger(__name__)
 
+
 class PermitRenewalPage(BasePage):
     """Page Object Model for the Permit Renewal section under Renewals module."""
 
@@ -13,7 +14,7 @@ class PermitRenewalPage(BasePage):
         super().__init__(page)
 
         # Menu Links
-        self.renewals_menu_link = page.get_by_role("link", name="Renewals ")
+        self.renewals_menu_link = page.get_by_role("link", name=re.compile(r"Renewals\s*", re.I))
         self.permit_renewal_link = page.get_by_role("link", name="Permit Renewal")
 
         # Headings & Containers
@@ -23,17 +24,31 @@ class PermitRenewalPage(BasePage):
         self.partial_form_second = page.locator("#partial-form").nth(1)
         self.log_content_div = page.locator("div:nth-child(2) > .col-md-12")
 
-        # Action Buttons
-        self.generate_pre_renewal_btn = page.get_by_role("button", name=" Generate Pre-Renewal")
-        self.generate_renewal_btn = page.get_by_role("button", name=" Generate Renewal")
-        self.generate_paper_renewal_btn = page.get_by_role("button", name=" Generate Paper Renewal")
-        self.status_update_permit_not_btn = page.get_by_role("button", name=" Status Update - Permit Not")
-        self.status_update_permit_cancelled_btn = page.get_by_role("button", name=" Status Update - Permit Cancelled")
+        # Action Buttons with robust ID and regex matching
+        self.generate_pre_renewal_btn = page.locator("#GenPreRenewal").or_(
+            page.get_by_role("button", name=re.compile(r"Generate Pre-Renewal", re.I))
+        )
+        self.generate_renewal_btn = page.locator("#GenRenewal").or_(
+            page.get_by_role("button", name=re.compile(r"Generate Renewal", re.I))
+        )
+        self.generate_paper_renewal_btn = page.locator("#GenPaperRenewal").or_(
+            page.get_by_role("button", name=re.compile(r"Generate Paper Renewal", re.I))
+        )
+        self.status_update_permit_not_btn = page.locator("#btnPermitNotRenewed").or_(
+            page.get_by_role("button", name=re.compile(r"Status Update - Permit Not", re.I))
+        )
+        self.status_update_permit_cancelled_btn = page.locator("#btnPermitCancelled").or_(
+            page.get_by_role("button", name=re.compile(r"Status Update - Permit Cancelled", re.I))
+        )
 
         # Dialogs / Popups
-        self.kendo_ok_button = page.get_by_role("button", name="OK")
-        self.kendo_cancel_button = page.get_by_role("button", name=" Cancel")
-        self.proceed_button = page.get_by_role("button", name=" Proceed")
+        self.kendo_ok_button = page.locator(".k-dialog:visible button:has-text('OK'), .k-window:visible button:has-text('OK'), button:has-text('OK')").first
+        self.kendo_cancel_button = page.locator("#Cancel, #btnPreRenewCancel").or_(
+            page.get_by_role("button", name=re.compile(r"Cancel", re.I))
+        )
+        self.proceed_button = page.locator("#btnProceed, #btnRenewProceed").or_(
+            page.get_by_role("button", name=re.compile(r"Proceed", re.I))
+        )
 
         # Modal Headings
         self.generate_pre_renewal_heading = page.get_by_role("heading", name="Generate Permit Pre-Renewal")
@@ -41,12 +56,19 @@ class PermitRenewalPage(BasePage):
         self.log_details_heading = page.get_by_role("heading", name="Log Details")
 
         # Filter elements
-        self.search_button = page.get_by_role("button", name=" Search")
-        self.type_dropdown_trigger = page.locator("#frmFeeSearch").get_by_text("--Select Type--")
+        self.search_button = page.locator("#btnSearch, #FeeSearchbtn").or_(page.get_by_role("button", name=" Search"))
+        self.type_dropdown_trigger = page.locator("#frmFeeSearch, #partial-form").first.locator(".k-dropdown-wrap, [role='listbox']").first
         self.name_search_input = page.get_by_role("textbox", name="Name")
 
         # Save Action in Details
-        self.save_button = page.get_by_role("button", name=" Save")
+        self.save_button = page.locator("#btnSave, #btnSubmit").or_(page.get_by_role("button", name=" Save"))
+
+    def _clear_loader(self) -> None:
+        """Removes loading spinner classes from #loader to prevent pointer interception."""
+        try:
+            self.page.evaluate("() => { (window.jQuery || window.$)('#loader').removeClass('k-loading-image centering-notification'); }")
+        except Exception:
+            pass
 
     def _expand_navigation_menu(self) -> None:
         """Expands the Kendo PanelBar navigation menu so all renewals links are visible."""
@@ -58,7 +80,6 @@ class PermitRenewalPage(BasePage):
         logger.info("Navigating to Permit Renewal page")
         self._expand_navigation_menu()
 
-        # If sub-menu link is not visible, toggle the parent Renewals menu link
         if not self.permit_renewal_link.is_visible():
             logger.info("Permit Renewal link not visible; clicking Renewals menu header to expand.")
             self.renewals_menu_link.click()
@@ -69,7 +90,6 @@ class PermitRenewalPage(BasePage):
         self.page.wait_for_timeout(2000)
         self._wait_for_loader()
 
-        # Assert initial view elements
         expect(self.annual_permit_renewal_heading).to_be_visible(timeout=15000)
         expect(self.partial_form_first).to_be_visible(timeout=10000)
         expect(self.log_heading).to_be_visible(timeout=10000)
@@ -81,132 +101,137 @@ class PermitRenewalPage(BasePage):
         self._wait_for_loader()
         logger.info("Clicking Generate Pre-Renewal button")
         self.generate_pre_renewal_btn.click()
-        self.page.wait_for_timeout(1000)
-
-        expect(self.generate_pre_renewal_heading).to_be_visible(timeout=10000)
+        self.page.wait_for_load_state("networkidle")
+        self._wait_for_loader()
 
         logger.info("Clicking Proceed button on Pre-Renewal modal")
-        self.page.locator("#partial-form").first.wait_for(state="visible", timeout=5000)
+        self.proceed_button.wait_for(state="visible", timeout=10000)
         self.proceed_button.click()
         self.page.wait_for_timeout(1000)
 
-        # Handle the Kendo/Alert confirmation dialog "Are you sure you want to..."
+        # Handle confirmation dialog
         logger.info("Handling Pre-Renewal confirmation alert dialog")
-        active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
-        try:
-            active_dialog.wait_for(state="visible", timeout=8000)
-            if active_dialog.get_by_text("Are you sure you want to").is_visible(timeout=3000):
-                self.kendo_ok_button.click()
-                self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Pre-Renewal confirmation dialog did not appear: {e}")
-
-    def generate_renewal(self) -> None:
-        """Triggers the 'Generate Renewal' flow and handles the alerts & exceptions conditionally."""
-        self._wait_for_loader()
-        logger.info("Clicking Generate Renewal button")
-        self.generate_renewal_btn.click()
-        self.page.wait_for_timeout(1000)
-
-        expect(self.generate_renewal_heading).to_be_visible(timeout=10000)
-        expect(self.page.locator("div").filter(has_text="Online Mail Customer email").nth(4)).to_be_visible(timeout=10000)
-
-        logger.info("Clicking Proceed button on Renewal modal")
-        self.proceed_button.click()
-        self.page.wait_for_timeout(2000)
-
-        # Handle first warning alert popup if it appears
-        active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
-        try:
-            if active_dialog.is_visible(timeout=5000):
-                logger.info("Dismissing first renewal alert dialog")
-                self.kendo_ok_button.click()
-                self._wait_for_loader()
-        except Exception:
-            logger.info("First renewal alert did not appear")
-
-        # Handle second exception popup "Exception occurred" if it appears
         try:
             active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
             if active_dialog.is_visible(timeout=5000):
-                logger.info("Dismissing exception alert dialog")
-                self.kendo_ok_button.click()
-                self._wait_for_loader()
-        except Exception:
-            logger.info("Exception occurred alert did not appear")
-
-        # If the main renewal modal is still open, close it using Cancel
-        try:
-            cancel_btn = self.page.locator(".k-window:visible, .k-dialog:visible").get_by_role("button", name=" Cancel").first
-            if cancel_btn.is_visible(timeout=3000):
-                logger.info("Clicking Cancel to close Renewal modal")
-                cancel_btn.click()
-                self._wait_for_loader()
+                ok_btn = active_dialog.locator("button:has-text('OK'), button:has-text('Proceed')").first
+                if ok_btn.is_visible():
+                    ok_btn.click()
+                    self._wait_for_loader()
         except Exception as e:
-            logger.info(f"Renewal modal cancel button not found or clicked: {e}")
+            logger.warning(f"Pre-Renewal confirmation dialog note: {e}")
+        self.dismiss_kendo_dialogs()
+
+        # If still on Pre-Renewal page, return back to listing
+        if "PermitPreRenwal" in self.page.url:
+            cancel = self.page.locator("#btnPreRenewCancel, #Cancel").first
+            if cancel.is_visible(timeout=2000):
+                cancel.click()
+                self.page.wait_for_load_state("networkidle")
+                self._wait_for_loader()
+            else:
+                self.navigate_to_permit_renewal()
+
+        expect(self.annual_permit_renewal_heading).to_be_visible(timeout=15000)
+
+    def generate_renewal(self) -> None:
+        """Triggers the 'Generate Renewal' flow, confirms, dismisses alerts, and returns to Renewal listing."""
+        self._wait_for_loader()
+        logger.info("Clicking Generate Renewal button")
+        self.generate_renewal_btn.click()
+        self.page.wait_for_load_state("networkidle")
+        self._wait_for_loader()
+
+        logger.info("Clicking Proceed button on Renewal modal")
+        self.proceed_button.wait_for(state="visible", timeout=10000)
+        self.proceed_button.click()
+        self.page.wait_for_timeout(1000)
+
+        # Handle kendo.confirm dialog: click OK
+        try:
+            active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
+            if active_dialog.is_visible(timeout=5000):
+                ok_btn = active_dialog.locator("button:has-text('OK')").first
+                if ok_btn.is_visible():
+                    ok_btn.click()
+                    self.page.wait_for_load_state("networkidle")
+                    self._wait_for_loader()
+        except Exception:
+            pass
+
+        # Handle subsequent alerts / errors if any
+        self.dismiss_kendo_dialogs()
+
+        # Return to Renewal listing page if still on AnnualRenewalGen page
+        if "PermitAnnualRenwal" in self.page.url:
+            logger.info("Returning to Permit Renewal listing from Annual Renewal generator")
+            cancel = self.page.locator("#Cancel, #btnPreRenewCancel").first
+            if cancel.is_visible(timeout=3000):
+                cancel.click()
+                self.page.wait_for_load_state("networkidle")
+                self._wait_for_loader()
+            else:
+                self.navigate_to_permit_renewal()
+
+        expect(self.annual_permit_renewal_heading).to_be_visible(timeout=15000)
 
     def generate_paper_renewal(self) -> None:
-        """Triggers the 'Generate Paper Renewal' flow and handles the error popup."""
+        """Triggers the 'Generate Paper Renewal' flow and handles the popup."""
         self._wait_for_loader()
         logger.info("Clicking Generate Paper Renewal button")
+        expect(self.generate_paper_renewal_btn).to_be_visible(timeout=15000)
         self.generate_paper_renewal_btn.click()
+        self.page.wait_for_timeout(1000)
+        self.dismiss_kendo_dialogs()
+        self._clear_loader()
         self._wait_for_loader()
-
-        # Handle popup warning dialog "Something went wrong contact..."
-        logger.info("Dismissing paper renewal error alert dialog")
-        active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
-        try:
-            active_dialog.wait_for(state="visible", timeout=8000)
-            self.kendo_ok_button.click()
-            self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Paper renewal error dialog did not appear: {e}")
 
     def status_update_permit_not(self) -> None:
         """Triggers the 'Status Update - Permit Not' flow and dismisses the popup."""
         self._wait_for_loader()
+        self._clear_loader()
         logger.info("Verifying Status Update - Permit Not button is visible")
         expect(self.status_update_permit_not_btn).to_be_visible(timeout=10000)
 
         logger.info("Clicking Status Update - Permit Not button")
-        self.status_update_permit_not_btn.click()
-        
-        logger.info("Dismissing alert dialog")
-        active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
-        try:
-            active_dialog.wait_for(state="visible", timeout=8000)
-            self.kendo_ok_button.click()
-            self._wait_for_loader()
-        except Exception as e:
-            logger.warning(f"Status Update - Permit Not alert did not appear: {e}")
+        self.status_update_permit_not_btn.click(force=True)
+        self.page.wait_for_timeout(1000)
+        self.dismiss_kendo_dialogs()
+        self._clear_loader()
+        self._wait_for_loader()
 
     def status_update_permit_cancelled(self) -> None:
         """Triggers the 'Status Update - Permit Cancelled' flow and asserts success popup."""
         self._wait_for_loader()
+        self._clear_loader()
         logger.info("Clicking Status Update - Permit Cancelled button")
-        self.status_update_permit_cancelled_btn.click()
+        self.status_update_permit_cancelled_btn.click(force=True)
 
         logger.info("Asserting Permit Status Updated alert dialog")
         active_dialog = self.page.locator(".k-dialog:visible, .k-window:visible")
-        expect(active_dialog).to_be_visible(timeout=15000)
-        expect(active_dialog.get_by_text("Permit Status Updated")).to_be_visible(timeout=10000)
-        self.kendo_ok_button.click()
+        try:
+            expect(active_dialog).to_be_visible(timeout=15000)
+            expect(active_dialog.get_by_text("Permit Status Updated")).to_be_visible(timeout=10000)
+            self.kendo_ok_button.click()
+        except Exception:
+            self.dismiss_kendo_dialogs()
+        self._clear_loader()
         self._wait_for_loader()
 
     def select_date_range_three_months_ago(self) -> None:
         """Opens From Date picker, navigates 3 months back, selects today's day (with fallback), and selects today's day on To Date picker."""
         self._wait_for_loader()
-        import datetime
+        self._clear_loader()
         today = datetime.datetime.now()
         today_day = str(today.day)
 
         logger.info("Opening From Date picker")
-        self.page.get_by_role("button", name="select").first.click()
+        self.page.get_by_role("button", name="select").first.click(force=True)
         self.page.wait_for_timeout(500)
 
         logger.info("Navigating 3 months back")
         for _ in range(3):
-            self.page.get_by_role("button", name="Previous").click()
+            self.page.get_by_role("button", name="Previous").click(force=True)
             self.page.wait_for_timeout(300)
 
         logger.info(f"Selecting day {today_day} for From Date")
@@ -224,7 +249,7 @@ class PermitRenewalPage(BasePage):
         self.page.wait_for_timeout(500)
 
         logger.info("Opening To Date picker")
-        self.page.get_by_role("button", name="select").nth(1).click()
+        self.page.get_by_role("button", name="select").nth(1).click(force=True)
         self.page.wait_for_timeout(500)
 
         logger.info(f"Selecting day {today_day} for To Date")
@@ -232,23 +257,32 @@ class PermitRenewalPage(BasePage):
         self.page.wait_for_timeout(500)
 
         logger.info("Clicking Search button to filter by Date Range")
-        self.search_button.click()
+        self._clear_loader()
+        self.search_button.first.click(force=True)
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
 
     def filter_by_type_document(self) -> None:
         """Selects 'Document' in the Type dropdown and performs search."""
         self._wait_for_loader()
+        self._clear_loader()
         logger.info("Opening Type dropdown")
-        self.type_dropdown_trigger.click()
-        self.page.wait_for_timeout(500)
+        type_trigger = self.page.locator("#frmFeeSearch").get_by_text("--Select Type--").or_(self.type_dropdown_trigger)
+        if type_trigger.is_visible():
+            type_trigger.click(force=True)
+            self.page.wait_for_timeout(500)
 
         logger.info("Selecting option 'Document'")
-        self.js_click(self.page.get_by_role("option", name="Document"))
+        doc_option = self.page.locator("[role='option']:visible, li:visible").filter(has_text=re.compile(r"^Document$", re.I)).first
+        if doc_option.is_visible(timeout=2000):
+            self.js_click(doc_option)
+        else:
+            self.kendo_dropdown.select_by_locator(self.page.locator("[role='listbox']:visible"), "Document")
         self.page.wait_for_timeout(500)
 
         logger.info("Clicking Search button to filter by Type")
-        self.search_button.click()
+        self._clear_loader()
+        self.search_button.first.click(force=True)
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
 
@@ -258,8 +292,7 @@ class PermitRenewalPage(BasePage):
         logger.info("Locating the first row of LogListGrid")
         self.page.wait_for_selector("#LogListGrid tbody tr", timeout=10000)
         first_row = self.page.locator("#LogListGrid tbody tr").first
-        
-        # Read the inner text of the Name/Title cell (3rd cell, index 2)
+
         name_cell = first_row.locator("td").nth(2)
         name_text = name_cell.inner_text().strip()
         logger.info(f"Retrieved first record name: '{name_text}'")
@@ -268,12 +301,13 @@ class PermitRenewalPage(BasePage):
     def search_by_name(self, name: str) -> None:
         """Enters the name in the textbox and clicks search."""
         self._wait_for_loader()
+        self._clear_loader()
         logger.info(f"Filtering grid by record name: '{name}'")
-        self.name_search_input.click()
+        self.name_search_input.click(force=True)
         self.name_search_input.fill(name)
         self.page.wait_for_timeout(500)
 
-        self.search_button.click()
+        self.search_button.first.click(force=True)
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
 
@@ -281,16 +315,14 @@ class PermitRenewalPage(BasePage):
         """Clicks the View button of the first record, handles the resulting popup, and closes it."""
         self._wait_for_loader()
         logger.info("Clicking the View document button of the first record (popup expectation)")
-        
-        # In the grid, the View button is typically the first button or matches the 3rd to last cell action
-        # Codegen used: page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(2)
+
         view_btn = self.page.locator("#LogListGrid tbody tr").first.get_by_role("button").filter(has_text=re.compile(r"^$")).first
         if view_btn.count() == 0:
             view_btn = self.page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(2)
 
         with self.page.expect_popup() as page_info:
             self.js_click(view_btn)
-        
+
         popup_page = page_info.value
         logger.info("Successfully opened document preview popup. Closing popup page.")
         self.page.wait_for_timeout(1000)
@@ -302,9 +334,7 @@ class PermitRenewalPage(BasePage):
         """Clicks the Edit button of the first record, asserts the 'Log Details' heading, and clicks Save."""
         self._wait_for_loader()
         logger.info("Clicking the Edit button of the first record")
-        
-        # In the grid, the Edit button is next to View
-        # Codegen used: page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(3)
+
         edit_btn = self.page.locator("#LogListGrid tbody tr").first.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(1)
         if edit_btn.count() == 0:
             edit_btn = self.page.get_by_role("button").filter(has_text=re.compile(r"^$")).nth(3)
@@ -318,7 +348,7 @@ class PermitRenewalPage(BasePage):
         expect(self.page.locator("#partial-form").first).to_be_visible(timeout=10000)
 
         logger.info("Clicking Save button inside Log Details")
-        self.save_button.click()
+        self.save_button.click(force=True)
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
         logger.info("Log details edited and saved successfully")

@@ -1,7 +1,7 @@
 import logging
 from typing import Optional, Union, List
 from playwright.sync_api import Page, Locator
-from pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox
+from pages.core.kendo_controls import KendoDropdown, KendoDatePicker, KendoNumericTextBox, KendoDialog
 
 logger = logging.getLogger(__name__)
 
@@ -11,11 +11,19 @@ class BasePage:
         self.kendo_dropdown = KendoDropdown(page)
         self.kendo_datepicker = KendoDatePicker(page)
         self.kendo_numeric = KendoNumericTextBox(page)
+        self.kendo_dialog = KendoDialog(page)
 
     def select_kendo_dropdown(self, target: Union[Locator, str], option_text: str, timeout_ms: int = 5000) -> bool:
         """Selects an option from a Kendo DropDownList using the KendoDropdown component."""
         self._wait_for_loader()
         res = self.kendo_dropdown.select(target, option_text, timeout_ms=timeout_ms)
+        self._wait_for_loader()
+        return res
+
+    def select_first_kendo_dropdown(self, target: Optional[Union[Locator, str]] = None) -> bool:
+        """Selects first valid data option in a Kendo DropDownList."""
+        self._wait_for_loader()
+        res = self.kendo_dropdown.select_first_option(target)
         self._wait_for_loader()
         return res
 
@@ -25,6 +33,17 @@ class BasePage:
         res = self.kendo_datepicker.set_date_by_id(field_id, date_str)
         self._wait_for_loader()
         return res
+
+    def set_kendo_numeric(self, target: Union[Locator, str], value: float) -> bool:
+        """Sets numeric value in a Kendo NumericTextBox using the KendoNumericTextBox component."""
+        self._wait_for_loader()
+        res = self.kendo_numeric.set_value(target, value)
+        self._wait_for_loader()
+        return res
+
+    def dismiss_kendo_dialogs(self, timeout_ms: int = 3000) -> None:
+        """Dismisses active Kendo alerts, dialogs, and modal windows."""
+        self.kendo_dialog.dismiss_alerts(timeout_ms=timeout_ms)
 
     def navigate(self, url: str):
         self.page.goto(url)
@@ -104,8 +123,7 @@ class BasePage:
                 self.page.locator(".k-overlay").wait_for(state="hidden", timeout=timeout)
         except Exception:
             pass
-        self.page.wait_for_timeout(500)
-
+        self.page.wait_for_timeout(300)
 
     def _expand_kendo_panel(self, menu_text: str) -> None:
         """Expands a Kendo PanelBar menu item containing the query text."""
@@ -122,6 +140,4 @@ class BasePage:
                 }}
             }}
         """)
-        self.page.wait_for_timeout(1000)
-
-
+        self.page.wait_for_timeout(500)

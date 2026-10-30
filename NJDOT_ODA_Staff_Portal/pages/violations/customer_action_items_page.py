@@ -12,9 +12,10 @@ class ViolationCustomerActionItemsPage(BasePage):
 
     def __init__(self, page: Page):
         super().__init__(page)
+        self.fake = Faker()
 
         # Navigation elements
-        self.violations_menu_link = page.get_by_role("link", name="Violations ")
+        self.violations_menu_link = page.get_by_role("link", name=re.compile(r"Violations\s*", re.I))
         self.violations_listing_link = page.get_by_role("link", name="Violations Listing")
 
         # Search elements
@@ -29,7 +30,7 @@ class ViolationCustomerActionItemsPage(BasePage):
         self.customer_action_items_tab = page.get_by_role("link", name="Customer Action Items")
         self.violation_details_heading = page.get_by_role("heading", name="Violation Details")
         self.customer_communication_heading = page.get_by_role("heading", name="Customer Communication")
-        self.communication_grid_container = page.locator("#frmCustomer > .form-wrapper > .row > div:nth-child(4)")
+        self.communication_grid_container = page.locator("#CommGrid, .k-grid:visible").first
         self.add_new_button = page.get_by_role("button", name="Add New")
 
         # Communication Form Page Elements
@@ -61,7 +62,7 @@ class ViolationCustomerActionItemsPage(BasePage):
         self.violations_listing_link.click()
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
-        
+
         expect(self.violation_search_heading).to_be_visible(timeout=15000)
         expect(self.partial_form_first).to_be_visible(timeout=10000)
 
@@ -111,59 +112,62 @@ class ViolationCustomerActionItemsPage(BasePage):
         expect(self.violation_details_text).to_be_visible(timeout=10000)
         expect(self.communication_details_heading).to_be_visible(timeout=10000)
 
+    def _select_first_dropdown_option(self) -> None:
+        """Clicks the first valid option in the visible Kendo dropdown listbox."""
+        self.select_first_kendo_dropdown()
+
     def fill_communication_details(self) -> None:
         """Fills out Customer Communication details, always selecting the 1st visible dropdown options."""
         logger.info("Filling customer communication details using Faker.")
-        fake = Faker()
 
         # 1. Option dropdown
         logger.info("Opening Option dropdown.")
         self.option_dropdown.click()
-        self._select_first_dropdown_option()
+        if not self.kendo_dropdown.select_by_locator(self.page.locator("[role='listbox']:visible"), "Additional Info Requested", timeout_ms=3000):
+            self._select_first_dropdown_option()
+
+        # If Pay_Amount is present and visible, provide valid fee amount so ODANJ-842 validation passes
+        try:
+            pay_amt = self.page.locator("#Pay_Amount")
+            if pay_amt.is_visible(timeout=1000):
+                logger.info("Setting Pay_Amount to 50.00 for fee validation")
+                self.set_kendo_numeric("#Pay_Amount", 50.00)
+        except Exception:
+            pass
 
         # 2. Status dropdown
         logger.info("Opening Status dropdown.")
-        self.status_dropdown.click()
-        self._select_first_dropdown_option()
+        if self.status_dropdown.is_visible():
+            self.status_dropdown.click()
+            self._select_first_dropdown_option()
 
         # 3. Review Person dropdown
         logger.info("Opening Review Person dropdown.")
-        self.review_person_dropdown.click()
-        self._select_first_dropdown_option()
+        if self.review_person_dropdown.is_visible():
+            self.review_person_dropdown.click()
+            self._select_first_dropdown_option()
 
         # 4. Fill Message
         logger.info("Filling Message to Customer.")
         self.message_input.click()
-        self.message_input.fill(fake.paragraph(nb_sentences=2))
-
-        # Focus element out
-        self.page.locator(".\\32 .col-md-3").click()
+        self.message_input.fill(self.fake.paragraph(nb_sentences=2))
 
         # 5. Fill Notes
         logger.info("Filling Notes on Action Items.")
         self.notes_input.click()
-        self.notes_input.fill(fake.sentence())
+        self.notes_input.fill(self.fake.sentence())
 
     def save_communication(self) -> None:
         """Saves the record and verifies grid listing returns."""
         logger.info("Saving Customer Communication record.")
+        try:
+            self.page.once("dialog", lambda dialog: dialog.accept())
+        except Exception:
+            pass
         self.save_button.click()
         self.page.wait_for_load_state("networkidle")
         self._wait_for_loader()
+        self.dismiss_kendo_dialogs()
 
         # Verify grid view has loaded successfully
         expect(self.communication_grid_container).to_be_visible(timeout=15000)
-
-    def _select_first_dropdown_option(self) -> None:
-        """Clicks the first valid option in the visible Kendo dropdown listbox."""
-        self.page.wait_for_selector("[role='listbox']:visible", timeout=5000)
-        options = self.page.locator("[role='listbox']:visible [role='option']")
-        self.page.wait_for_timeout(500)
-        
-        if options.count() > 1:
-            logger.info("Selecting first valid option (index 1) in Kendo dropdown")
-            options.nth(1).click()
-        else:
-            logger.info("Selecting option (index 0) in Kendo dropdown")
-            options.nth(0).click()
-        self.page.wait_for_timeout(500)
