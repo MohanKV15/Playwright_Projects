@@ -67,10 +67,10 @@ class KendoControls:
                     var jq = window.jQuery || window.$;
                     if (!jq) return false;
                     var unloaded = false;
-                    jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], .k-window:visible select, .k-window:visible input[data-role="dropdownlist"], [role="dialog"]:visible select, [role="dialog"]:visible input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
+                    jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], .k-window:visible select, .k-window:visible input[data-role="dropdownlist"], [role="dialog"]:visible select, [role="dialog"]:visible input[data-role="dropdownlist"], #review_by, #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
                         var $el = jq(this);
                         if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
-                        var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
+                        var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').find('input, select').data('kendoDropDownList');
                         if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
                             try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
                         }
@@ -90,64 +90,117 @@ class KendoControls:
             () => {
                 var jq = window.jQuery || window.$;
                 if (!jq) return;
-                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
-                    var $el = jq(this);
-                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
-                    var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').data('kendoDropDownList');
-                    if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
-                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
+
+                function getItemInfo(ddl, item) {
+                    if (!item) return { text: '', value: '' };
+                    var tf = (ddl.options && ddl.options.dataTextField) ? ddl.options.dataTextField : null;
+                    var vf = (ddl.options && ddl.options.dataValueField) ? ddl.options.dataValueField : null;
+
+                    var txt = '';
+                    if (tf && item[tf] !== undefined && item[tf] !== null) {
+                        txt = item[tf];
+                    } else {
+                        txt = item.text || item.Text || item.name || item.Name || item.label || item.Label || item.value || item.Value || '';
                     }
-                    if (ddl) {
-                        if (typeof ddl.enable === 'function') ddl.enable(true);
-                        var curVal = (typeof ddl.value === 'function' ? ddl.value() : '').toString().trim();
-                        var curText = (typeof ddl.text === 'function' ? ddl.text() : '').trim();
-                        if (!curVal || curVal === '' || curVal === '0' || curVal === '-1' || curText.startsWith('--') || curText.toLowerCase().includes('select')) {
-                            if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
-                                var items = ddl.dataSource.data();
-                                if (items && items.length > 0) {
-                                    var targetIdx = -1;
-                                    var hasOptionLabel = ddl.options && ddl.options.optionLabel;
-                                    var startIdx = hasOptionLabel ? 1 : 0;
-                                    for (var i = 0; i < items.length; i++) {
-                                        var item = items[i];
-                                        if (!item) continue;
-                                        var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
-                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value.toString().trim() : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value.toString().trim() : txt);
-                                        if (txt && val !== undefined && val !== null && val !== '' && val !== '0' && val !== '-1' && !txt.startsWith('--') && !txt.toLowerCase().includes('select') && !txt.toLowerCase().includes('no data')) {
-                                            targetIdx = i;
-                                            break;
-                                        }
-                                    }
-                                    if (targetIdx === -1 && items.length > 0) {
-                                        targetIdx = (startIdx < items.length) ? startIdx : 0;
-                                    }
-                                    if (targetIdx >= 0 && targetIdx < items.length) {
-                                        if (typeof ddl.select === 'function') ddl.select(targetIdx);
-                                        if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                        if (ddl.element && ddl.element.length) {
-                                            ddl.element.trigger('change').trigger('input');
-                                            try { if (jq.validator) ddl.element.valid(); } catch(e) {}
-                                        }
-                                        $el.trigger('change').trigger('input');
-                                    }
+                    if (typeof txt === 'object') txt = '';
+                    txt = (txt || '').toString().trim();
+
+                    var val = '';
+                    if (vf && item[vf] !== undefined && item[vf] !== null) {
+                        val = item[vf];
+                    } else if (item.value !== undefined && item.value !== null) {
+                        val = item.value;
+                    } else if (item.Value !== undefined && item.Value !== null) {
+                        val = item.Value;
+                    } else if (item.id !== undefined && item.id !== null) {
+                        val = item.id;
+                    } else if (item.Id !== undefined && item.Id !== null) {
+                        val = item.Id;
+                    } else {
+                        val = txt;
+                    }
+                    if (typeof val === 'object') val = '';
+                    val = (val !== null && val !== undefined) ? val.toString().trim() : '';
+
+                    return { text: txt, value: val };
+                }
+
+                function selectDdl(ddl, $el) {
+                    if (!ddl) return false;
+                    if (typeof ddl.enable === 'function') ddl.enable(true);
+
+                    var curVal = (typeof ddl.value === 'function' ? ddl.value() : '').toString().trim();
+                    var curText = (typeof ddl.text === 'function' ? ddl.text() : '').trim();
+
+                    if (curVal && curVal !== '' && curVal !== '0' && curVal !== '-1' &&
+                        !curText.startsWith('--') && !curText.toLowerCase().includes('select')) {
+                        return false;
+                    }
+
+                    if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
+                        var items = ddl.dataSource.data();
+                        if (items && items.length > 0) {
+                            var hasOptionLabel = !!(ddl.options && ddl.options.optionLabel);
+                            var chosenIdx = -1;
+                            var chosenVal = '';
+
+                            for (var i = 0; i < items.length; i++) {
+                                var info = getItemInfo(ddl, items[i]);
+                                if (info.value !== '' && info.value !== '0' && info.value !== '-1' &&
+                                    !info.text.startsWith('--') && !info.text.toLowerCase().includes('select') &&
+                                    !info.text.toLowerCase().includes('no data')) {
+                                    chosenIdx = hasOptionLabel ? (i + 1) : i;
+                                    chosenVal = info.value;
+                                    break;
                                 }
+                            }
+
+                            if (chosenIdx === -1 && items.length > 0) {
+                                chosenIdx = hasOptionLabel ? 1 : 0;
+                                var fallbackInfo = getItemInfo(ddl, items[0]);
+                                chosenVal = fallbackInfo.value;
+                            }
+
+                            if (chosenIdx >= 0) {
+                                if (typeof ddl.select === 'function') ddl.select(chosenIdx);
+                                if (chosenVal && typeof ddl.value === 'function') ddl.value(chosenVal);
+                                if (typeof ddl.trigger === 'function') ddl.trigger('change');
+                                if (ddl.element && ddl.element.length) {
+                                    ddl.element.trigger('change').trigger('input');
+                                    try { if (jq.validator) ddl.element.valid(); } catch(e) {}
+                                }
+                                if ($el && $el.length) {
+                                    $el.trigger('change').trigger('input');
+                                }
+                                return true;
                             }
                         }
                     }
+                    return false;
+                }
+
+                jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #review_by, #inspected_by_staff, #inspected_by_consultant, #HPINSInsType').each(function() {
+                    var $el = jq(this);
+                    if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget, .k-window, [role="dialog"]').is(':visible')) return;
+                    var ddl = $el.data('kendoDropDownList') || $el.find('input, select').data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').find('input, select').data('kendoDropDownList');
+                    if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
+                        try { ddl = window.kendo.widgetInstance($el); } catch(e) {}
+                    }
+                    selectDdl(ddl, $el);
                 });
+
+                // Specifically ensure review_by is selected if present
+                var reviewByDdl = jq('#review_by').data('kendoDropDownList');
+                if (reviewByDdl) {
+                    selectDdl(reviewByDdl, jq('#review_by'));
+                }
 
                 // Sync hidden inspected_by input field
                 var ddlStaff = jq('#inspected_by_staff').data('kendoDropDownList') || jq('#inspected_by_consultant').data('kendoDropDownList');
                 var staffVal = (ddlStaff && typeof ddlStaff.value === 'function') ? ddlStaff.value() : (jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val());
                 if (!staffVal && ddlStaff && ddlStaff.dataSource && typeof ddlStaff.dataSource.data === 'function' && ddlStaff.dataSource.data().length > 0) {
-                    var items = ddlStaff.dataSource.data();
-                    var idx = (ddlStaff.options && ddlStaff.options.optionLabel) ? 1 : 0;
-                    if (typeof ddlStaff.select === 'function') ddlStaff.select(idx);
-                    if (typeof ddlStaff.trigger === 'function') ddlStaff.trigger('change');
+                    selectDdl(ddlStaff, jq('#inspected_by_staff'));
                     staffVal = (typeof ddlStaff.value === 'function') ? ddlStaff.value() : (jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val());
-                }
-                if (!staffVal) {
-                    staffVal = jq('#inspected_by_staff').val() || jq('#inspected_by_consultant').val();
                 }
                 if (staffVal && jq('#inspected_by').length) {
                     jq('#inspected_by').val(staffVal).trigger('change').trigger('input');
@@ -191,24 +244,38 @@ class KendoControls:
                             var jq = window.jQuery || window.$;
                             if (!jq) return false;
                             var $el = jq(el);
-                            var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList');
+                            var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList') || $el.closest('.k-dropdown, .k-widget').find('input, select').data('kendoDropDownList');
                             if (!ddl && window.kendo && typeof window.kendo.widgetInstance === 'function') {
                                 try { ddl = window.kendo.widgetInstance($el); } catch (e) {}
                             }
                             if (ddl && ddl.dataSource && typeof ddl.dataSource.data === 'function') {
                                 if (typeof ddl.enable === 'function') ddl.enable(true);
                                 var items = ddl.dataSource.data();
+                                var tf = (ddl.options && ddl.options.dataTextField) ? ddl.options.dataTextField : null;
+                                var vf = (ddl.options && ddl.options.dataValueField) ? ddl.options.dataValueField : null;
+                                var hasOptionLabel = !!(ddl.options && ddl.options.optionLabel);
+
                                 for (var i = 0; i < items.length; i++) {
                                     var item = items[i];
                                     if (!item) continue;
-                                    var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
-                                    var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
-                                    if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                                    var txt = (tf && item[tf] !== undefined && item[tf] !== null) ? item[tf] : (item.text || item.Text || item.name || item.Name || '');
+                                    if (typeof txt === 'object') txt = '';
+                                    txt = (txt || '').toString().trim();
+
+                                    var val = (vf && item[vf] !== undefined && item[vf] !== null) ? item[vf] : (item.value !== undefined && item.value !== null ? item.value : (item.Value !== undefined && item.Value !== null ? item.Value : txt));
+                                    if (typeof val === 'object') val = '';
+                                    val = (val !== null && val !== undefined) ? val.toString().trim() : '';
+
+                                    if (val !== '' && val !== '0' && val !== '-1' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                                        var targetIdx = hasOptionLabel ? (i + 1) : i;
+                                        if (typeof ddl.select === 'function') ddl.select(targetIdx);
                                         if (typeof ddl.value === 'function') ddl.value(val);
                                         if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                        if (ddl.wrapper && ddl.wrapper.length) {
-                                            ddl.wrapper.find('.k-input').text(txt);
+                                        if (ddl.element && ddl.element.length) {
+                                            ddl.element.trigger('change').trigger('input');
+                                            try { if (jq.validator) ddl.element.valid(); } catch(e) {}
                                         }
+                                        $el.trigger('change').trigger('input');
                                         return true;
                                     }
                                 }
@@ -250,7 +317,7 @@ class KendoControls:
                 () => {
                     var jq = window.jQuery || window.$;
                     if (!jq) return;
-                    jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"]').each(function() {
+                    jq('span.k-widget.k-dropdown, span.k-dropdown, select, input[data-role="dropdownlist"], #review_by').each(function() {
                         var $el = jq(this);
                         if (!$el.is(':visible') && !$el.closest('.k-dropdown, .k-widget').is(':visible')) return;
                         var ddl = $el.find('input, select').data('kendoDropDownList') || $el.data('kendoDropDownList');
@@ -261,26 +328,32 @@ class KendoControls:
                             if (typeof ddl.enable === 'function') ddl.enable(true);
                             if (ddl.dataSource && typeof ddl.dataSource.data === 'function') {
                                 var items = ddl.dataSource.data();
-                                if (items && items.length > 0) {
-                                    var targetVal = null;
-                                    var targetTxt = '';
-                                    for (var i = 0; i < items.length; i++) {
-                                        var item = items[i];
-                                        if (!item) continue;
-                                        var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || '').toString().trim();
-                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
-                                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
-                                            targetVal = val;
-                                            targetTxt = txt;
-                                            break;
-                                        }
-                                    }
-                                    if (targetVal !== null) {
-                                        if (typeof ddl.value === 'function') ddl.value(targetVal);
+                                var tf = (ddl.options && ddl.options.dataTextField) ? ddl.options.dataTextField : null;
+                                var vf = (ddl.options && ddl.options.dataValueField) ? ddl.options.dataValueField : null;
+                                var hasOptionLabel = !!(ddl.options && ddl.options.optionLabel);
+
+                                for (var i = 0; i < items.length; i++) {
+                                    var item = items[i];
+                                    if (!item) continue;
+                                    var txt = (tf && item[tf] !== undefined && item[tf] !== null) ? item[tf] : (item.text || item.Text || item.name || item.Name || '');
+                                    if (typeof txt === 'object') txt = '';
+                                    txt = (txt || '').toString().trim();
+
+                                    var val = (vf && item[vf] !== undefined && item[vf] !== null) ? item[vf] : (item.value !== undefined && item.value !== null ? item.value : (item.Value !== undefined && item.Value !== null ? item.Value : txt));
+                                    if (typeof val === 'object') val = '';
+                                    val = (val !== null && val !== undefined) ? val.toString().trim() : '';
+
+                                    if (val !== '' && val !== '0' && val !== '-1' && !txt.startsWith('--') && !txt.toLowerCase().startsWith('select') && !txt.toLowerCase().includes('no data')) {
+                                        var targetIdx = hasOptionLabel ? (i + 1) : i;
+                                        if (typeof ddl.select === 'function') ddl.select(targetIdx);
+                                        if (typeof ddl.value === 'function') ddl.value(val);
                                         if (typeof ddl.trigger === 'function') ddl.trigger('change');
-                                        if (ddl.wrapper && ddl.wrapper.length) {
-                                            ddl.wrapper.find('.k-input').text(targetTxt);
+                                        if (ddl.element && ddl.element.length) {
+                                            ddl.element.trigger('change').trigger('input');
+                                            try { if (jq.validator) ddl.element.valid(); } catch(e) {}
                                         }
+                                        $el.trigger('change').trigger('input');
+                                        break;
                                     }
                                 }
                             }
@@ -318,26 +391,32 @@ class KendoControls:
                             if (dd && dd.dataSource && typeof dd.dataSource.data === "function") {
                                 if (typeof dd.enable === 'function') dd.enable(true);
                                 var items = dd.dataSource.data();
-                                if (items && items.length > 0) {
-                                    var targetVal = null;
-                                    var targetTxt = "";
-                                    for (var i = 0; i < items.length; i++) {
-                                        var item = items[i];
-                                        if (!item) continue;
-                                        var txt = (item.text || item.Text || item.name || item.Name || item.value || item.Value || Object.values(item)[0] || "").toString().trim();
-                                        var val = (item.value !== undefined && item.value !== null && item.value !== '') ? item.value : ((item.Value !== undefined && item.Value !== null && item.Value !== '') ? item.Value : txt);
-                                        if (txt && val !== undefined && val !== null && val !== '' && !txt.startsWith("--") && !txt.toLowerCase().includes("select") && !txt.toLowerCase().includes("no data") && txt !== "0") {
-                                            targetVal = val;
-                                            targetTxt = txt;
-                                            break;
+                                var tf = (dd.options && dd.options.dataTextField) ? dd.options.dataTextField : null;
+                                var vf = (dd.options && dd.options.dataValueField) ? dd.options.dataValueField : null;
+                                var hasOptionLabel = !!(dd.options && dd.options.optionLabel);
+
+                                for (var i = 0; i < items.length; i++) {
+                                    var item = items[i];
+                                    if (!item) continue;
+                                    var txt = (tf && item[tf] !== undefined && item[tf] !== null) ? item[tf] : (item.text || item.Text || item.name || item.Name || '');
+                                    if (typeof txt === 'object') txt = '';
+                                    txt = (txt || '').toString().trim();
+
+                                    var val = (vf && item[vf] !== undefined && item[vf] !== null) ? item[vf] : (item.value !== undefined && item.value !== null ? item.value : (item.Value !== undefined && item.Value !== null ? item.Value : txt));
+                                    if (typeof val === 'object') val = '';
+                                    val = (val !== null && val !== undefined) ? val.toString().trim() : '';
+
+                                    if (val !== '' && val !== '0' && val !== '-1' && !txt.startsWith('--') && !txt.toLowerCase().includes('select') && !txt.toLowerCase().includes('no data')) {
+                                        var targetIdx = hasOptionLabel ? (i + 1) : i;
+                                        if (typeof dd.select === 'function') dd.select(targetIdx);
+                                        if (typeof dd.value === 'function') dd.value(val);
+                                        if (typeof dd.trigger === 'function') dd.trigger('change');
+                                        if (dd.element && dd.element.length) {
+                                            dd.element.trigger('change').trigger('input');
+                                            try { if (jq.validator) dd.element.valid(); } catch(e) {}
                                         }
-                                    }
-                                    if (targetVal !== null) {
-                                        if (typeof dd.value === "function") dd.value(targetVal);
-                                        if (typeof dd.trigger === "function") dd.trigger("change");
-                                        if (dd.wrapper && dd.wrapper.length) {
-                                            dd.wrapper.find('.k-input').text(targetTxt);
-                                        }
+                                        target.trigger('change').trigger('input');
+                                        break;
                                     }
                                 }
                             }
@@ -448,4 +527,3 @@ class KendoControls:
             err_msg = "; ".join(visible_errors)
             logger.error(f"Form validation error(s) present: {err_msg}")
             raise AssertionError(f"Mandatory form validation error(s) present on page: {err_msg}")
-
