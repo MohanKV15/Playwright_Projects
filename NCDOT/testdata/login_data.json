@@ -1,0 +1,26 @@
+{
+  "portal_url": "https://u-ncdot.bemcorp.net/Home/AccountEntra",
+  "valid_credentials": {
+    "test_case_id": "TC_NCDOT_LOG_001",
+    "description": "Valid Email, Valid Password, and Security PIN",
+    "email": "sprabhu@bemsys.com",
+    "password": "Security@#",
+    "pin": "11",
+    "expected_landing_text": "ROW"
+  },
+  "invalid_credentials": {
+    "test_case_id": "TC_NCDOT_LOG_002",
+    "description": "Invalid Credentials Rejection",
+    "email": "invalid.user@ncdot.gov",
+    "password": "InvalidPassword#123",
+    "expected_error": "Error"
+  },
+  "empty_credentials": {
+    "test_case_id": "TC_NCDOT_LOG_003",
+    "description": "Empty Credentials Submission Validation",
+    "email": "",
+    "password": "",
+    "expected_email_error": "Email",
+    "expected_password_error": "Password"
+  }
+}
