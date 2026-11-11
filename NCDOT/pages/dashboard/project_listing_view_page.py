@@ -2,7 +2,7 @@ import logging
 import re
 from typing import Optional
 from faker import Faker
-from playwright.sync_api import Page, expect
+from playwright.sync_api import Locator, Page, expect
 from pages.core.base_page import BasePage
 from utils.config import Config
 
@@ -18,7 +18,7 @@ class ProjectListingViewPage(BasePage):
       - Parcels tab: Clicks 'Add New', focuses 'Parcel No *', clicks 'Cancel'.
       - Role Assignment tab: Navigates to tab and verifies display.
       - Task Assignment tab: Navigates to tab and verifies display.
-      - Log tab: Adds Call Data & Notes with Faker-generated subjects, then closes page.
+      - Log tab: Adds Call Data & Notes using dynamic Faker data, then closes page.
     """
 
     DEFAULT_TEST_PROJECT_ID = "2224761"
@@ -42,35 +42,30 @@ class ProjectListingViewPage(BasePage):
         self.project_info_container = page.locator("#frmPrjView070101, #divProjectDetails").or_(
             page.get_by_text("Project Information Project").first
         )
+        self.tabstrip = page.locator("#TabstripProjectDetails")
         self.tab_display_container = page.locator("#divProjectDetailsTabDisplay > #partial-form > section > div > div").or_(
             page.locator("#divProjectDetailsTabDisplay")
         )
 
         # 3. Parcels Tab Elements
-        self.parcel_add_new_button = page.locator("#divProjectDetailsTabDisplay button:visible").filter(
-            has_text=re.compile(r"Add New", re.I)
-        ).or_(page.locator("#btnAddNewParcel:visible, button:visible:has-text('Add New')"))
+        self.parcel_add_new_button = page.locator("#AddNewParcelBtn01:visible").or_(
+            page.locator("#divProjectDetailsTabDisplay button:visible").filter(has_text=re.compile(r"Add New", re.I))
+        )
         self.parcel_no_input = page.get_by_role("textbox", name="Parcel No *").or_(
             page.locator("input#Parcel_No:visible, input[name*='Parcel_No']:visible")
         )
-        self.parcel_cancel_button = page.locator("#divProjectDetailsTabDisplay button:visible, .k-window:visible button:visible").filter(
-            has_text=re.compile(r"^\s*Cancel\b", re.I)
-        ).or_(page.locator("button:visible:has-text('Cancel')"))
+        self.parcel_cancel_button = page.locator(
+            "#divProjectDetailsTabDisplay button:visible, .k-window:visible button:visible"
+        ).filter(has_text=re.compile(r"^\s*Cancel\b", re.I))
 
         # 4. Log Tab Elements
-        self.add_call_data_button = page.locator("#btnAddCallData:visible").or_(
-            page.locator("button:visible").filter(has_text=re.compile(r"Add Call Data", re.I))
-        )
-        self.add_notes_button = page.locator("#btnAddNotes:visible").or_(
-            page.locator("button:visible").filter(has_text=re.compile(r"Add Notes", re.I))
-        )
+        self.add_call_data_button = page.locator("#btnAddCallData:visible, button:visible:has-text('Add Call Data')")
+        self.add_notes_button = page.locator("#btnAddNotes:visible, button:visible:has-text('Add Notes')")
         self.subject_input = page.get_by_role("textbox", name=re.compile(r"Subject", re.I)).or_(
             page.locator("input#log_subject:visible, input#Subject:visible, input[name*='Subject']:visible")
         )
-        self.save_log_button = page.locator("#btnSubmit:visible").or_(
-            page.locator("#divProjectDetailsTabDisplay button:visible").filter(has_text=re.compile(r"^\s*Save\b", re.I))
-        )
-        self.back_notes_button = page.locator("#btnBacknotes:visible, button#btnBacknotes")
+        self.save_log_button = page.locator("#btnSubmit:visible, button:visible:has-text('Save')")
+        self.back_notes_button = page.locator("#btnBacknotes:visible")
 
     # =========================================================================
     # Step-by-Step Actions
@@ -120,76 +115,76 @@ class ProjectListingViewPage(BasePage):
         return self
 
     # -------------------------------------------------------------------------
-    # Tab Navigations & Actions
+    # Tab Navigations & Actions (DRY & Reusable)
     # -------------------------------------------------------------------------
 
-    def open_parcels_tab_and_cancel_add_new(self) -> "ProjectListingViewPage":
-        """Clicks Parcels tab, clicks 'Add New', clicks 'Parcel No *', then clicks 'Cancel'."""
-        self.logger.info("Parcels Tab: Navigating to tab")
+    def switch_to_tab(self, tab_name: str) -> "ProjectListingViewPage":
+        """Navigates to specified project details tab and verifies content display."""
+        self.logger.info(f"Navigating to tab: '{tab_name}'")
         self._wait_for_loader()
-        self.page.locator("#TabstripProjectDetails span.k-link", has_text="Parcels").click(force=True)
-        self.page.wait_for_timeout(1200)
+        tab_link = self.tabstrip.locator("span.k-link", has_text=tab_name).or_(
+            self.tabstrip.get_by_text(tab_name, exact=True)
+        ).first
+        tab_link.wait_for(state="visible", timeout=10000)
+        tab_link.click()
+        self.page.wait_for_timeout(1000)
         self._wait_for_loader()
         expect(self.tab_display_container.first).to_be_visible(timeout=15000)
+        return self
+
+    def navigate_to_parcels_tab(self) -> "ProjectListingViewPage":
+        """Navigates to the Parcels tab."""
+        return self.switch_to_tab("Parcels")
+
+    def open_parcels_tab_and_cancel_add_new(self) -> "ProjectListingViewPage":
+        """Clicks Parcels tab, clicks 'Add New', focuses 'Parcel No *', then clicks 'Cancel'."""
+        self.navigate_to_parcels_tab()
 
         self.logger.info("Parcels Tab: Clicking 'Add New'")
-        self.parcel_add_new_button.first.wait_for(state="visible", timeout=10000)
-        self.parcel_add_new_button.first.click(force=True)
-        self.page.wait_for_timeout(1000)
+        self.parcel_add_new_button.first.click()
+        self.page.wait_for_timeout(600)
         self._wait_for_loader()
 
         self.logger.info("Parcels Tab: Focusing 'Parcel No *' textbox")
-        try:
-            expect(self.parcel_no_input.first).to_be_visible(timeout=10000)
-            self.parcel_no_input.first.click()
-            self.page.wait_for_timeout(300)
-        except Exception as e:
-            self.logger.warning(f"Parcel No input focus note: {e}")
+        expect(self.parcel_no_input.first).to_be_visible(timeout=10000)
+        self.parcel_no_input.first.click()
+        self.page.wait_for_timeout(300)
 
         self.logger.info("Parcels Tab: Clicking 'Cancel'")
-        if self.parcel_cancel_button.first.is_visible(timeout=5000):
-            self.parcel_cancel_button.first.click(force=True)
-            self.page.wait_for_timeout(600)
-            self._wait_for_loader()
+        self.parcel_cancel_button.first.click()
+        self.page.wait_for_timeout(600)
+        self._wait_for_loader()
         return self
 
     def navigate_to_role_assignment_tab(self) -> "ProjectListingViewPage":
         """Navigates to Role Assignment tab and verifies tab content display."""
-        self.logger.info("Role Assignment Tab: Navigating to tab")
-        self._wait_for_loader()
-        self.page.locator("#TabstripProjectDetails span.k-link", has_text="Role Assignment").click(force=True)
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-        expect(self.tab_display_container.first).to_be_visible(timeout=15000)
-        return self
-
-    def open_role_assignment_tab_and_add_role(self) -> "ProjectListingViewPage":
-        """Backward compatibility: navigates to Role Assignment tab."""
-        return self.navigate_to_role_assignment_tab()
+        return self.switch_to_tab("Role Assignment")
 
     def navigate_to_task_assignment_tab(self) -> "ProjectListingViewPage":
         """Navigates to Task Assignment tab and verifies tab content display."""
-        self.logger.info("Task Assignment Tab: Navigating to tab")
-        self._wait_for_loader()
-        self.page.locator("#TabstripProjectDetails span.k-link", has_text="Task Assignment").click(force=True)
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-        expect(self.tab_display_container.first).to_be_visible(timeout=15000)
-        return self
-
-    def open_task_assignment_tab_and_add_task(self) -> "ProjectListingViewPage":
-        """Backward compatibility: navigates to Task Assignment tab."""
-        return self.navigate_to_task_assignment_tab()
+        return self.switch_to_tab("Task Assignment")
 
     def navigate_to_log_tab(self) -> "ProjectListingViewPage":
         """Navigates to the Log tab and verifies tab content visibility."""
-        self.logger.info("Log Tab: Navigating to tab")
+        return self.switch_to_tab("Log")
+
+    def _create_log_entry(self, add_button: Locator, subject: str, entry_type: str = "Entry") -> None:
+        """Helper to create a log entry, save, and return back to log table."""
+        self.logger.info(f"Log Tab: Creating {entry_type} with subject '{subject}'")
+        add_button.first.click()
+        self.page.wait_for_timeout(600)
         self._wait_for_loader()
-        self.page.locator("#TabstripProjectDetails span.k-link", has_text="Log").click(force=True)
+        self.subject_input.first.click()
+        self.subject_input.first.fill(subject)
+        self.save_log_button.first.click()
         self.page.wait_for_timeout(1000)
         self._wait_for_loader()
-        expect(self.tab_display_container.first).to_be_visible(timeout=15000)
-        return self
+
+        self.logger.info("Log Tab: Returning to log list via Back button")
+        self.back_notes_button.first.wait_for(state="visible", timeout=15000)
+        self.back_notes_button.first.click()
+        self.page.wait_for_timeout(1000)
+        self._wait_for_loader()
 
     def open_log_tab_and_add_call_data_and_notes(
         self,
@@ -203,43 +198,12 @@ class ProjectListingViewPage(BasePage):
         """
         self.navigate_to_log_tab()
 
-        # Generate dynamic Faker data if subjects are not passed
         call_subj = call_data_subject or f"Call {fake.word().capitalize()} {fake.random_int(100, 999)}"
         notes_subj = notes_subject or f"Note {fake.word().capitalize()} {fake.random_int(100, 999)}"
 
-        # 1. Add Call Data
-        self.logger.info(f"Log Tab: Clicking 'Add Call Data' (Subject='{call_subj}')")
-        self.add_call_data_button.first.click()
-        self.page.wait_for_timeout(600)
-        self._wait_for_loader()
-        self.subject_input.first.click()
-        self.subject_input.first.fill(call_subj)
-        self.save_log_button.first.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
+        self._create_log_entry(self.add_call_data_button, call_subj, entry_type="Call Data")
+        self._create_log_entry(self.add_notes_button, notes_subj, entry_type="Notes")
 
-        self.logger.info("Log Tab: Clicking Back button (#btnBacknotes)")
-        self.back_notes_button.first.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-
-        # 2. Add Notes
-        self.logger.info(f"Log Tab: Clicking 'Add Notes' (Subject='{notes_subj}')")
-        self.add_notes_button.first.click()
-        self.page.wait_for_timeout(600)
-        self._wait_for_loader()
-        self.subject_input.first.click()
-        self.subject_input.first.fill(notes_subj)
-        self.save_log_button.first.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-
-        self.logger.info("Log Tab: Clicking Back button (#btnBacknotes)")
-        self.back_notes_button.first.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-
-        # Close page once log operations are complete
         if close_page_when_done:
             self.close_page()
 

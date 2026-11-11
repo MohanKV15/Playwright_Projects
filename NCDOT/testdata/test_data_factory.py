@@ -51,17 +51,18 @@ class TestDataFactory:
         Generates dynamic project creation data using Faker,
         strictly maintaining required format 'ABC12.1.ADE' for WBS.
         """
+        wbs_val = f"{fake.lexify(text='???', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ')}{fake.random_int(10, 99)}.{fake.random_int(1, 9)}.{fake.lexify(text='???', letters='ABCDEFGHIJKLMNOPQRSTUVWXYZ')}"
         return {
-            "project_id": str(random.randint(10000000, 99999999)),
+            "project_id": str(fake.random_int(10000000, 99999999)),
             "division": "01",
             "letting_type": "Constr. by State Forces (CSF)",
             "stip_non_stip": "NON-STIP",
             "acquisition_type": "AA-EARLY ACQUISTION",
-            "wbs": "ABC12.1.ADE",
+            "wbs": wbs_val,
             "county": "Bertie",
-            "parcel_no": str(random.randint(1000, 9999)),
-            "property_tax_id": str(random.randint(1000, 9999)),
-            "deed_book_page": f"test{random.randint(10, 99)}",
+            "parcel_no": str(fake.random_int(1000, 9999)),
+            "property_tax_id": str(fake.random_int(1000, 9999)),
+            "deed_book_page": f"{fake.word()}{fake.random_int(10, 99)}",
             "task_assignment": "Acquisition Agent",
             "internal_staff": "Dustin Johnson",
         }
