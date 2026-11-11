@@ -7,8 +7,9 @@ import pytest
 from playwright.sync_api import Page
 from pages.login.login_page import LoginPage
 from pages.dashboard.dashboard_page import DashboardPage
-from pages.dashboard.add_new_project_page import AddNewProjectPage
-from pages.dashboard.project_listing_view_page import ProjectListingViewPage
+from pages.projects.add_new_project_page import AddNewProjectPage
+from pages.projects.project_listing_view_page import ProjectListingViewPage
+from pages.parcel_central.parcel_information_page import ParcelInformationPage
 
 
 @pytest.fixture(scope="function")
@@ -34,3 +35,8 @@ def project_listing_view_page(page: Page) -> ProjectListingViewPage:
     """Fixture providing an initialized ProjectListingViewPage instance."""
     return ProjectListingViewPage(page)
 
+
+@pytest.fixture(scope="function")
+def parcel_information_page(page: Page) -> ParcelInformationPage:
+    """Fixture providing an initialized ParcelInformationPage instance."""
+    return ParcelInformationPage(page)

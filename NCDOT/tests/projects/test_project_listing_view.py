@@ -1,7 +1,7 @@
 import allure
 import pytest
 from faker import Faker
-from pages.dashboard.project_listing_view_page import ProjectListingViewPage
+from pages.projects.project_listing_view_page import ProjectListingViewPage
 
 fake = Faker()
 

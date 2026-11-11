@@ -141,3 +141,11 @@ class BasePage:
         """Picks a date from a Kendo DatePicker popup calendar."""
         return self.kendo_datepicker.pick_date(trigger_locator=trigger, day_text=day_text)
 
+    def close_page(self) -> None:
+        """Closes the current browser page safely."""
+        self.logger.info("Closing browser page.")
+        try:
+            self.page.close()
+        except Exception as e:
+            self.logger.debug(f"Page close note: {e}")
+

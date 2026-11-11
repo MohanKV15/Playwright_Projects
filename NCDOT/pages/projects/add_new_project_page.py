@@ -3,14 +3,13 @@ import re
 from typing import Optional
 from faker import Faker
 from playwright.sync_api import Page, expect
-from pages.core.base_page import BasePage
-from utils.config import Config
+from pages.projects.project_base_page import ProjectBasePage
 
 logger = logging.getLogger(__name__)
 fake = Faker("en_US")
 
 
-class AddNewProjectPage(BasePage):
+class AddNewProjectPage(ProjectBasePage):
     """
     Page Object Model representing the NCDOT Right of Way (ROW)
     Project Creation and Configuration workflow.
@@ -41,7 +40,6 @@ class AddNewProjectPage(BasePage):
         self.modal_save_button = page.locator(".k-window:visible").get_by_role("button", name=re.compile(r"Save", re.I))
 
         # 3. Project Information Details (#frmPrjView070101)
-        self.project_info_container = page.locator("#frmPrjView070101, #divProjectDetails")
         self.edit_button = page.get_by_role("button", name=re.compile(r"Edit", re.I))
         self.stip_dropdown = page.locator("#frmPrjView070101 .k-dropdown").first
         self.acquisition_type_dropdown = page.locator("#frmPrjView070101 .k-dropdown").nth(1)
@@ -58,45 +56,23 @@ class AddNewProjectPage(BasePage):
         self.wbs_desc_input = page.locator("#WBS_Description:visible, textarea#WBS_Description:visible")
         self.wbs_save_button = page.locator("#PrjWbsSaveBtn:visible, button#PrjWbsSaveBtn").first
 
-        # 5. Project Details Tabs & Parcels
-        self.tabstrip = page.locator("#TabstripProjectDetails")
-        self.tab_display_container = page.locator("#divProjectDetailsTabDisplay")
-        self.parcels_tab = self.tabstrip.get_by_text("Parcels", exact=True)
-        self.add_new_parcel_button = page.locator("#AddNewParcelBtn01:visible")
-        self.parcel_no_input = page.locator("input#Parcel_No:visible, input[name*='Parcel_No']:visible").or_(
-            page.get_by_role("textbox", name="Parcel No *")
-        )
-        self.property_tax_id_input = page.locator("input#Property_Tax_Id:visible, input[name*='Tax_Id']:visible").or_(
+        # 5. Parcel Elements for newly created project
+        self.parcel_no_input = page.locator(
+            "input#tract_no:visible, input#Parcel_No:visible, input[name*='Parcel_No']:visible"
+        ).or_(page.get_by_role("textbox", name="Parcel No *"))
+        self.property_tax_id_input = page.locator("input#rwr_parcelid:visible, input#Property_Tax_Id:visible, input[name*='Tax_Id']:visible").or_(
             page.get_by_role("textbox", name="Property Tax ID *")
         )
-        self.deed_book_page_input = page.locator("input#Deed_Book_Page:visible, input[name*='Deed']:visible").or_(
+        self.deed_book_page_input = page.locator("input#title_company:visible, input#Deed_Book_Page:visible, input[name*='Deed']:visible").or_(
             page.get_by_role("textbox", name="Deed Book/Page *")
         )
         self.parcel_save_button = page.locator(
             "#divProjectDetailsTabDisplay button:visible, .k-window:visible button:visible, button:visible"
         ).filter(has_text=re.compile(r"^\s*Save\b", re.I)).first
 
-        # 6. Role & Task Assignment & Log Tabs
-        self.role_assignment_tab = self.tabstrip.get_by_text("Role Assignment", exact=True)
-        self.task_assignment_tab = self.tabstrip.get_by_text("Task Assignment", exact=True)
-        self.log_tab = self.tabstrip.get_by_text("Log", exact=True)
-
     # =========================================================================
     # Step-by-Step Workflow Actions
     # =========================================================================
-
-    def login_and_navigate_to_projects(self) -> "AddNewProjectPage":
-        """Authenticates via direct entry URL and prepares project dashboard."""
-        from pages.login.login_page import LoginPage
-        login_p = LoginPage(self.page)
-        login_p.navigate_to_login()
-        login_p.login(
-            email=Config.DEFAULT_USER,
-            password=Config.DEFAULT_PASSWORD,
-            pin=Config.DEFAULT_PIN,
-        )
-        self.verify_project_filters_visible()
-        return self
 
     def verify_project_filters_visible(self, timeout_ms: int = 35000) -> "AddNewProjectPage":
         """Waits for page load and table's '+ Add New Project' button visibility."""
@@ -107,9 +83,11 @@ class AddNewProjectPage(BasePage):
     def open_add_new_project_modal(self) -> "AddNewProjectPage":
         """Clicks '+ Add New Project' to open modal dialog."""
         self._wait_for_loader()
+        self.add_new_project_button.first.wait_for(state="visible", timeout=15000)
         self.add_new_project_button.first.click()
+        self.page.wait_for_timeout(1000)
         self._wait_for_loader()
-        expect(self.project_id_input.first).to_be_visible(timeout=10000)
+        expect(self.project_id_input.first).to_be_visible(timeout=15000)
         return self
 
     def fill_and_save_new_project(self, project_id: Optional[str] = None) -> "AddNewProjectPage":
@@ -126,12 +104,6 @@ class AddNewProjectPage(BasePage):
         )
         self.modal_save_button.first.click()
         self._wait_for_loader()
-        return self
-
-    def verify_project_information_visible(self, timeout_ms: int = 30000) -> "AddNewProjectPage":
-        """Asserts visibility of Project Information details container."""
-        self._wait_for_loader()
-        expect(self.project_info_container.first).to_be_visible(timeout=timeout_ms)
         return self
 
     def edit_project_information(self) -> "AddNewProjectPage":
@@ -225,24 +197,6 @@ class AddNewProjectPage(BasePage):
         self.logger.info("WBS: Successfully saved and closed.")
         return self
 
-    def switch_to_tab(self, tab_name: str) -> "AddNewProjectPage":
-        """Navigates to specified project details tab and verifies content display."""
-        self.logger.info(f"Navigating to tab: '{tab_name}'")
-        self._wait_for_loader()
-        tab_link = self.tabstrip.get_by_text(tab_name, exact=True).or_(
-            self.tabstrip.locator("span.k-link", has_text=tab_name)
-        ).first
-        tab_link.wait_for(state="visible", timeout=10000)
-        tab_link.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-        expect(self.tab_display_container.first).to_be_visible(timeout=15000)
-        return self
-
-    def navigate_to_parcels_tab(self) -> "AddNewProjectPage":
-        """Navigates to the Parcels tab and verifies container."""
-        return self.switch_to_tab("Parcels")
-
     def add_parcel(
         self,
         parcel_no: Optional[str] = None,
@@ -272,14 +226,3 @@ class AddNewProjectPage(BasePage):
         self._wait_for_loader()
         return self
 
-    def navigate_to_role_assignment_tab(self) -> "AddNewProjectPage":
-        """Navigates to Role Assignment tab and verifies display."""
-        return self.switch_to_tab("Role Assignment")
-
-    def navigate_to_task_assignment_tab(self) -> "AddNewProjectPage":
-        """Navigates to Task Assignment tab and verifies tab content display."""
-        return self.switch_to_tab("Task Assignment")
-
-    def navigate_to_log_tab(self) -> "AddNewProjectPage":
-        """Navigates to the Log tab and verifies tab content visibility."""
-        return self.switch_to_tab("Log")

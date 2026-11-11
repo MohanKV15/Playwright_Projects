@@ -1,6 +1,6 @@
 import allure
 import pytest
-from pages.dashboard.add_new_project_page import AddNewProjectPage
+from pages.projects.add_new_project_page import AddNewProjectPage
 from testdata.test_data_factory import TestDataFactory
 
 
