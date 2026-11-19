@@ -107,12 +107,8 @@ class ProjectBasePage(BasePage):
         """Navigates to specified project details tab and verifies content display."""
         self.logger.info(f"Navigating to tab: '{tab_name}'")
         self._wait_for_loader()
-        tab_link = self.tabstrip.locator("span.k-link", has_text=tab_name).or_(
-            self.tabstrip.get_by_text(tab_name, exact=True)
-        ).first
-        tab_link.wait_for(state="visible", timeout=10000)
-        tab_link.click()
-        self.page.wait_for_timeout(1000)
+        self.kendo_tabstrip.select_tab(self.tabstrip, tab_name)
+        self.page.wait_for_timeout(800)
         self._wait_for_loader()
         expect(self.tab_display_container.first).to_be_visible(timeout=15000)
         return self

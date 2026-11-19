@@ -9,6 +9,8 @@ from pages.core.kendo_controls import (
     KendoNumericTextBox,
     KendoCheckbox,
     KendoDialog,
+    KendoTabStrip,
+    KendoMultiSelect,
 )
 
 logger = logging.getLogger(__name__)
@@ -30,6 +32,8 @@ class BasePage:
         self.kendo_numeric = self.kendo_controls.numeric
         self.kendo_checkbox = self.kendo_controls.checkbox
         self.kendo_dialog = self.kendo_controls.dialog
+        self.kendo_tabstrip = self.kendo_controls.tabstrip
+        self.kendo_multiselect = self.kendo_controls.multiselect
         self._inject_zoom_init_script()
         self._apply_zoom_script()
 

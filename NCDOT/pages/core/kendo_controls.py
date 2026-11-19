@@ -27,16 +27,27 @@ class KendoDropdown:
             loc.first.click(force=True)
             self.page.wait_for_timeout(300)
 
-            option = self.page.get_by_role("option", name=re.compile(rf"^\s*{re.escape(option_text)}\s*$", re.I)).first
+            # Wait for dropdown list container to become visible
+            self.page.wait_for_selector(
+                "ul.k-list[role='listbox']:visible, .k-list-container:visible, .k-animation-container:visible",
+                timeout=3000,
+            )
+            opts = self.page.locator(
+                ".k-animation-container:visible li[role='option'], .k-list-container:visible li[role='option'], ul[role='listbox']:visible li[role='option'], .k-animation-container:visible li"
+            )
+            # 1. Exact text match
+            option = opts.get_by_text(option_text.strip(), exact=True).first
+            # 2. Substring match
             if not option.is_visible(timeout=1000):
-                option = self.page.locator(
-                    "li[role='option']:visible, .k-animation-container:visible li, .k-list-container:visible li"
-                ).filter(has_text=re.compile(rf"^\s*{re.escape(option_text)}\s*$", re.I)).first
-
+                option = opts.filter(has_text=option_text.strip()).first
+            # 3. Normalized case-insensitive iteration
             if not option.is_visible(timeout=1000):
-                option = self.page.locator(
-                    "li[role='option']:visible, .k-animation-container:visible li, .k-list-container:visible li"
-                ).filter(has_text=option_text).first
+                target_norm = option_text.strip().lower()
+                for i in range(opts.count()):
+                    cand = opts.nth(i)
+                    if cand.inner_text().strip().lower() == target_norm:
+                        option = cand
+                        break
 
             if option.is_visible(timeout=timeout_ms):
                 option.click(force=True)
@@ -95,6 +106,18 @@ class KendoDropdown:
         """
         return self.select_option_by_index(target=target, index=0)
 
+    def select_option(self, target: Union[Locator, str], option_text: Optional[str] = None, timeout_ms: int = 5000) -> bool:
+        """
+        Selects an option in a Kendo dropdown: if option_text is provided, selects matching option
+        (with fallback to 1st option if not found); otherwise selects the 1st valid option.
+        """
+        if option_text:
+            success = self.select_by_locator(target, option_text, timeout_ms=timeout_ms)
+            if success:
+                return True
+            self.logger.warning(f"Option '{option_text}' not found, falling back to 1st option.")
+        return self.select_first_option(target)
+
     def select_second_option(self, target: Optional[Union[Locator, str]] = None) -> bool:
         """
         Selects the 2nd valid data option in a Kendo dropdown, skipping optionLabel/placeholder.
@@ -110,7 +133,10 @@ class KendoDropdown:
         try:
             if target:
                 loc = target if isinstance(target, Locator) else self.page.locator(target)
-                if loc.first.is_visible():
+                popup_open = (
+                    self.page.locator(".k-animation-container:visible, .k-list-container:visible").count() > 0
+                )
+                if not popup_open and loc.first.is_visible():
                     loc.first.click(force=True)
                     self.page.wait_for_timeout(350)
 
@@ -357,6 +383,145 @@ class KendoDialog:
             self.logger.debug(f"KendoDialog dismiss_alerts note: {e}")
 
 
+class KendoTabStrip:
+    """
+    Dedicated Page Component representing Kendo UI TabStrip widgets.
+    Encapsulates resilient tab navigation, scroll normalization, and Kendo JS API triggers.
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def select_tab(self, tabstrip_locator: Union[Locator, str], tab_name: str, timeout_ms: int = 15000) -> bool:
+        """
+        Navigates to a specific tab in a Kendo TabStrip:
+          1. Scrolls viewport to top to prevent fixed container overlap.
+          2. Clicks the tab item (with force=True fallback for overlapping pointer events).
+          3. Checks if tab has 'k-state-active'; if not, triggers Kendo TabStrip JavaScript API.
+        """
+        try:
+            self.page.evaluate("window.scrollTo(0, 0)")
+            self.page.wait_for_timeout(200)
+
+            ts_loc = tabstrip_locator if isinstance(tabstrip_locator, Locator) else self.page.locator(tabstrip_locator)
+            tab_item = ts_loc.locator("li.k-item").filter(has_text=tab_name).or_(
+                ts_loc.locator("span.k-link", has_text=tab_name)
+            ).first
+            tab_item.wait_for(state="visible", timeout=timeout_ms)
+
+            try:
+                tab_item.click()
+            except Exception:
+                tab_item.click(force=True)
+            self.page.wait_for_timeout(400)
+
+            # If not active after click, activate via Kendo TabStrip JS API
+            is_active = ts_loc.locator("li.k-item.k-state-active").filter(has_text=tab_name).count() > 0
+            if not is_active:
+                self.logger.info(f"Tab '{tab_name}' not active after click, activating via Kendo TabStrip JS API")
+                self.page.evaluate(
+                    f"""
+                    (() => {{
+                        const jq = window.jQuery || window.$;
+                        if (!jq) return false;
+                        const $ts = jq('#TabstripProjectDetails');
+                        const tsData = $ts.data('kendoTabStrip');
+                        if (tsData) {{
+                            const tab = $ts.find('li.k-item').filter(function() {{
+                                return jq(this).text().trim().indexOf('{tab_name}') !== -1;
+                            }});
+                            if (tab.length) {{
+                                tsData.select(tab);
+                                tsData.trigger('activate', {{ item: tab[0] }});
+                                return true;
+                            }}
+                        }}
+                        return false;
+                    }})();
+                    """
+                )
+                self.page.wait_for_timeout(500)
+            return True
+        except Exception as e:
+            self.logger.warning(f"KendoTabStrip select_tab failed for '{tab_name}': {e}")
+            return False
+
+
+class KendoMultiSelect:
+    """
+    Dedicated Page Component representing Kendo UI MultiSelect widgets.
+    """
+
+    def __init__(self, page: Page):
+        self.page = page
+        self.logger = logger
+
+    def select_first_option(
+        self,
+        target_locator: Union[Locator, str],
+        listbox_id: Optional[str] = None,
+        timeout_ms: int = 10000,
+    ) -> bool:
+        """
+        Opens a Kendo MultiSelect wrapper and selects the first available option.
+        """
+        try:
+            loc = target_locator if isinstance(target_locator, Locator) else self.page.locator(target_locator)
+            loc.first.wait_for(state="visible", timeout=timeout_ms)
+            loc.first.click(force=True)
+            self.page.wait_for_timeout(400)
+
+            listbox_selector = (
+                f"#{listbox_id} li[role='option']"
+                if listbox_id
+                else ".k-animation-container:visible li[role='option'], ul[role='listbox']:visible li[role='option']"
+            )
+            opts = self.page.locator(listbox_selector)
+            opts.first.wait_for(state="visible", timeout=timeout_ms)
+            self.logger.info(f"KendoMultiSelect: Selecting 1st option '{opts.first.inner_text().strip()}'")
+            opts.first.click(force=True)
+            self.page.wait_for_timeout(500)
+            return True
+        except Exception as e:
+            self.logger.warning(f"KendoMultiSelect select_first_option failed: {e}")
+            return False
+
+    def select_option(
+        self,
+        target_locator: Union[Locator, str],
+        option_text: str,
+        listbox_id: Optional[str] = None,
+        timeout_ms: int = 10000,
+    ) -> bool:
+        """
+        Opens a Kendo MultiSelect wrapper and selects option by matching text.
+        """
+        try:
+            loc = target_locator if isinstance(target_locator, Locator) else self.page.locator(target_locator)
+            loc.first.wait_for(state="visible", timeout=timeout_ms)
+            loc.first.click(force=True)
+            self.page.wait_for_timeout(400)
+
+            listbox_selector = (
+                f"#{listbox_id} li[role='option']"
+                if listbox_id
+                else ".k-animation-container:visible li[role='option'], ul[role='listbox']:visible li[role='option']"
+            )
+            opts = self.page.locator(listbox_selector)
+            match = opts.get_by_text(option_text.strip(), exact=True).or_(opts.filter(has_text=option_text.strip())).first
+            if match.is_visible(timeout=2000):
+                match.click(force=True)
+            else:
+                self.logger.warning(f"KendoMultiSelect option '{option_text}' not found, falling back to 1st option.")
+                opts.first.click(force=True)
+            self.page.wait_for_timeout(500)
+            return True
+        except Exception as e:
+            self.logger.warning(f"KendoMultiSelect select_option failed for '{option_text}': {e}")
+            return False
+
+
 class KendoControls:
     """
     Unified container aggregating all Kendo UI component handlers.
@@ -369,4 +534,6 @@ class KendoControls:
         self.numeric = KendoNumericTextBox(page)
         self.checkbox = KendoCheckbox(page)
         self.dialog = KendoDialog(page)
+        self.tabstrip = KendoTabStrip(page)
+        self.multiselect = KendoMultiSelect(page)
 

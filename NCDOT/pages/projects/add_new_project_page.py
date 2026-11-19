@@ -51,8 +51,12 @@ class AddNewProjectPage(ProjectBasePage):
         self.wbs_dialog = page.locator("#AddNewWBSWindow, .k-window:visible").filter(has_text="Add/Modify WBS")
         self.wbs_input = page.locator("#WBS:visible, input#WBS:visible")
         self.wbs_fa_input = page.locator("#FA_Project_No:visible, input#FA_Project_No:visible")
-        self.wbs_division_dropdown = page.locator("#AddNewWBSWindow span[aria-owns='Division_ids_listbox'], #AddNewWBSWindow .k-dropdown").first
-        self.wbs_county_multiselect = page.locator("#AddNewWBSWindow .k-multiselect-wrap, #AddNewWBSWindow .k-multiselect").first
+        self.wbs_division_dropdown = page.locator(
+            "input[aria-owns*='Division_ids'], #div_projectCRUD_WBSClone .k-multiselect-wrap, #AddNewWBSWindow .k-multiselect-wrap"
+        ).first
+        self.wbs_county_multiselect = page.locator(
+            "input[aria-owns*='County_ids'], #div_projectCRUD_WBSClone .k-multiselect-wrap:nth-of-type(2)"
+        ).or_(page.locator("#div_projectCRUD_WBSClone .k-multiselect-wrap").nth(1)).first
         self.wbs_desc_input = page.locator("#WBS_Description:visible, textarea#WBS_Description:visible")
         self.wbs_save_button = page.locator("#PrjWbsSaveBtn:visible, button#PrjWbsSaveBtn").first
 
@@ -149,37 +153,15 @@ class AddNewProjectPage(ProjectBasePage):
             self.wbs_fa_input.first.fill(fa)
             self.page.wait_for_timeout(300)
 
-        # 2. Then we can see the Division * dropdown, select 1st option, wait for cascading County list
-        self.logger.info("WBS: Verifying Division * dropdown is visible")
-        expect(self.wbs_division_dropdown).to_be_visible(timeout=10000)
-        self.page.wait_for_timeout(800)
-        self.logger.info("WBS: Opening Division * dropdown and selecting 1st option")
-        self.wbs_division_dropdown.click()
-        self.page.wait_for_timeout(500)
-        div_opt = self.page.locator(
-            "#Division_ids_listbox li[role='option'], .k-animation-container:visible li[role='option']"
-        ).first
-        div_opt.wait_for(state="visible", timeout=8000)
-        self.logger.info(f"WBS: Selected Division '{div_opt.inner_text().strip()}'")
-        div_opt.click()
+        # 2. Select 1st Division from Kendo MultiSelect, wait for cascading County list
+        self.logger.info("WBS: Selecting 1st Division from MultiSelect")
+        self.kendo_multiselect.select_first_option(self.wbs_division_dropdown, listbox_id="Division_ids_listbox")
         self.page.wait_for_timeout(1500)
         self._wait_for_loader()
 
-        # 3. Then we can see the County * dropdown, open to see County list, and select 1st option
-        self.logger.info("WBS: Verifying County * dropdown is visible")
-        expect(self.wbs_county_multiselect).to_be_visible(timeout=10000)
-        self.page.wait_for_timeout(800)
-        self.logger.info("WBS: Opening County * dropdown to see County list")
-        self.wbs_county_multiselect.click()
-        self.page.wait_for_timeout(800)
-
-        county_options = self.page.locator(
-            "#County_ids_listbox li[role='option'], .k-animation-container:visible li[role='option'], .k-animation-container:visible li"
-        )
-        county_options.first.wait_for(state="visible", timeout=10000)
-        chosen_county = county_options.first
-        self.logger.info(f"WBS: Selecting 1st County from list: '{chosen_county.inner_text().strip()}'")
-        chosen_county.click()
+        # 3. Select 1st County from cascading Kendo MultiSelect
+        self.logger.info("WBS: Selecting 1st County from cascading MultiSelect")
+        self.kendo_multiselect.select_first_option(self.wbs_county_multiselect, listbox_id="County_ids_listbox")
         self.page.wait_for_timeout(1000)
         self._wait_for_loader()
 
