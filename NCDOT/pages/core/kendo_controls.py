@@ -104,7 +104,26 @@ class KendoDropdown:
         """
         Selects the first valid data option in a Kendo dropdown, skipping optionLabel/placeholder.
         """
-        return self.select_option_by_index(target=target, index=0)
+        success = self.select_option_by_index(target=target, index=0)
+        if target:
+            try:
+                loc = target if isinstance(target, Locator) else self.page.locator(target)
+                curr_txt = loc.first.inner_text().strip()
+                if not success or "--Select" in curr_txt or not curr_txt:
+                    elem_id = ""
+                    if isinstance(target, str) and target.startswith("#"):
+                        elem_id = target.lstrip("#")
+                    elif isinstance(target, Locator):
+                        elem_id = (
+                            loc.locator("input, select").first.get_attribute("id")
+                            or loc.first.get_attribute("id")
+                            or ""
+                        )
+                    if elem_id:
+                        return self.select_by_id(elem_id, index=1)
+            except Exception:
+                pass
+        return success
 
     def select_option(self, target: Union[Locator, str], option_text: Optional[str] = None, timeout_ms: int = 5000) -> bool:
         """
@@ -179,6 +198,23 @@ class KendoDropdown:
             if self.select_by_id(target, option_text):
                 return True
         return self.select_by_locator(target, option_text, timeout_ms=timeout_ms)
+
+    def wait_for_cascading(self, index: int = 4, timeout_ms: int = 15000) -> bool:
+        """
+        Waits for cascading Kendo dropdowns (such as header dropdowns) to finish populating data.
+        """
+        max_attempts = max(1, timeout_ms // 500)
+        for _ in range(max_attempts):
+            ddls = self.page.locator(".k-dropdown")
+            count = ddls.count()
+            if count > 0:
+                target_idx = min(index, count - 1)
+                val = ddls.nth(target_idx).inner_text().strip()
+                if val and not val.startswith("--") and "select" not in val.lower():
+                    self.logger.info(f"Cascading dropdown #{target_idx} loaded with value: '{val}'")
+                    return True
+            self.page.wait_for_timeout(500)
+        return False
 
 
 class KendoDatePicker:
@@ -382,6 +418,75 @@ class KendoDialog:
         except Exception as e:
             self.logger.debug(f"KendoDialog dismiss_alerts note: {e}")
 
+    def handle_alert(
+        self,
+        pattern: str = r"already exist|already saved|saved already|Alert",
+        button_text: str = "OK",
+        timeout_ms: int = 1500,
+    ) -> bool:
+        """
+        Detects if a Kendo alert/dialog popup matching the pattern is visible,
+        clicks the specified button (e.g. 'OK'), and dismisses it cleanly.
+        """
+        try:
+            alert_popup = self.page.locator(".k-dialog:visible, .k-window:visible, .k-alert:visible")
+            if alert_popup.count() == 0:
+                if not alert_popup.first.is_visible(timeout=min(timeout_ms, 1000)):
+                    return False
+            filter_popup = alert_popup.filter(has_text=re.compile(pattern, re.I))
+            if filter_popup.count() > 0 and filter_popup.first.is_visible(timeout=800):
+                self.logger.info(f"KendoDialog alert detected matching '{pattern}'. Clicking '{button_text}'.")
+                btn = filter_popup.first.locator("button, a, .k-button").filter(
+                    has_text=re.compile(rf"^\s*{button_text}\s*$", re.I)
+                ).first
+                if btn.is_visible(timeout=1000):
+                    btn.click(force=True)
+                    self.page.wait_for_timeout(200)
+                    return True
+        except Exception as e:
+            self.logger.debug(f"KendoDialog handle_alert note: {e}")
+        return False
+
+    def close_window(self, window_title: Optional[str] = None, timeout_ms: int = 3000) -> bool:
+        """
+        Closes a visible Kendo window/modal dialog using close button or Kendo Window JavaScript API.
+        """
+        try:
+            win_loc = self.page.locator(".k-window:visible")
+            if window_title:
+                win_loc = win_loc.filter(has_text=window_title)
+
+            if win_loc.count() > 0:
+                close_btn = win_loc.locator(
+                    ".k-window-action[aria-label='Close'], button:visible"
+                ).filter(has_text=re.compile(r"Close|Cancel", re.I)).first
+                if close_btn.is_visible(timeout=1000):
+                    close_btn.click(force=True)
+                    self.page.wait_for_timeout(400)
+
+            # Fallback to Kendo Window JS API
+            if win_loc.count() > 0:
+                self.page.evaluate(
+                    f"""
+                    (() => {{
+                        const jq = window.jQuery || window.$;
+                        if (!jq) return false;
+                        const title = '{window_title or ""}'.toLowerCase();
+                        jq(".k-window:visible").filter(function() {{
+                            return !title || jq(this).text().toLowerCase().indexOf(title) !== -1;
+                        }}).find(".k-window-content").each(function() {{
+                            const win = jq(this).data("kendoWindow");
+                            if (win) win.close();
+                        }});
+                    }})();
+                    """
+                )
+                self.page.wait_for_timeout(400)
+            return True
+        except Exception as e:
+            self.logger.debug(f"KendoDialog close_window note: {e}")
+            return False
+
 
 class KendoTabStrip:
     """
@@ -411,24 +516,34 @@ class KendoTabStrip:
             tab_item.wait_for(state="visible", timeout=timeout_ms)
 
             try:
-                tab_item.click()
+                tab_item.click(timeout=1000)
             except Exception:
                 tab_item.click(force=True)
-            self.page.wait_for_timeout(400)
+            self.page.wait_for_timeout(200)
 
             # If not active after click, activate via Kendo TabStrip JS API
             is_active = ts_loc.locator("li.k-item.k-state-active").filter(has_text=tab_name).count() > 0
             if not is_active:
                 self.logger.info(f"Tab '{tab_name}' not active after click, activating via Kendo TabStrip JS API")
+                ts_id = ""
+                if isinstance(tabstrip_locator, str) and (tabstrip_locator.startswith("#") or tabstrip_locator.isalnum()):
+                    ts_id = tabstrip_locator.lstrip("#")
+                else:
+                    try:
+                        ts_id = ts_loc.first.get_attribute("id") or ""
+                    except Exception:
+                        ts_id = ""
+
+                selector_js = f"jq('#{ts_id}')" if ts_id else "jq('.k-tabstrip')"
                 self.page.evaluate(
                     f"""
                     (() => {{
                         const jq = window.jQuery || window.$;
                         if (!jq) return false;
-                        const $ts = jq('#TabstripProjectDetails');
-                        const tsData = $ts.data('kendoTabStrip');
+                        const $elem = {selector_js};
+                        const tsData = $elem.data('kendoTabStrip');
                         if (tsData) {{
-                            const tab = $ts.find('li.k-item').filter(function() {{
+                            const tab = jq(tsData.element).find('li.k-item').filter(function() {{
                                 return jq(this).text().trim().indexOf('{tab_name}') !== -1;
                             }});
                             if (tab.length) {{

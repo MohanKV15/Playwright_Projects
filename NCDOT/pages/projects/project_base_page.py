@@ -117,6 +117,41 @@ class ProjectBasePage(BasePage):
         """Navigates to the Parcels tab."""
         return self.switch_to_tab("Parcels")
 
+    def open_parcel_in_parcel_central(
+        self,
+        parcel_identifier: Optional[str] = "111",
+        row_index: int = 0,
+        timeout_ms: int = 30000,
+    ) -> "ProjectBasePage":
+        """
+        Selects a parcel record from the Parcels grid and clicks '#btnGeneralParcelPrjEdit'
+        to navigate into Parcel Central, waiting for cascading header synchronization.
+        """
+        self.logger.info(f"Opening Parcel in Parcel Central (identifier='{parcel_identifier}', index={row_index})")
+        self._wait_for_loader()
+        parcel_edit_buttons = self.page.locator(
+            "#btnGeneralParcelPrjEdit:visible, a#btnGeneralParcelPrjEdit:visible, button#btnGeneralParcelPrjEdit:visible"
+        )
+        parcel_edit_buttons.first.wait_for(state="visible", timeout=timeout_ms)
+
+        if parcel_identifier:
+            row = self.page.locator("tbody tr, .k-grid-content tr").filter(
+                has_text=re.compile(re.escape(parcel_identifier), re.I)
+            )
+            if row.count() > 0 and row.first.is_visible():
+                row.first.locator(parcel_edit_buttons).first.click()
+            else:
+                self.logger.warning(f"Row matching '{parcel_identifier}' not found. Selecting index {row_index}.")
+                parcel_edit_buttons.nth(row_index).click()
+        else:
+            parcel_edit_buttons.nth(row_index).click()
+
+        self.page.wait_for_timeout(1000)
+        self._wait_for_loader()
+        self.kendo_dropdown.wait_for_cascading(index=4, timeout_ms=15000)
+        self._wait_for_loader()
+        return self
+
     def navigate_to_role_assignment_tab(self) -> "ProjectBasePage":
         """Navigates to Role Assignment tab and verifies tab content display."""
         return self.switch_to_tab("Role Assignment")

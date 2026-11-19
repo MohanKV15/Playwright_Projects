@@ -10,6 +10,10 @@ from pages.dashboard.dashboard_page import DashboardPage
 from pages.projects.add_new_project_page import AddNewProjectPage
 from pages.projects.project_listing_view_page import ProjectListingViewPage
 from pages.parcel_central.parcel_information_page import ParcelInformationPage
+from pages.parcel_central.workflow_assignment_page import WorkflowAssignmentPage
+from pages.parcel_central.task_assignment_page import TaskAssignmentPage
+from pages.parcel_central.owner_tenant_page import OwnerTenantPage
+from pages.parcel_central.appraisal_request_page import AppraisalRequestPage
 
 
 @pytest.fixture(scope="function")
@@ -40,3 +44,27 @@ def project_listing_view_page(page: Page) -> ProjectListingViewPage:
 def parcel_information_page(page: Page) -> ParcelInformationPage:
     """Fixture providing an initialized ParcelInformationPage instance."""
     return ParcelInformationPage(page)
+
+
+@pytest.fixture(scope="function")
+def workflow_assignment_page(page: Page) -> WorkflowAssignmentPage:
+    """Fixture providing an initialized WorkflowAssignmentPage instance."""
+    return WorkflowAssignmentPage(page)
+
+
+@pytest.fixture(scope="function")
+def task_assignment_page(page: Page) -> TaskAssignmentPage:
+    """Fixture providing an initialized TaskAssignmentPage instance."""
+    return TaskAssignmentPage(page)
+
+
+@pytest.fixture(scope="function")
+def owner_tenant_page(page: Page) -> OwnerTenantPage:
+    """Fixture providing an initialized OwnerTenantPage instance."""
+    return OwnerTenantPage(page)
+
+
+@pytest.fixture(scope="function")
+def appraisal_request_page(page: Page) -> AppraisalRequestPage:
+    """Fixture providing an initialized AppraisalRequestPage instance."""
+    return AppraisalRequestPage(page)
