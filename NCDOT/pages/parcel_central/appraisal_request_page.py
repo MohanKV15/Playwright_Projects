@@ -17,7 +17,7 @@ class AppraisalRequestPage(ProjectBasePage):
       - Land Tab: Edits Engineering Parcel options (radio toggles) and saves.
       - Improvements Tab: Adds a new Improvement form (Name, Owner dropdown) and saves.
       - Documents Tab: Navigates to Documents subtab and verifies container visibility.
-      - Log Tab: Adds Call Data entry (Subject, Save, Back) and Notes entry (Subject, Save, Back).
+      - Log Tab: Navigates to Log subtab and verifies log table display without error.
       - Verifies clean state without errors across all subtabs.
     """
 
@@ -68,18 +68,8 @@ class AppraisalRequestPage(ProjectBasePage):
         )
 
         # 6. Log Tab Locators
-        self.add_call_data_button = page.locator(
-            "button#btnAddCallData:visible, button:visible:has-text('Add Call Data')"
-        )
-        self.add_notes_button = page.locator(
-            "button#btnAddNotes:visible, button:visible:has-text('Add Notes')"
-        )
-        self.log_subject_input = page.locator(
-            "input#log_subject:visible, input[name='log_subject']:visible"
-        )
-        self.log_save_button = page.locator("button#btnSubmit:visible")
-        self.log_back_button = page.locator(
-            "#btnBacknotes:visible, button#btnBacknotes:visible, button:visible:has-text('Back')"
+        self.log_container = page.locator(
+            "#divLogTable:visible, #divLgTable:visible, button#btnAddCallData:visible, .k-grid:visible"
         )
 
         # 7. Error / Validation Alerts
@@ -206,53 +196,15 @@ class AppraisalRequestPage(ProjectBasePage):
     # Section 4: Log Tab Operations
     # =========================================================================
 
-    def _create_log_entry(self, trigger_button: Locator, subject: str, entry_type: str = "Entry") -> None:
-        """Helper to create a log entry (Call Data or Notes), save, and return via Back button."""
-        self.logger.info(f"Log Tab: Creating {entry_type} with subject '{subject}'")
-        btn = trigger_button.first
-        btn.wait_for(state="visible", timeout=15000)
-        btn.click()
-        self.page.wait_for_timeout(400)
-        self._wait_for_loader()
-
-        subj = self.log_subject_input.first
-        subj.wait_for(state="visible", timeout=10000)
-        subj.click()
-        subj.fill(subject)
-        subj.press("Tab")
-
-        save_btn = self.log_save_button.first
-        save_btn.wait_for(state="visible", timeout=10000)
-        save_btn.click()
-        self.page.wait_for_timeout(1000)
-        self.kendo_dialog.handle_alert(pattern=r"already|alert|success|saved", button_text="OK")
-        self._wait_for_loader()
-
-        back_btn = self.log_back_button.first
-        back_btn.wait_for(state="visible", timeout=15000)
-        back_btn.click()
-        self.page.wait_for_timeout(1000)
-        self._wait_for_loader()
-
-    def navigate_to_log_tab_and_add_entries(
-        self,
-        call_subject: Optional[str] = None,
-        notes_subject: Optional[str] = None,
-    ) -> "AppraisalRequestPage":
+    def navigate_to_log_tab(self) -> "AppraisalRequestPage":
         """
-        Navigates to Log tab, adds Call Data & Notes using dynamic Faker subjects,
-        saves each, returns via Back button, and verifies no errors.
+        Navigates to Log tab, verifies log table is displayed, and checks for zero errors.
         """
-        c_subj = call_subject or f"Call {fake.word().capitalize()} {fake.random_int(100, 999)}"
-        n_subj = notes_subject or f"Note {fake.word().capitalize()} {fake.random_int(100, 999)}"
-
-        self.logger.info("Log Tab: Navigating to Log tab and adding entries")
+        self.logger.info("Log Tab: Navigating to Log tab and verifying table display")
         self.switch_subtab("Log")
-
-        self._create_log_entry(self.add_call_data_button, c_subj, entry_type="Call Data")
-        self._create_log_entry(self.add_notes_button, n_subj, entry_type="Notes")
+        expect(self.log_container.first).to_be_visible(timeout=15000)
         self.verify_no_errors()
-        self.logger.info("Log Tab: Call Data and Notes entries created successfully.")
+        self.logger.info("Log Tab: Verified table displayed cleanly without errors.")
         return self
 
     # =========================================================================

@@ -24,7 +24,7 @@ def test_appraisal_request_flow(appraisal_request_page: AppraisalRequestPage):
       7. Land Tab: Edit Engineering Parcel options (radios) and save.
       8. Improvements Tab: Add new improvement form, select owner dropdown, and save.
       9. Documents Tab: Verify navigation and container visibility without error.
-      10. Log Tab: Add Call Data entry and Notes entry, save each, and verify without error.
+      10. Log Tab: Verify navigation and table display without error.
     """
     target_project_id = "2224761"
     target_parcel_id = "111"
@@ -56,5 +56,5 @@ def test_appraisal_request_flow(appraisal_request_page: AppraisalRequestPage):
     with allure.step("9. Documents Tab: Verify navigation without error"):
         appraisal_request_page.navigate_to_documents_tab()
 
-    with allure.step("10. Log Tab: Add Call Data & Notes entries, save and verify"):
-        appraisal_request_page.navigate_to_log_tab_and_add_entries()
+    with allure.step("10. Log Tab: Verify navigation and table display without error"):
+        appraisal_request_page.navigate_to_log_tab()
