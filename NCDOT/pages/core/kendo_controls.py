@@ -110,15 +110,49 @@ class KendoDropdown:
                 loc = target if isinstance(target, Locator) else self.page.locator(target)
                 curr_txt = loc.first.inner_text().strip()
                 if not success or "--Select" in curr_txt or not curr_txt:
+                    # 1. Try JS evaluate on the target element directly to trigger Kendo widget select
+                    try:
+                        res = loc.first.evaluate(
+                            """
+                            (el) => {
+                                const jq = window.jQuery || window.$;
+                                if (!jq) return false;
+                                let ddl = jq(el).data('kendoDropDownList');
+                                if (!ddl) ddl = jq(el).closest('.k-widget').data('kendoDropDownList');
+                                if (!ddl) {
+                                    const owns = jq(el).attr('aria-owns') || jq(el).closest('[aria-owns]').attr('aria-owns') || '';
+                                    if (owns) ddl = jq('#' + owns.replace('_listbox', '')).data('kendoDropDownList');
+                                }
+                                if (!ddl) ddl = jq(el).prev('select, input').data('kendoDropDownList');
+                                if (!ddl) ddl = jq(el).parent().find('select, input').data('kendoDropDownList');
+                                if (ddl) {
+                                    const idx = ddl.options.optionLabel ? 1 : 0;
+                                    ddl.select(idx);
+                                    ddl.trigger('change');
+                                    return true;
+                                }
+                                return false;
+                            }
+                            """
+                        )
+                        if res:
+                            self.logger.info("KendoDropdown: selected 1st option via element evaluate")
+                            return True
+                    except Exception:
+                        pass
+
                     elem_id = ""
                     if isinstance(target, str) and target.startswith("#"):
                         elem_id = target.lstrip("#")
                     elif isinstance(target, Locator):
-                        elem_id = (
-                            loc.locator("input, select").first.get_attribute("id")
-                            or loc.first.get_attribute("id")
-                            or ""
-                        )
+                        owns = loc.first.get_attribute("aria-owns") or ""
+                        elem_id = owns.replace("_listbox", "") if owns else ""
+                        if not elem_id:
+                            elem_id = (
+                                loc.locator("input, select").first.get_attribute("id")
+                                or loc.first.get_attribute("id")
+                                or ""
+                            )
                     if elem_id:
                         return self.select_by_id(elem_id, index=1)
             except Exception:
@@ -156,7 +190,11 @@ class KendoDropdown:
                     self.page.locator(".k-animation-container:visible, .k-list-container:visible").count() > 0
                 )
                 if not popup_open and loc.first.is_visible():
-                    loc.first.click(force=True)
+                    wrap = loc.first.locator(".k-dropdown-wrap, .k-input, .k-select").first
+                    if wrap.is_visible():
+                        wrap.click()
+                    else:
+                        loc.first.click(force=True)
                     self.page.wait_for_timeout(350)
 
             self.page.wait_for_selector(

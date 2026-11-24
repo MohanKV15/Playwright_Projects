@@ -14,6 +14,9 @@ from pages.parcel_central.workflow_assignment_page import WorkflowAssignmentPage
 from pages.parcel_central.task_assignment_page import TaskAssignmentPage
 from pages.parcel_central.owner_tenant_page import OwnerTenantPage
 from pages.parcel_central.appraisal_request_page import AppraisalRequestPage
+from pages.parcel_central.appraisal_page import AppraisalPage
+from pages.parcel_central.appraisal_review_page import AppraisalReviewPage
+from pages.parcel_central.offer_negotiations_page import OfferNegotiationsPage
 
 
 @pytest.fixture(scope="function")
@@ -68,3 +71,23 @@ def owner_tenant_page(page: Page) -> OwnerTenantPage:
 def appraisal_request_page(page: Page) -> AppraisalRequestPage:
     """Fixture providing an initialized AppraisalRequestPage instance."""
     return AppraisalRequestPage(page)
+
+
+@pytest.fixture(scope="function")
+def appraisal_page(page: Page) -> AppraisalPage:
+    """Fixture providing an initialized AppraisalPage instance."""
+    return AppraisalPage(page)
+
+
+@pytest.fixture(scope="function")
+def appraisal_review_page(page: Page) -> AppraisalReviewPage:
+    """Fixture providing an initialized AppraisalReviewPage instance."""
+    return AppraisalReviewPage(page)
+
+
+@pytest.fixture(scope="function")
+def offer_negotiations_page(page: Page) -> OfferNegotiationsPage:
+    """Fixture providing an initialized OfferNegotiationsPage instance."""
+    return OfferNegotiationsPage(page)
+
+
